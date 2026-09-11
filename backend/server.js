@@ -2,7 +2,10 @@ import express from 'express';
 import cors from 'cors';
 
 import healthRouter from './routes/health.js';
+import authRouter   from './routes/auth.js';
+import rbacRouter   from './routes/rbac.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { store } from './data/store.js';
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -17,11 +20,10 @@ app.use(express.json());
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 app.use('/api/health', healthRouter);
+app.use('/api/auth',   authRouter);
+app.use('/api/rbac',   rbacRouter);
 
 // ─── Summary stats (foundation convenience endpoint) ──────────────────────────
-// Inline here since it is a simple data read; no separate controller needed yet.
-import { store } from './data/store.js';
-
 app.get('/api/summary', (req, res) => {
   res.status(200).json({
     usersCount: store.users.length,
