@@ -1,9 +1,10 @@
 import express from 'express';
 import cors from 'cors';
 
-import healthRouter from './routes/health.js';
-import authRouter   from './routes/auth.js';
-import rbacRouter   from './routes/rbac.js';
+import healthRouter  from './routes/health.js';
+import authRouter    from './routes/auth.js';
+import rbacRouter    from './routes/rbac.js';
+import venueRouter   from './routes/venues.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { store } from './data/store.js';
 
@@ -22,6 +23,7 @@ app.use(express.json());
 app.use('/api/health', healthRouter);
 app.use('/api/auth',   authRouter);
 app.use('/api/rbac',   rbacRouter);
+app.use('/api/venues', venueRouter);
 
 // ─── Summary stats (foundation convenience endpoint) ──────────────────────────
 app.get('/api/summary', (req, res) => {

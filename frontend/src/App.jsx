@@ -1,14 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import AuthPage from './pages/AuthPage';
+import VenuesPage from './pages/VenuesPage';
+import VenueDetailPage from './pages/VenueDetailPage';
+import OwnerVenuesPage from './pages/OwnerVenuesPage';
 import { fetchHealth, fetchSummary } from './services/api';
-import { Server, CheckCircle2, ShieldCheck, Database, User, Building2 } from 'lucide-react';
+import { Server, CheckCircle2, ShieldCheck, Database, User, Building2, ArrowRight } from 'lucide-react';
 
-// ─── Foundation home page ─────────────────────────────────────────────────────
+// ─── Home page ────────────────────────────────────────────────────────────────
 
 function HomePage() {
   const { isAuthenticated, user, role } = useAuth();
@@ -37,29 +40,45 @@ function HomePage() {
             <div className="w-12 h-12 rounded-full bg-purple-600 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
               {user.name?.charAt(0).toUpperCase()}
             </div>
-            <div>
+            <div className="flex-1">
               <p className="font-semibold text-slate-900">Welcome back, {user.name}!</p>
               <p className="text-sm text-slate-500">Signed in as <span className="font-medium text-purple-600">{role}</span></p>
             </div>
+            {role === 'OWNER' && (
+              <Link
+                to="/owner/venues"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              >
+                My Venues <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            )}
           </div>
         )}
 
         <div className="text-center max-w-3xl mx-auto mb-12">
           <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-purple-100 text-purple-700 text-sm font-medium mb-4">
             <CheckCircle2 className="w-4 h-4" />
-            <span>TASK 1 — Authentication & RBAC Ready</span>
+            <span>TASK 2 — Venues</span>
           </div>
           <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight sm:text-5xl">
-            Quick<span className="text-purple-600">Court</span> Platform Core
+            Quick<span className="text-purple-600">Court</span> Platform
           </h1>
           <p className="mt-4 text-lg text-slate-600">
-            Full-stack sports court booking engine with JWT authentication and role-based access control.
+            Find and book the best sports courts near you.
           </p>
+          <div className="mt-6">
+            <Link
+              to="/venues"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
+            >
+              Browse Venues
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
         </div>
 
         {/* Status Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-          {/* Express API */}
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
             <div className="w-12 h-12 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center mb-4">
               <Server className="w-6 h-6" />
@@ -72,7 +91,6 @@ function HomePage() {
             </div>
           </div>
 
-          {/* In-memory store */}
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
             <div className="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center mb-4">
               <Database className="w-6 h-6" />
@@ -84,7 +102,6 @@ function HomePage() {
             </div>
           </div>
 
-          {/* RBAC */}
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
             <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-4">
               <ShieldCheck className="w-6 h-6" />
@@ -104,39 +121,7 @@ function HomePage() {
   );
 }
 
-// ─── Placeholder role-specific stubs (future tasks will replace these) ────────
-
-function CustomerDashboardStub() {
-  return (
-    <ProtectedRoute role="CUSTOMER">
-      <div className="min-h-screen flex flex-col bg-slate-50"><Header />
-        <main className="flex-1 flex items-center justify-center">
-          <div className="text-center p-12">
-            <User className="w-12 h-12 text-purple-600 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-slate-900 mb-2">Customer Dashboard</h2>
-            <p className="text-slate-500">Coming in a future task.</p>
-          </div>
-        </main>
-      </div>
-    </ProtectedRoute>
-  );
-}
-
-function OwnerDashboardStub() {
-  return (
-    <ProtectedRoute role="OWNER">
-      <div className="min-h-screen flex flex-col bg-slate-50"><Header />
-        <main className="flex-1 flex items-center justify-center">
-          <div className="text-center p-12">
-            <Building2 className="w-12 h-12 text-emerald-600 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-slate-900 mb-2">Owner Dashboard</h2>
-            <p className="text-slate-500">Coming in a future task.</p>
-          </div>
-        </main>
-      </div>
-    </ProtectedRoute>
-  );
-}
+// ─── Placeholder admin stub ───────────────────────────────────────────────────
 
 function AdminDashboardStub() {
   return (
@@ -161,13 +146,14 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/"          element={<HomePage />} />
-          <Route path="/auth"      element={<AuthPage />} />
-          <Route path="/customer"  element={<CustomerDashboardStub />} />
-          <Route path="/owner"     element={<OwnerDashboardStub />} />
-          <Route path="/admin"     element={<AdminDashboardStub />} />
+          <Route path="/"              element={<HomePage />} />
+          <Route path="/auth"          element={<AuthPage />} />
+          <Route path="/venues"        element={<VenuesPage />} />
+          <Route path="/venues/:id"    element={<VenueDetailPage />} />
+          <Route path="/owner/venues"  element={<OwnerVenuesPage />} />
+          <Route path="/admin"         element={<AdminDashboardStub />} />
           {/* Catch-all → home */}
-          <Route path="*"          element={<Navigate to="/" replace />} />
+          <Route path="*"              element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

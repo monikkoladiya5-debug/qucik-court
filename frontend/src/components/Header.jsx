@@ -1,13 +1,27 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Activity, LogOut, User, Building2, ShieldCheck } from 'lucide-react';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { Activity, LogOut, User, Building2, ShieldCheck, LayoutDashboard } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const ROLE_META = {
-  CUSTOMER:  { label: 'Player',       icon: User,       color: 'text-purple-600', bg: 'bg-purple-50' },
-  OWNER:     { label: 'Venue Owner',  icon: Building2,  color: 'text-emerald-600', bg: 'bg-emerald-50' },
-  ADMIN:     { label: 'Admin',        icon: ShieldCheck, color: 'text-slate-700', bg: 'bg-slate-100' },
+  CUSTOMER:  { label: 'Player',       icon: User,        color: 'text-purple-600',  bg: 'bg-purple-50'  },
+  OWNER:     { label: 'Venue Owner',  icon: Building2,   color: 'text-emerald-600', bg: 'bg-emerald-50' },
+  ADMIN:     { label: 'Admin',        icon: ShieldCheck, color: 'text-slate-700',   bg: 'bg-slate-100'  },
 };
+
+function NavItem({ to, children }) {
+  return (
+    <NavLink
+      to={to}
+      className={({ isActive }) =>
+        `text-sm font-medium transition-colors focus:outline-none focus:text-purple-600
+         ${isActive ? 'text-purple-700' : 'text-slate-600 hover:text-slate-900'}`
+      }
+    >
+      {children}
+    </NavLink>
+  );
+}
 
 export default function Header() {
   const { isAuthenticated, user, role, logout } = useAuth();
@@ -24,16 +38,27 @@ export default function Header() {
     <header className="bg-white border-b border-slate-200 sticky top-0 z-40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Logo */}
-        <Link to="/" className="flex items-center space-x-3 focus:outline-none focus:ring-2 focus:ring-purple-500 rounded-lg">
-          <div className="w-10 h-10 rounded-xl bg-purple-600 flex items-center justify-center text-white shadow-md shadow-purple-200">
-            <Activity className="w-6 h-6" />
-          </div>
-          <div>
+        <div className="flex items-center gap-6">
+          <Link to="/" className="flex items-center space-x-3 focus:outline-none focus:ring-2 focus:ring-purple-500 rounded-lg">
+            <div className="w-10 h-10 rounded-xl bg-purple-600 flex items-center justify-center text-white shadow-md shadow-purple-200">
+              <Activity className="w-6 h-6" />
+            </div>
             <span className="text-xl font-bold tracking-tight text-slate-900">
               Quick<span className="text-purple-600">Court</span>
             </span>
-          </div>
-        </Link>
+          </Link>
+
+          {/* Nav links */}
+          <nav className="hidden sm:flex items-center gap-5" aria-label="Main navigation">
+            <NavItem to="/venues">Venues</NavItem>
+            {isAuthenticated && role === 'OWNER' && (
+              <NavItem to="/owner/venues">My Venues</NavItem>
+            )}
+            {isAuthenticated && role === 'ADMIN' && (
+              <NavItem to="/admin">Admin</NavItem>
+            )}
+          </nav>
+        </div>
 
         {/* Right side */}
         <div className="flex items-center space-x-3">

@@ -95,3 +95,68 @@ export async function loginAdmin({ email, password, verificationCode }) {
 export async function fetchMe() {
   return apiRequest('GET', '/auth/me', null, true);
 }
+
+// ─── Venues ───────────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/venues?city=&sport=&search=&indoor=
+ * Returns { status, count, venues }
+ */
+export async function fetchVenues(filters = {}) {
+  const params = new URLSearchParams();
+  if (filters.city)   params.set('city',   filters.city);
+  if (filters.sport)  params.set('sport',  filters.sport);
+  if (filters.search) params.set('search', filters.search);
+  if (filters.indoor !== undefined) params.set('indoor', String(filters.indoor));
+  const qs = params.toString();
+  return apiRequest('GET', `/venues${qs ? `?${qs}` : ''}`);
+}
+
+/**
+ * GET /api/venues/:id
+ * Returns { status, venue }
+ */
+export async function fetchVenue(id) {
+  return apiRequest('GET', `/venues/${id}`);
+}
+
+/**
+ * GET /api/venues/meta/cities  →  { cities }
+ * GET /api/venues/meta/sports  →  { sports }
+ */
+export async function fetchVenueMeta() {
+  const [cities, sports] = await Promise.all([
+    apiRequest('GET', '/venues/meta/cities'),
+    apiRequest('GET', '/venues/meta/sports'),
+  ]);
+  return { cities: cities.cities, sports: sports.sports };
+}
+
+/**
+ * GET /api/venues/my/venues  (OWNER)
+ */
+export async function fetchMyVenues() {
+  return apiRequest('GET', '/venues/my/venues', null, true);
+}
+
+/**
+ * POST /api/venues  (OWNER)
+ */
+export async function createVenue(data) {
+  return apiRequest('POST', '/venues', data, true);
+}
+
+/**
+ * PUT /api/venues/:id  (OWNER)
+ */
+export async function updateVenue(id, data) {
+  return apiRequest('PUT', `/venues/${id}`, data, true);
+}
+
+/**
+ * DELETE /api/venues/:id  (OWNER)
+ */
+export async function deleteVenue(id) {
+  return apiRequest('DELETE', `/venues/${id}`, null, true);
+}
+

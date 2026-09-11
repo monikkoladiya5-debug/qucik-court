@@ -8,9 +8,10 @@ import { AUTH_CONFIG } from '../config/auth.js';
 const { saltRounds, ROLES } = AUTH_CONFIG;
 
 // Pre-hash demo passwords synchronously at startup (one-time cost, acceptable for dev)
-const customerHash = bcrypt.hashSync('customer123', saltRounds);
-const ownerHash    = bcrypt.hashSync(AUTH_CONFIG.ownerPassword, saltRounds);
-const adminHash    = bcrypt.hashSync(AUTH_CONFIG.adminPassword, saltRounds);
+const customerHash  = bcrypt.hashSync('customer123', saltRounds);
+const ownerHash     = bcrypt.hashSync(AUTH_CONFIG.ownerPassword, saltRounds);
+const owner2Hash    = bcrypt.hashSync('owner2pass', saltRounds);
+const adminHash     = bcrypt.hashSync(AUTH_CONFIG.adminPassword, saltRounds);
 
 export const store = {
   users: [
@@ -37,6 +38,18 @@ export const store = {
       passwordHash: ownerHash,
     },
     {
+      // Second owner — used for cross-owner RBAC verification
+      id: 'u-104',
+      name: 'Priya Mehta',
+      email: 'owner2@quickcourt.com',
+      phone: '+91 97654 32109',
+      role: ROLES.OWNER,
+      status: 'active',
+      businessName: 'Mumbai Sports Hub',
+      venueLocation: 'Andheri, Mumbai',
+      passwordHash: owner2Hash,
+    },
+    {
       id: 'u-103',
       name: 'Platform Administrator',
       email: AUTH_CONFIG.adminEmail,
@@ -51,7 +64,9 @@ export const store = {
     {
       id: 'v-1',
       name: 'Game Arena',
+      description: 'Premium multi-sport facility in the heart of Bodakdev featuring professional-grade courts, climate-controlled halls, and top-tier equipment for a world-class playing experience.',
       location: 'Bodakdev, Ahmedabad, Gujarat',
+      address: 'Plot 42, Bodakdev Circle, Ahmedabad - 380054',
       city: 'Ahmedabad',
       sportTypes: ['Badminton', 'Pickleball'],
       rating: 4.5,
@@ -64,11 +79,14 @@ export const store = {
       openingHours: '06:00 AM - 11:00 PM',
       status: 'active',
       ownerId: 'u-102',
+      createdAt: '2026-01-10',
     },
     {
       id: 'v-2',
       name: 'PlayZone',
+      description: 'Outdoor sports complex offering floodlit courts for evening play. Perfect for tennis and football enthusiasts who prefer open-air matches with excellent facilities.',
       location: 'Vastrapur, Ahmedabad, Gujarat',
+      address: 'Vastrapur Lake Road, Near Ahmedabad University, Ahmedabad - 380015',
       city: 'Ahmedabad',
       sportTypes: ['Tennis', 'Football'],
       rating: 4.3,
@@ -81,11 +99,14 @@ export const store = {
       openingHours: '06:00 AM - 10:00 PM',
       status: 'active',
       ownerId: 'u-102',
+      createdAt: '2026-02-05',
     },
     {
       id: 'v-3',
       name: 'Smash Sports Club',
+      description: 'Air-conditioned indoor sports club specialising in badminton and basketball. Wooden-floored courts maintained to tournament standards with experienced coaching staff available.',
       location: 'Gota, Ahmedabad, Gujarat',
+      address: '15 Gota Cross Roads, Near Nirma University, Ahmedabad - 382481',
       city: 'Ahmedabad',
       sportTypes: ['Badminton', 'Basketball'],
       rating: 4.6,
@@ -98,11 +119,14 @@ export const store = {
       openingHours: '05:00 AM - 11:30 PM',
       status: 'active',
       ownerId: 'u-102',
+      createdAt: '2026-01-20',
     },
     {
       id: 'v-4',
       name: 'Ace Badminton Club',
+      description: 'Ahmedabad\'s highest-rated dedicated badminton facility. Features 7 professional courts with BWF-approved flooring, a pro shop, and a coaching academy for all skill levels.',
       location: 'Satellite, Ahmedabad, Gujarat',
+      address: 'SG Highway Service Road, Satellite, Ahmedabad - 380015',
       city: 'Ahmedabad',
       sportTypes: ['Badminton'],
       rating: 4.8,
@@ -115,6 +139,47 @@ export const store = {
       openingHours: '06:00 AM - 10:00 PM',
       status: 'active',
       ownerId: 'u-102',
+      createdAt: '2025-11-15',
+    },
+    {
+      id: 'v-5',
+      name: 'Mumbai Sports Hub',
+      description: 'Western Mumbai\'s premier multi-sport destination. Sprawling facility with courts for tennis, football, and cricket across both indoor and outdoor areas. Corporate packages available.',
+      location: 'Andheri West, Mumbai, Maharashtra',
+      address: '8 Versova Road, Andheri West, Mumbai - 400058',
+      city: 'Mumbai',
+      sportTypes: ['Tennis', 'Football', 'Cricket'],
+      rating: 4.4,
+      reviewCount: 289,
+      courtCount: 12,
+      pricePerHour: 700,
+      imageUrl: 'https://images.unsplash.com/photo-1529900748604-07564a03e7a6?auto=format&fit=crop&w=800&q=80',
+      indoor: false,
+      amenities: ['Parking', 'Floodlights', 'Cafeteria', 'Washroom', 'Equipment'],
+      openingHours: '06:00 AM - 10:00 PM',
+      status: 'active',
+      ownerId: 'u-104',
+      createdAt: '2026-03-01',
+    },
+    {
+      id: 'v-6',
+      name: 'Koregaon Racquet Club',
+      description: 'Pune\'s exclusive racquet sports club featuring squash and badminton courts with a members-only lounge, coaching academies, and regular tournaments for all age groups.',
+      location: 'Koregaon Park, Pune, Maharashtra',
+      address: 'Lane 7, Koregaon Park, Pune - 411001',
+      city: 'Pune',
+      sportTypes: ['Badminton', 'Squash'],
+      rating: 4.7,
+      reviewCount: 178,
+      courtCount: 8,
+      pricePerHour: 550,
+      imageUrl: 'https://images.unsplash.com/photo-1599474924187-334a4ae5bd3c?auto=format&fit=crop&w=800&q=80',
+      indoor: true,
+      amenities: ['Parking', 'Air Conditioned', 'Locker Room', 'Cafeteria', 'Pro Shop'],
+      openingHours: '06:00 AM - 09:00 PM',
+      status: 'active',
+      ownerId: 'u-104',
+      createdAt: '2026-04-12',
     },
   ],
 
@@ -229,4 +294,12 @@ export function safeUser(user) {
   // eslint-disable-next-line no-unused-vars
   const { passwordHash, ...safe } = user;
   return safe;
+}
+
+/**
+ * Returns a safe public venue object — strips internal-only fields if any.
+ * Currently venues have no private fields, but this helper keeps the pattern consistent.
+ */
+export function safeVenue(venue) {
+  return venue;
 }
