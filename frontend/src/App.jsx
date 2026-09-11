@@ -45,7 +45,7 @@ export default function App() {
               <Server className="w-6 h-6" />
             </div>
             <h3 className="text-lg font-semibold text-slate-900 mb-1">Express API Server</h3>
-            <p className="text-sm text-slate-500 mb-4">Node.js Express backend serving REST APIs on port 5000.</p>
+            <p className="text-sm text-slate-500 mb-4">Node.js Express backend serving REST APIs on port 4000.</p>
             <div className="flex items-center text-xs font-medium text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full w-fit">
               <span className="w-2 h-2 rounded-full bg-emerald-500 mr-2 animate-pulse"></span>
               {loading ? 'Checking status...' : health?.status === 'ok' ? 'Connected & Healthy' : 'Disconnected'}
