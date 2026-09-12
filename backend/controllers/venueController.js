@@ -219,6 +219,9 @@ export function deleteVenue(req, res) {
 
   store.venues.splice(idx, 1);
 
+  // Clean up associated courts to maintain referential integrity
+  store.courts = store.courts.filter((c) => c.venueId !== venue.id);
+
   return res.status(200).json({ status: 'ok', message: 'Venue deleted.' });
 }
 

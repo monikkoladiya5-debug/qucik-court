@@ -160,3 +160,66 @@ export async function deleteVenue(id) {
   return apiRequest('DELETE', `/venues/${id}`, null, true);
 }
 
+// ─── Courts ───────────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/courts?venueId=&sport=&isActive=
+ * Returns { status, count, courts }
+ */
+export async function fetchCourts(filters = {}) {
+  const params = new URLSearchParams();
+  if (filters.venueId) params.set('venueId', filters.venueId);
+  if (filters.sport)   params.set('sport', filters.sport);
+  if (filters.isActive !== undefined) params.set('isActive', String(filters.isActive));
+  const qs = params.toString();
+  return apiRequest('GET', `/courts${qs ? `?${qs}` : ''}`);
+}
+
+/**
+ * GET /api/courts/:id
+ * Returns { status, court }
+ */
+export async function fetchCourt(id) {
+  return apiRequest('GET', `/courts/${id}`);
+}
+
+/**
+ * GET /api/courts/my/courts  (OWNER)
+ * Returns { status, count, courts }
+ */
+export async function fetchMyCourts() {
+  return apiRequest('GET', '/courts/my/courts', null, true);
+}
+
+/**
+ * POST /api/venues/:venueId/courts  (OWNER)
+ * Returns { status, court }
+ */
+export async function createCourt(venueId, data) {
+  return apiRequest('POST', `/venues/${venueId}/courts`, data, true);
+}
+
+/**
+ * PUT /api/courts/:id  (OWNER)
+ * Returns { status, court }
+ */
+export async function updateCourt(id, data) {
+  return apiRequest('PUT', `/courts/${id}`, data, true);
+}
+
+/**
+ * DELETE /api/courts/:id  (OWNER)
+ * Returns { status, message }
+ */
+export async function deleteCourt(id) {
+  return apiRequest('DELETE', `/courts/${id}`, null, true);
+}
+
+/**
+ * GET /api/courts/:id/availability?date=YYYY-MM-DD
+ * Returns { status, courtId, courtName, sport, date, operatingHours, slots }
+ */
+export async function fetchCourtAvailability(courtId, date) {
+  return apiRequest('GET', `/courts/${courtId}/availability?date=${encodeURIComponent(date)}`);
+}
+

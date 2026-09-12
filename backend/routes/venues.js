@@ -13,6 +13,8 @@ import {
 import { authenticate } from '../middleware/authenticate.js';
 import { requireRole } from '../middleware/requireRole.js';
 
+import { createCourt } from '../controllers/courtController.js';
+
 const router = Router();
 
 // ── All static paths MUST come before /:id to avoid param capture ─────────────
@@ -39,5 +41,8 @@ router.post('/',            authenticate, requireRole('OWNER'), createVenue);
 // Owner: update / delete own venue
 router.put('/:id',          authenticate, requireRole('OWNER'), updateVenue);
 router.delete('/:id',       authenticate, requireRole('OWNER'), deleteVenue);
+
+// Owner: create court for venue
+router.post('/:venueId/courts', authenticate, requireRole('OWNER'), createCourt);
 
 export default router;

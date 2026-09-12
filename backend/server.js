@@ -5,6 +5,7 @@ import healthRouter  from './routes/health.js';
 import authRouter    from './routes/auth.js';
 import rbacRouter    from './routes/rbac.js';
 import venueRouter   from './routes/venues.js';
+import courtRouter   from './routes/courts.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { store } from './data/store.js';
 
@@ -24,12 +25,14 @@ app.use('/api/health', healthRouter);
 app.use('/api/auth',   authRouter);
 app.use('/api/rbac',   rbacRouter);
 app.use('/api/venues', venueRouter);
+app.use('/api/courts', courtRouter);
 
 // ─── Summary stats (foundation convenience endpoint) ──────────────────────────
 app.get('/api/summary', (req, res) => {
   res.status(200).json({
     usersCount: store.users.length,
     venuesCount: store.venues.length,
+    courtsCount: store.courts.length,
     bookingsCount: store.bookings.length,
     playersCount: store.players.length,
   });
@@ -43,7 +46,19 @@ app.use((req, res) => {
 // ─── Centralised error handler ────────────────────────────────────────────────
 app.use(errorHandler);
 
+import { fileURLToPath } from 'url';
+
+// ─── Export app for testing ───────────────────────────────────────────────────
+export { app };
+
 // ─── Start ────────────────────────────────────────────────────────────────────
-app.listen(PORT, () => {
-  console.log(`[QuickCourt Backend] Server listening on http://localhost:${PORT}`);
-});
+const isMain = process.argv[1] && (
+  fileURLToPath(import.meta.url) === process.argv[1] ||
+  process.argv[1].endsWith('server.js')
+);
+
+if (isMain && process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    console.log(`[QuickCourt Backend] Server listening on http://localhost:${PORT}`);
+  });
+}

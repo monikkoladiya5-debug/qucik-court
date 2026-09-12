@@ -4,11 +4,12 @@ import {
   MapPin, Star, Clock, Building2, ChevronLeft,
   CheckCircle2, Users, Loader2, AlertCircle, ArrowRight,
   ShieldCheck, Wifi, Coffee, Car, Droplets, Zap, Dumbbell,
-  Lock, SunMedium
+  Lock, SunMedium, Calendar, CalendarDays, Check, Ban,
+  Layers, Sparkles, Info
 } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-import { fetchVenue } from '../services/api';
+import { fetchVenue, fetchCourts, fetchCourtAvailability } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 const SPORT_CONFIG = {
@@ -47,6 +48,17 @@ export default function VenueDetailPage() {
   const [error, setError] = useState(null);
   const [imgErr, setImgErr] = useState(false);
 
+  // Task 3: Courts & Availability State
+  const [courts, setCourts] = useState([]);
+  const [courtsLoading, setCourtsLoading] = useState(true);
+  const [selectedCourt, setSelectedCourt] = useState(null);
+  const [selectedDate, setSelectedDate] = useState(() => {
+    return new Date().toISOString().slice(0, 10);
+  });
+  const [availability, setAvailability] = useState(null);
+  const [availLoading, setAvailLoading] = useState(false);
+  const [availError, setAvailError] = useState(null);
+
   useEffect(() => {
     setLoading(true);
     setError(null);
@@ -55,6 +67,49 @@ export default function VenueDetailPage() {
       .catch((err) => setError(err.message || 'The requested venue could not be found.'))
       .finally(() => setLoading(false));
   }, [id]);
+
+  // Load courts for this venue
+  useEffect(() => {
+    if (!id) return;
+    setCourtsLoading(true);
+    fetchCourts({ venueId: id })
+      .then((data) => {
+        const list = data.courts || [];
+        setCourts(list);
+        if (list.length > 0) {
+          setSelectedCourt(list[0]);
+        } else {
+          setSelectedCourt(null);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to load courts:', err);
+      })
+      .finally(() => setCourtsLoading(false));
+  }, [id]);
+
+  // Load availability when selected court or date changes
+  useEffect(() => {
+    if (!selectedCourt?.id || !selectedDate) {
+      setAvailability(null);
+      return;
+    }
+    setAvailLoading(true);
+    setAvailError(null);
+    fetchCourtAvailability(selectedCourt.id, selectedDate)
+      .then((data) => {
+        setAvailability(data);
+      })
+      .catch((err) => {
+        setAvailError(err.message || 'Unable to load court availability.');
+      })
+      .finally(() => setAvailLoading(false));
+  }, [selectedCourt?.id, selectedDate]);
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const tomorrowDate = new Date();
+  tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+  const tomorrowStr = tomorrowDate.toISOString().slice(0, 10);
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
@@ -214,6 +269,224 @@ export default function VenueDetailPage() {
                   </div>
                 </div>
 
+                {/* ── Task 3: Courts & Availability Viewer ───────────────────────── */}
+                <div className="bg-white rounded-2xl p-6 sm:p-7 border border-slate-200 shadow-card space-y-6">
+                  <div>
+                    <div className="flex items-center justify-between flex-wrap gap-2 mb-1.5">
+                      <div className="flex items-center gap-2">
+                        <Layers className="w-5 h-5 text-indigo-600" />
+                        <h2 className="text-base font-extrabold text-slate-900">Courts & Playing Surfaces</h2>
+                      </div>
+                      <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full">
+                        {courts.length} {courts.length === 1 ? 'Court' : 'Courts'} Configured
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500">
+                      Select a court below to inspect specifications and view live operating availability.
+                    </p>
+                  </div>
+
+                  {courtsLoading ? (
+                    <div className="flex items-center justify-center py-8 space-x-2 text-slate-400">
+                      <Loader2 className="w-5 h-5 animate-spin text-indigo-600" />
+                      <span className="text-xs font-bold uppercase tracking-wider">Loading Courts…</span>
+                    </div>
+                  ) : courts.length === 0 ? (
+                    <div className="p-6 rounded-xl bg-slate-50 border border-slate-200 text-center">
+                      <p className="text-xs font-medium text-slate-500">No courts listed for this venue yet.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                      {courts.map((c) => {
+                        const isSelected = selectedCourt?.id === c.id;
+                        const sportStyle = getSportStyle(c.sport);
+                        return (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onClick={() => setSelectedCourt(c)}
+                            className={`text-left p-4 rounded-xl border transition-all relative ${
+                              isSelected
+                                ? 'border-indigo-600 bg-indigo-50/30 ring-2 ring-indigo-500/20 shadow-sm'
+                                : 'border-slate-200 bg-slate-50/40 hover:bg-slate-50 hover:border-slate-300'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-2 mb-2">
+                              <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md ${sportStyle.bg} ${sportStyle.text} border ${sportStyle.border}`}>
+                                <span>{sportStyle.emoji}</span>
+                                <span>{c.sport}</span>
+                              </span>
+                              <span className="text-xs font-black text-slate-900">
+                                ₹{c.pricePerHour}<span className="text-[10px] text-slate-400 font-medium">/hr</span>
+                              </span>
+                            </div>
+
+                            <h3 className="text-sm font-bold text-slate-900 leading-snug truncate mb-1">
+                              {c.name}
+                            </h3>
+
+                            <div className="flex items-center gap-2 text-[11px] text-slate-500 flex-wrap">
+                              <span className="font-medium text-slate-600">{c.courtType}</span>
+                              <span>•</span>
+                              <span>{c.indoor ? 'Indoor' : 'Outdoor'}</span>
+                              <span>•</span>
+                              <span className={c.isActive ? 'text-emerald-600 font-semibold' : 'text-slate-400 font-semibold'}>
+                                {c.isActive ? 'Active' : 'Inactive'}
+                              </span>
+                            </div>
+
+                            {isSelected && (
+                              <div className="mt-2 pt-2 border-t border-indigo-100 flex items-center justify-between text-[11px] font-bold text-indigo-700">
+                                <span className="flex items-center gap-1">
+                                  <Check className="w-3.5 h-3.5" />
+                                  Viewing Schedule
+                                </span>
+                                <span className="text-[10px] text-indigo-500 uppercase tracking-wide">Selected</span>
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* ── Slot Availability Grid for Selected Court ───────────────── */}
+                  {selectedCourt && (
+                    <div className="pt-4 border-t border-slate-100 space-y-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200/80">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-indigo-600" />
+                            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                              Schedule for {selectedCourt.name}
+                            </h3>
+                          </div>
+                          <p className="text-[11px] text-slate-500 mt-0.5">
+                            Operating Hours: <strong className="text-slate-700">{selectedCourt.operatingHours}</strong>
+                          </p>
+                        </div>
+
+                        {/* Date Controls */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedDate(todayStr)}
+                            className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-colors ${
+                              selectedDate === todayStr
+                                ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            Today
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedDate(tomorrowStr)}
+                            className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-colors ${
+                              selectedDate === tomorrowStr
+                                ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            Tomorrow
+                          </button>
+                          <div className="relative">
+                            <input
+                              type="date"
+                              id="custom-avail-date"
+                              value={selectedDate}
+                              min={todayStr}
+                              onChange={(e) => setSelectedDate(e.target.value)}
+                              className="px-2.5 py-1.5 text-xs font-semibold text-slate-800 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                              aria-label="Select Date for Availability"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Task 3 Informational Banner */}
+                      <div className="flex items-start gap-2.5 p-3 rounded-xl bg-indigo-50/60 border border-indigo-100 text-indigo-900 text-xs">
+                        <Info className="w-4 h-4 text-indigo-600 flex-shrink-0 mt-0.5" />
+                        <div className="leading-relaxed">
+                          <p className="font-bold">Court Availability Viewer (Task 3)</p>
+                          <p className="text-[11px] text-indigo-700/90 mt-0.5">
+                            Slots shown reflect live facility operating schedules for <strong>{selectedDate}</strong>.
+                            Court slot booking & checkout will activate in Task 4.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Slots Display */}
+                      {availLoading ? (
+                        <div className="flex items-center justify-center py-10 space-x-2 text-slate-400">
+                          <Loader2 className="w-5 h-5 animate-spin text-indigo-600" />
+                          <span className="text-xs font-bold uppercase tracking-wider">Loading Schedule…</span>
+                        </div>
+                      ) : availError ? (
+                        <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs">
+                          {availError}
+                        </div>
+                      ) : availability?.slots?.length > 0 ? (
+                        <div>
+                          <div className="flex items-center justify-between text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2.5 px-1">
+                            <span>Daily Time Slots ({availability.slots.length})</span>
+                            <div className="flex items-center gap-3 lowercase text-slate-500 font-semibold">
+                              <span className="flex items-center gap-1">
+                                <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
+                                Available
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <span className="w-2 h-2 rounded-full bg-slate-300 inline-block" />
+                                Unavailable
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
+                            {availability.slots.map((slot) => {
+                              const isAvail = slot.status === 'AVAILABLE';
+                              return (
+                                <div
+                                  key={slot.id}
+                                  className={`p-2.5 rounded-xl border text-center transition-all ${
+                                    isAvail
+                                      ? 'bg-emerald-50/50 border-emerald-200/80 text-emerald-900 shadow-2xs'
+                                      : 'bg-slate-100/70 border-slate-200/60 text-slate-400 cursor-not-allowed opacity-75'
+                                  }`}
+                                >
+                                  <p className="text-xs font-bold text-slate-800">
+                                    {slot.startTime}
+                                  </p>
+                                  <p className="text-[10px] text-slate-400">
+                                    to {slot.endTime}
+                                  </p>
+                                  <div className="mt-1.5">
+                                    {isAvail ? (
+                                      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300/60">
+                                        <Check className="w-2.5 h-2.5" />
+                                        Available
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-200/70 text-slate-500">
+                                        <Ban className="w-2.5 h-2.5" />
+                                        Unavailable
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-slate-500 py-4 text-center">
+                          No operating slots scheduled for this date.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+
                 {/* Amenities Grid */}
                 {venue.amenities?.length > 0 && (
                   <div className="bg-white rounded-2xl p-6 sm:p-7 border border-slate-200 shadow-card">
@@ -261,9 +534,13 @@ export default function VenueDetailPage() {
                 <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-card space-y-5">
                   <div className="flex items-baseline justify-between pb-4 border-b border-slate-100">
                     <div>
-                      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Starting Rate</p>
+                      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+                        {selectedCourt ? selectedCourt.name : 'Starting Rate'}
+                      </p>
                       <div className="flex items-baseline gap-1 mt-0.5">
-                        <span className="text-3xl font-black text-slate-900">₹{venue.pricePerHour}</span>
+                        <span className="text-3xl font-black text-slate-900">
+                          ₹{selectedCourt ? selectedCourt.pricePerHour : venue.pricePerHour}
+                        </span>
                         <span className="text-xs text-slate-500 font-medium">/ hour</span>
                       </div>
                     </div>
@@ -278,15 +555,17 @@ export default function VenueDetailPage() {
                         <Clock className="w-4 h-4 text-indigo-600" />
                         Operating Hours
                       </span>
-                      <span className="font-bold text-slate-900">{venue.openingHours}</span>
+                      <span className="font-bold text-slate-900">
+                        {selectedCourt ? selectedCourt.operatingHours : venue.openingHours}
+                      </span>
                     </div>
 
                     <div className="flex items-center justify-between text-slate-600 py-1">
                       <span className="flex items-center gap-2 text-slate-500">
                         <Building2 className="w-4 h-4 text-indigo-600" />
-                        Total Courts
+                        Available Courts
                       </span>
-                      <span className="font-bold text-slate-900">{venue.courtCount} Courts</span>
+                      <span className="font-bold text-slate-900">{courts.length || venue.courtCount} Courts</span>
                     </div>
 
                     <div className="flex items-center justify-between text-slate-600 py-1">
@@ -306,13 +585,13 @@ export default function VenueDetailPage() {
                           type="button"
                           disabled
                           className="w-full flex items-center justify-center gap-2 py-3.5 px-4 bg-indigo-600/70 text-white font-bold text-sm rounded-xl cursor-not-allowed shadow-xs"
-                          title="Court slot booking engine activates in Task 3"
+                          title="Court slot reservation & checkout activates in Task 4"
                         >
                           Book a Court Slot
                           <ArrowRight className="w-4 h-4" />
                         </button>
                         <p className="text-[11px] text-center text-slate-400 font-medium">
-                          Court scheduling & availability slots unlock in Task 3
+                          Viewing availability above. Booking & checkout unlocks in Task 4.
                         </p>
                       </div>
                     ) : !isAuthenticated ? (
