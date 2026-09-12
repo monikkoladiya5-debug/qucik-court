@@ -327,5 +327,15 @@ export async function fetchMyLoyalty() {
   return apiRequest('GET', '/loyalty/me', null, true);
 }
 
+// ─── Owner Dashboard (Task 7) ─────────────────────────────────────────────────
+
+/**
+ * GET /api/owner/dashboard (OWNER)
+ * Returns { status, summary, venues, recentBookings }
+ */
+export async function fetchOwnerDashboard() {
+  return apiRequest('GET', '/owner/dashboard', null, true);
+}
+
 
 

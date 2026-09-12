@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import {
   Activity, LogOut, User, Building2, ShieldCheck,
-  Menu, X, ChevronRight, Sparkles, CalendarCheck, Users
+  Menu, X, ChevronRight, Sparkles, CalendarCheck, Users,
+  LayoutDashboard
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -110,19 +111,34 @@ export default function Header() {
             )}
 
             {isAuthenticated && role === 'OWNER' && (
-              <NavLink
-                to="/owner/venues"
-                className={({ isActive }) =>
-                  `px-3.5 py-1.5 text-sm font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
-                    isActive
-                      ? 'bg-emerald-50 text-emerald-700 shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                  }`
-                }
-              >
-                <Building2 className="w-4 h-4 text-emerald-600" />
-                <span>My Venues</span>
-              </NavLink>
+              <>
+                <NavLink
+                  to="/owner/dashboard"
+                  className={({ isActive }) =>
+                    `px-3.5 py-1.5 text-sm font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
+                      isActive
+                        ? 'bg-emerald-50 text-emerald-700 shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    }`
+                  }
+                >
+                  <LayoutDashboard className="w-4 h-4 text-emerald-600" />
+                  <span>Dashboard</span>
+                </NavLink>
+                <NavLink
+                  to="/owner/venues"
+                  className={({ isActive }) =>
+                    `px-3.5 py-1.5 text-sm font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
+                      isActive
+                        ? 'bg-emerald-50 text-emerald-700 shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    }`
+                  }
+                >
+                  <Building2 className="w-4 h-4 text-emerald-600" />
+                  <span>My Venues</span>
+                </NavLink>
+              </>
             )}
 
             {isAuthenticated && role === 'ADMIN' && (
@@ -294,21 +310,38 @@ export default function Header() {
           )}
 
           {isAuthenticated && role === 'OWNER' && (
-            <NavLink
-              to="/owner/venues"
-              onClick={() => setMobileMenuOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
-                  isActive ? 'bg-emerald-50 text-emerald-700' : 'text-slate-700 hover:bg-slate-50'
-                }`
-              }
-            >
-              <div className="flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-emerald-600" />
-                <span>My Venues</span>
-              </div>
-              <ChevronRight className="w-4 h-4 text-slate-400" />
-            </NavLink>
+            <>
+              <NavLink
+                to="/owner/dashboard"
+                onClick={() => setMobileMenuOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+                    isActive ? 'bg-emerald-50 text-emerald-700' : 'text-slate-700 hover:bg-slate-50'
+                  }`
+                }
+              >
+                <div className="flex items-center gap-2">
+                  <LayoutDashboard className="w-4 h-4 text-emerald-600" />
+                  <span>Dashboard</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-slate-400" />
+              </NavLink>
+              <NavLink
+                to="/owner/venues"
+                onClick={() => setMobileMenuOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+                    isActive ? 'bg-emerald-50 text-emerald-700' : 'text-slate-700 hover:bg-slate-50'
+                  }`
+                }
+              >
+                <div className="flex items-center gap-2">
+                  <Building2 className="w-4 h-4 text-emerald-600" />
+                  <span>My Venues</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-slate-400" />
+              </NavLink>
+            </>
           )}
 
           {isAuthenticated && role === 'ADMIN' && (

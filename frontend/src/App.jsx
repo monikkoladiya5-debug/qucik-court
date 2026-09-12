@@ -8,6 +8,7 @@ import AuthPage from './pages/AuthPage';
 import VenuesPage from './pages/VenuesPage';
 import VenueDetailPage from './pages/VenueDetailPage';
 import OwnerVenuesPage from './pages/OwnerVenuesPage';
+import OwnerDashboardPage from './pages/OwnerDashboardPage';
 import MyBookingsPage from './pages/MyBookingsPage';
 import PlayersPage from './pages/PlayersPage';
 import ProfilePage from './pages/ProfilePage';
@@ -89,13 +90,22 @@ function HomePage() {
                 </div>
 
                 {role === 'OWNER' && (
-                  <Link
-                    to="/owner/venues"
-                    className="inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-xl transition-all shadow-md shadow-emerald-500/20"
-                  >
-                    <span>Manage My Venues</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </Link>
+                  <div className="flex items-center gap-2">
+                    <Link
+                      to="/owner/dashboard"
+                      className="inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-xl transition-all shadow-md shadow-emerald-500/20"
+                    >
+                      <span>Owner Dashboard</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
+                    <Link
+                      to="/owner/venues"
+                      className="inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl border border-slate-700 transition"
+                    >
+                      <Building2 className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Venues</span>
+                    </Link>
+                  </div>
                 )}
               </div>
             )}
@@ -411,7 +421,22 @@ export default function App() {
               </ProtectedRoute>
             }
           />
-          <Route path="/owner/venues"  element={<OwnerVenuesPage />} />
+          <Route
+            path="/owner/dashboard"
+            element={
+              <ProtectedRoute allowedRoles={['OWNER']}>
+                <OwnerDashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/owner/venues"
+            element={
+              <ProtectedRoute allowedRoles={['OWNER']}>
+                <OwnerVenuesPage />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/admin"         element={<AdminDashboardStub />} />
           {/* Catch-all route redirects to home */}
           <Route path="*"              element={<Navigate to="/" replace />} />
