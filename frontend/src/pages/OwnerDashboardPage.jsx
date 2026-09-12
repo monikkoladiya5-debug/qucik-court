@@ -11,6 +11,7 @@ import Footer from '../components/Footer';
 import ProtectedRoute from '../components/ProtectedRoute';
 import { useAuth } from '../context/AuthContext';
 import { fetchOwnerDashboard } from '../services/api';
+import { formatBookingDate } from '../utils/date';
 
 /**
  * Metric Card Component
@@ -377,7 +378,7 @@ function OwnerDashboardInner() {
                             </span>
                           </td>
                           <td className="py-3.5 px-3">
-                            <div className="font-semibold text-slate-800">{b.date}</div>
+                            <div className="font-semibold text-slate-800">{formatBookingDate(b.date)}</div>
                             <div className="text-[11px] text-slate-500">{b.startTime} - {b.endTime}</div>
                           </td>
                           <td className="py-3.5 px-3">

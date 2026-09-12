@@ -5,13 +5,14 @@ import {
   RefreshCw, AlertCircle, CheckCircle2, XCircle, Clock,
   Search, Filter, MapPin, Layers, UserCheck, UserX,
   ExternalLink, ArrowRight, ShieldAlert, Sparkles, ChevronRight,
-  Activity, Award, Store
+  Activity, Award, Store, Loader2
 } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import ProtectedRoute from '../components/ProtectedRoute';
 import { useAuth } from '../context/AuthContext';
 import { fetchAdminDashboard, toggleUserStatusApi } from '../services/api';
+import { formatBookingDate } from '../utils/date';
 
 /**
  * Metric Card Component
@@ -117,6 +118,10 @@ function AdminDashboardInner() {
   const [venueSearch, setVenueSearch] = useState('');
   const [statusUpdatingId, setStatusUpdatingId] = useState(null);
 
+  // Confirmation modal state for user status actions
+  const [userToToggle, setUserToToggle] = useState(null);
+  const [statusModalError, setStatusModalError] = useState(null);
+
   const loadDashboard = useCallback(async () => {
     try {
       setLoading(true);
@@ -134,19 +139,48 @@ function AdminDashboardInner() {
     loadDashboard();
   }, [loadDashboard]);
 
-  // Handle user status toggle
-  const handleToggleUserStatus = async (user) => {
+  // Keyboard Escape listener to dismiss status modal safely
+  useEffect(() => {
+    if (!userToToggle) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && !statusUpdatingId) {
+        setUserToToggle(null);
+        setStatusModalError(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [userToToggle, statusUpdatingId]);
+
+  // Open status modal for user
+  const handleRequestToggleStatus = (user) => {
     if (user.id === currentAdmin?.id) {
-      alert('Administrators cannot change their own account status.');
+      setFeedback({
+        type: 'error',
+        message: 'Administrators cannot change their own account status.',
+      });
       return;
     }
+    setStatusModalError(null);
+    setUserToToggle(user);
+  };
 
+  // Close status modal safely
+  const handleCloseStatusModal = () => {
+    if (statusUpdatingId) return;
+    setUserToToggle(null);
+    setStatusModalError(null);
+  };
+
+  // Confirm status toggle action
+  const handleConfirmUserStatusToggle = async () => {
+    if (!userToToggle) return;
+    const user = userToToggle;
     const newStatus = user.status === 'active' ? 'suspended' : 'active';
-    const confirmMsg = `Are you sure you want to mark user "${user.name}" (${user.email}) as ${newStatus.toUpperCase()}?`;
-    if (!window.confirm(confirmMsg)) return;
 
     try {
       setStatusUpdatingId(user.id);
+      setStatusModalError(null);
       setFeedback(null);
       const res = await toggleUserStatusApi(user.id, newStatus);
       
@@ -161,11 +195,9 @@ function AdminDashboardInner() {
         type: 'success',
         message: `User ${user.name} status successfully changed to ${newStatus.toUpperCase()}.`,
       });
+      setUserToToggle(null);
     } catch (err) {
-      setFeedback({
-        type: 'error',
-        message: err.message || 'Failed to update user status.',
-      });
+      setStatusModalError(err.message || 'Failed to update user status.');
     } finally {
       setStatusUpdatingId(null);
     }
@@ -594,75 +626,87 @@ function AdminDashboardInner() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 text-xs">
-                        {filteredUsers.map((u) => {
-                          const isSelf = u.id === currentAdmin?.id;
-                          return (
-                            <tr key={u.id} className="hover:bg-slate-50/70 transition-colors">
-                              <td className="py-3.5 px-3">
-                                <div className="font-bold text-slate-900 flex items-center gap-1.5">
-                                  <span>{u.name}</span>
-                                  {isSelf && (
-                                    <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.2 rounded">
-                                      You
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="text-[11px] text-slate-500">{u.email}</div>
-                              </td>
-                              <td className="py-3.5 px-3">
-                                <RoleBadge role={u.role} />
-                              </td>
-                              <td className="py-3.5 px-3">
-                                <span
-                                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                                    u.status === 'active'
-                                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                      : 'bg-rose-50 text-rose-700 border border-rose-200'
-                                  }`}
-                                >
-                                  <span className={`w-1.5 h-1.5 rounded-full ${u.status === 'active' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                                  {(u.status || 'active').toUpperCase()}
-                                </span>
-                              </td>
-                              <td className="py-3.5 px-3">
-                                {u.role === 'CUSTOMER' && (
-                                  <span className="text-slate-700 font-medium">
-                                    {u.points} Loyalty Points
-                                  </span>
-                                )}
-                                {u.role === 'OWNER' && (
-                                  <span className="text-slate-700 font-medium truncate max-w-[200px] block">
-                                    {u.businessName || u.venueLocation || 'Venue Host'}
-                                  </span>
-                                )}
-                                {u.role === 'ADMIN' && (
-                                  <span className="text-slate-400 italic">Platform Administrator</span>
-                                )}
-                              </td>
-                              <td className="py-3.5 px-3 text-right">
-                                {isSelf ? (
-                                  <span className="text-[11px] text-slate-400 italic">Self-Protected</span>
-                                ) : (
-                                  <button
-                                    onClick={() => handleToggleUserStatus(u)}
-                                    disabled={statusUpdatingId === u.id}
-                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition focus:outline-none focus:ring-2 ${
+                        {filteredUsers.length === 0 ? (
+                          <tr>
+                            <td colSpan="5" className="py-12 text-center text-slate-500">
+                              <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-2">
+                                <Users className="w-6 h-6" />
+                              </div>
+                              <p className="font-bold text-xs text-slate-800">No users found</p>
+                              <p className="text-[11px] text-slate-500 mt-0.5">No user accounts matched your search query.</p>
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredUsers.map((u) => {
+                            const isSelf = u.id === currentAdmin?.id;
+                            return (
+                              <tr key={u.id} className="hover:bg-slate-50/70 transition-colors">
+                                <td className="py-3.5 px-3">
+                                  <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                                    <span>{u.name}</span>
+                                    {isSelf && (
+                                      <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.2 rounded">
+                                        You
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-[11px] text-slate-500">{u.email}</div>
+                                </td>
+                                <td className="py-3.5 px-3">
+                                  <RoleBadge role={u.role} />
+                                </td>
+                                <td className="py-3.5 px-3">
+                                  <span
+                                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold ${
                                       u.status === 'active'
-                                        ? 'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 focus:ring-rose-400'
-                                        : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 focus:ring-emerald-400'
+                                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                        : 'bg-rose-50 text-rose-700 border border-rose-200'
                                     }`}
                                   >
-                                    {statusUpdatingId === u.id
-                                      ? 'Updating...'
-                                      : u.status === 'active'
-                                      ? 'Suspend'
-                                      : 'Reactivate'}
-                                  </button>
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        })}
+                                    <span className={`w-1.5 h-1.5 rounded-full ${u.status === 'active' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                                    {(u.status || 'active').toUpperCase()}
+                                  </span>
+                                </td>
+                                <td className="py-3.5 px-3">
+                                  {u.role === 'CUSTOMER' && (
+                                    <span className="text-slate-700 font-medium">
+                                      {u.points} Loyalty Points
+                                    </span>
+                                  )}
+                                  {u.role === 'OWNER' && (
+                                    <span className="text-slate-700 font-medium truncate max-w-[200px] block">
+                                      {u.businessName || u.venueLocation || 'Venue Host'}
+                                    </span>
+                                  )}
+                                  {u.role === 'ADMIN' && (
+                                    <span className="text-slate-400 italic">Platform Administrator</span>
+                                  )}
+                                </td>
+                                <td className="py-3.5 px-3 text-right">
+                                  {isSelf ? (
+                                    <span className="text-[11px] text-slate-400 italic">Self-Protected</span>
+                                  ) : (
+                                    <button
+                                      onClick={() => handleRequestToggleStatus(u)}
+                                      disabled={statusUpdatingId === u.id}
+                                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition focus:outline-none focus:ring-2 ${
+                                        u.status === 'active'
+                                          ? 'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 focus:ring-rose-400'
+                                          : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 focus:ring-emerald-400'
+                                      }`}
+                                    >
+                                      {statusUpdatingId === u.id
+                                        ? 'Updating...'
+                                        : u.status === 'active'
+                                        ? 'Suspend'
+                                        : 'Reactivate'}
+                                    </button>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -699,44 +743,56 @@ function AdminDashboardInner() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 text-xs">
-                        {filteredVenues.map((v) => (
-                          <tr key={v.id} className="hover:bg-slate-50/70 transition-colors">
-                            <td className="py-3.5 px-3">
-                              <div className="font-bold text-slate-900">{v.name}</div>
-                              <div className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
-                                <MapPin className="w-3 h-3 text-slate-400" />
-                                <span>{v.location || v.city}</span>
+                        {filteredVenues.length === 0 ? (
+                          <tr>
+                            <td colSpan="6" className="py-12 text-center text-slate-500">
+                              <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-2">
+                                <Building2 className="w-6 h-6" />
                               </div>
-                            </td>
-                            <td className="py-3.5 px-3">
-                              <div className="font-semibold text-slate-800">{v.ownerName}</div>
-                              <div className="text-[11px] text-slate-500">{v.ownerEmail}</div>
-                            </td>
-                            <td className="py-3.5 px-3">
-                              <div className="flex flex-wrap gap-1">
-                                {v.sportTypes?.map((s) => (
-                                  <span key={s} className="px-1.5 py-0.5 bg-indigo-50 text-indigo-700 rounded text-[10px] font-semibold">
-                                    {s}
-                                  </span>
-                                ))}
-                              </div>
-                            </td>
-                            <td className="py-3.5 px-3">
-                              <span className="font-bold text-slate-900">
-                                {v.activeCourts} / {v.totalCourts} Active
-                              </span>
-                            </td>
-                            <td className="py-3.5 px-3">
-                              <span className="font-bold text-emerald-700">₹{v.pricePerHour}/hr</span>
-                            </td>
-                            <td className="py-3.5 px-3 text-right">
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                {(v.status || 'ACTIVE').toUpperCase()}
-                              </span>
+                              <p className="font-bold text-xs text-slate-800">No venues found</p>
+                              <p className="text-[11px] text-slate-500 mt-0.5">No sports venues matched your search query.</p>
                             </td>
                           </tr>
-                        ))}
+                        ) : (
+                          filteredVenues.map((v) => (
+                            <tr key={v.id} className="hover:bg-slate-50/70 transition-colors">
+                              <td className="py-3.5 px-3">
+                                <div className="font-bold text-slate-900">{v.name}</div>
+                                <div className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
+                                  <MapPin className="w-3 h-3 text-slate-400" />
+                                  <span>{v.location || v.city}</span>
+                                </div>
+                              </td>
+                              <td className="py-3.5 px-3">
+                                <div className="font-semibold text-slate-800">{v.ownerName}</div>
+                                <div className="text-[11px] text-slate-500">{v.ownerEmail}</div>
+                              </td>
+                              <td className="py-3.5 px-3">
+                                <div className="flex flex-wrap gap-1">
+                                  {v.sportTypes?.map((s) => (
+                                    <span key={s} className="px-1.5 py-0.5 bg-indigo-50 text-indigo-700 rounded text-[10px] font-semibold">
+                                      {s}
+                                    </span>
+                                  ))}
+                                </div>
+                              </td>
+                              <td className="py-3.5 px-3">
+                                <span className="font-bold text-slate-900">
+                                  {v.activeCourts} / {v.totalCourts} Active
+                                </span>
+                              </td>
+                              <td className="py-3.5 px-3">
+                                <span className="font-bold text-emerald-700">₹{v.pricePerHour}/hr</span>
+                              </td>
+                              <td className="py-3.5 px-3 text-right">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                  {(v.status || 'ACTIVE').toUpperCase()}
+                                </span>
+                              </td>
+                            </tr>
+                          ))
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -786,40 +842,172 @@ function AdminDashboardInner() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 text-xs">
-                        {filteredBookings.map((b) => (
-                          <tr key={b.id} className="hover:bg-slate-50/70 transition-colors">
-                            <td className="py-3.5 px-3">
-                              <span className="font-mono text-[11px] font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded-md">
-                                {b.id}
-                              </span>
-                            </td>
-                            <td className="py-3.5 px-3">
-                              <div className="font-bold text-slate-900">{b.customerName}</div>
-                              <div className="text-[11px] text-slate-500">{b.customerEmail}</div>
-                            </td>
-                            <td className="py-3.5 px-3">
-                              <div className="font-bold text-slate-900">{b.venueName}</div>
-                              <div className="text-[11px] text-slate-500">{b.courtName} ({b.sport})</div>
-                            </td>
-                            <td className="py-3.5 px-3">
-                              <div className="font-semibold text-slate-800">{b.date}</div>
-                              <div className="text-[11px] text-slate-500">{b.startTime} - {b.endTime}</div>
-                            </td>
-                            <td className="py-3.5 px-3">
-                              <span className="font-black text-slate-900 text-sm">
-                                ₹{b.totalPrice}
-                              </span>
-                            </td>
-                            <td className="py-3.5 px-3 text-right">
-                              <BookingStatusBadge operationalStatus={b.operationalStatus} status={b.status} />
+                        {filteredBookings.length === 0 ? (
+                          <tr>
+                            <td colSpan="6" className="py-12 text-center text-slate-500">
+                              <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-2">
+                                <CalendarCheck className="w-6 h-6" />
+                              </div>
+                              <p className="font-bold text-xs text-slate-800">No bookings match this filter</p>
+                              <p className="text-[11px] text-slate-500 mt-0.5">
+                                There are no {bookingFilter === 'ALL' ? '' : bookingFilter.toLowerCase()} booking records on the platform.
+                              </p>
                             </td>
                           </tr>
-                        ))}
+                        ) : (
+                          filteredBookings.map((b) => (
+                            <tr key={b.id} className="hover:bg-slate-50/70 transition-colors">
+                              <td className="py-3.5 px-3">
+                                <span className="font-mono text-[11px] font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded-md">
+                                  {b.id}
+                                </span>
+                              </td>
+                              <td className="py-3.5 px-3">
+                                <div className="font-bold text-slate-900">{b.customerName}</div>
+                                <div className="text-[11px] text-slate-500">{b.customerEmail}</div>
+                              </td>
+                              <td className="py-3.5 px-3">
+                                <div className="font-bold text-slate-900">{b.venueName}</div>
+                                <div className="text-[11px] text-slate-500">{b.courtName} ({b.sport})</div>
+                              </td>
+                              <td className="py-3.5 px-3">
+                                <div className="font-semibold text-slate-800">{formatBookingDate(b.date)}</div>
+                                <div className="text-[11px] text-slate-500">{b.startTime} - {b.endTime}</div>
+                              </td>
+                              <td className="py-3.5 px-3">
+                                <span className="font-black text-slate-900 text-sm">
+                                  ₹{b.totalPrice}
+                                </span>
+                              </td>
+                              <td className="py-3.5 px-3 text-right">
+                                <BookingStatusBadge operationalStatus={b.operationalStatus} status={b.status} />
+                              </td>
+                            </tr>
+                          ))
+                        )}
                       </tbody>
                     </table>
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Status Confirmation Modal ───────────────────────────────── */}
+        {userToToggle && (
+          <div
+            className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="status-modal-title"
+            aria-describedby="status-modal-desc"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                handleCloseStatusModal();
+              }
+            }}
+          >
+            <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-7 border border-slate-200 shadow-2xl space-y-4">
+              <div className="flex items-center gap-3.5">
+                <div
+                  className={`w-12 h-12 rounded-2xl flex items-center justify-center border shrink-0 ${
+                    userToToggle.status === 'active'
+                      ? 'bg-rose-50 border-rose-200 text-rose-600'
+                      : 'bg-emerald-50 border-emerald-200 text-emerald-600'
+                  }`}
+                >
+                  {userToToggle.status === 'active' ? (
+                    <ShieldAlert className="w-6 h-6" />
+                  ) : (
+                    <UserCheck className="w-6 h-6" />
+                  )}
+                </div>
+                <div>
+                  <h3 id="status-modal-title" className="text-base font-black text-slate-900">
+                    {userToToggle.status === 'active' ? 'Suspend User Account?' : 'Reactivate User Account?'}
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">
+                    {userToToggle.status === 'active'
+                      ? 'Account suspension confirmation'
+                      : 'Account reactivation confirmation'}
+                  </p>
+                </div>
+              </div>
+
+              <div id="status-modal-desc" className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 space-y-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-slate-500">Target User:</span>
+                  <span className="font-black text-slate-900">{userToToggle.name}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-slate-500">Email:</span>
+                  <span className="font-mono text-slate-700">{userToToggle.email}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-slate-500">Role:</span>
+                  <RoleBadge role={userToToggle.role} />
+                </div>
+                <div className="flex items-center justify-between pt-1.5 border-t border-slate-200/60">
+                  <span className="font-semibold text-slate-500">New Status:</span>
+                  <span
+                    className={`inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded text-[11px] ${
+                      userToToggle.status === 'active'
+                        ? 'bg-rose-100 text-rose-800'
+                        : 'bg-emerald-100 text-emerald-800'
+                    }`}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full ${userToToggle.status === 'active' ? 'bg-rose-600' : 'bg-emerald-600'}`} />
+                    {userToToggle.status === 'active' ? 'SUSPENDED' : 'ACTIVE'}
+                  </span>
+                </div>
+              </div>
+
+              <p className="text-xs text-slate-600 leading-relaxed">
+                {userToToggle.status === 'active'
+                  ? 'Are you sure you want to mark this user as SUSPENDED? Suspended accounts will be flagged across the platform.'
+                  : 'Are you sure you want to mark this user as ACTIVE? This will restore active platform privileges for this account.'}
+              </p>
+
+              {statusModalError && (
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{statusModalError}</span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-2.5 pt-2">
+                <button
+                  type="button"
+                  disabled={statusUpdatingId === userToToggle.id}
+                  onClick={handleCloseStatusModal}
+                  className="px-4 py-2.5 text-xs font-bold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  disabled={statusUpdatingId === userToToggle.id}
+                  onClick={handleConfirmUserStatusToggle}
+                  className={`inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-white rounded-xl shadow-xs transition-all focus:outline-none focus:ring-2 disabled:opacity-60 ${
+                    userToToggle.status === 'active'
+                      ? 'bg-rose-600 hover:bg-rose-700 focus:ring-rose-500'
+                      : 'bg-emerald-600 hover:bg-emerald-700 focus:ring-emerald-500'
+                  }`}
+                >
+                  {statusUpdatingId === userToToggle.id ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Updating...</span>
+                    </>
+                  ) : (
+                    <span>
+                      {userToToggle.status === 'active' ? 'Confirm Suspension' : 'Confirm Reactivation'}
+                    </span>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         )}
