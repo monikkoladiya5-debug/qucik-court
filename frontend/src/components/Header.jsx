@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import {
   Activity, LogOut, User, Building2, ShieldCheck,
-  Menu, X, ChevronRight, Sparkles
+  Menu, X, ChevronRight, Sparkles, CalendarCheck
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -64,6 +64,22 @@ export default function Header() {
             >
               Venues
             </NavLink>
+
+            {isAuthenticated && role === 'CUSTOMER' && (
+              <NavLink
+                to="/my-bookings"
+                className={({ isActive }) =>
+                  `px-3.5 py-1.5 text-sm font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
+                    isActive
+                      ? 'bg-indigo-50 text-indigo-700 shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  }`
+                }
+              >
+                <CalendarCheck className="w-4 h-4 text-indigo-600" />
+                <span>My Bookings</span>
+              </NavLink>
+            )}
 
             {isAuthenticated && role === 'OWNER' && (
               <NavLink
@@ -175,6 +191,24 @@ export default function Header() {
             <span>Explore Venues</span>
             <ChevronRight className="w-4 h-4 text-slate-400" />
           </NavLink>
+
+          {isAuthenticated && role === 'CUSTOMER' && (
+            <NavLink
+              to="/my-bookings"
+              onClick={() => setMobileMenuOpen(false)}
+              className={({ isActive }) =>
+                `flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+                  isActive ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700 hover:bg-slate-50'
+                }`
+              }
+            >
+              <div className="flex items-center gap-2">
+                <CalendarCheck className="w-4 h-4 text-indigo-600" />
+                <span>My Bookings</span>
+              </div>
+              <ChevronRight className="w-4 h-4 text-slate-400" />
+            </NavLink>
+          )}
 
           {isAuthenticated && role === 'OWNER' && (
             <NavLink

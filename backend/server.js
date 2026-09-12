@@ -6,6 +6,7 @@ import authRouter    from './routes/auth.js';
 import rbacRouter    from './routes/rbac.js';
 import venueRouter   from './routes/venues.js';
 import courtRouter   from './routes/courts.js';
+import bookingRouter from './routes/bookings.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { store } from './data/store.js';
 
@@ -21,11 +22,12 @@ app.use(cors({
 app.use(express.json());
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
-app.use('/api/health', healthRouter);
-app.use('/api/auth',   authRouter);
-app.use('/api/rbac',   rbacRouter);
-app.use('/api/venues', venueRouter);
-app.use('/api/courts', courtRouter);
+app.use('/api/health',   healthRouter);
+app.use('/api/auth',     authRouter);
+app.use('/api/rbac',     rbacRouter);
+app.use('/api/venues',   venueRouter);
+app.use('/api/courts',   courtRouter);
+app.use('/api/bookings', bookingRouter);
 
 // ─── Summary stats (foundation convenience endpoint) ──────────────────────────
 app.get('/api/summary', (req, res) => {

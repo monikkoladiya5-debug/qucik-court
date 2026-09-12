@@ -8,6 +8,7 @@ import AuthPage from './pages/AuthPage';
 import VenuesPage from './pages/VenuesPage';
 import VenueDetailPage from './pages/VenueDetailPage';
 import OwnerVenuesPage from './pages/OwnerVenuesPage';
+import MyBookingsPage from './pages/MyBookingsPage';
 import { fetchHealth, fetchSummary } from './services/api';
 import {
   Activity, CheckCircle2, ShieldCheck, Database, Server,
@@ -384,6 +385,14 @@ export default function App() {
           <Route path="/auth"          element={<AuthPage />} />
           <Route path="/venues"        element={<VenuesPage />} />
           <Route path="/venues/:id"    element={<VenueDetailPage />} />
+          <Route
+            path="/my-bookings"
+            element={
+              <ProtectedRoute allowedRoles={['CUSTOMER']}>
+                <MyBookingsPage />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/owner/venues"  element={<OwnerVenuesPage />} />
           <Route path="/admin"         element={<AdminDashboardStub />} />
           {/* Catch-all route redirects to home */}

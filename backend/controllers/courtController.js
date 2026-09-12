@@ -344,6 +344,9 @@ export function deleteCourt(req, res) {
   // Sync courtCount on venue
   venue.courtCount = store.courts.filter((c) => c.venueId === venue.id).length;
 
+  // Clean up associated bookings to maintain referential integrity
+  store.bookings = store.bookings.filter((b) => b.courtId !== court.id);
+
   return res.status(200).json({
     status: 'ok',
     message: 'Court deleted successfully.',
@@ -354,8 +357,8 @@ export function deleteCourt(req, res) {
 
 /**
  * GET /api/courts/:id/availability?date=YYYY-MM-DD
- * Pure read-only calculation from operating hours.
- * Does NOT create bookings, mutate data, or claim unavailable slots are booked.
+ * Calculates availability from operating hours and active bookings.
+ * Does NOT mutate store data.
  */
 export function getCourtAvailability(req, res) {
   const court = store.courts.find((c) => c.id === req.params.id);
@@ -396,7 +399,20 @@ export function getCourtAvailability(req, res) {
   for (let h = startHour; h < endHour; h++) {
     const startTime = format12Hour(h);
     const endTime = format12Hour(h + 1);
-    const status = getDeterministicStatus(court, date, h);
+    let status = getDeterministicStatus(court, date, h);
+
+    // If an active CONFIRMED booking exists for this court, date and startTime, slot is UNAVAILABLE
+    const isBooked = store.bookings.some(
+      (b) =>
+        b.courtId === court.id &&
+        b.date === date &&
+        b.startTime === startTime &&
+        b.status === 'CONFIRMED'
+    );
+
+    if (isBooked) {
+      status = 'UNAVAILABLE';
+    }
 
     slots.push({
       id: `slot-${String(h).padStart(2, '0')}`,
@@ -416,3 +432,6 @@ export function getCourtAvailability(req, res) {
     slots,
   });
 }
+
+export { parseOperatingHours, format12Hour, getDeterministicStatus };
+

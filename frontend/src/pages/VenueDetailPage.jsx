@@ -5,11 +5,11 @@ import {
   CheckCircle2, Users, Loader2, AlertCircle, ArrowRight,
   ShieldCheck, Wifi, Coffee, Car, Droplets, Zap, Dumbbell,
   Lock, SunMedium, Calendar, CalendarDays, Check, Ban,
-  Layers, Sparkles, Info
+  Layers, Sparkles, Info, CalendarCheck
 } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-import { fetchVenue, fetchCourts, fetchCourtAvailability } from '../services/api';
+import { fetchVenue, fetchCourts, fetchCourtAvailability, createBooking } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 const SPORT_CONFIG = {
@@ -40,6 +40,188 @@ function getAmenityIcon(amenity) {
   return CheckCircle2;
 }
 
+// ─── Booking Confirmation Dialog ──────────────────────────────────────────────
+function BookingModal({ venue, court, slot, date, onClose, onBookingSuccess }) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [receipt, setReceipt] = useState(null);
+
+  const handleConfirm = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await createBooking({
+        courtId: court.id,
+        date,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+      });
+      setReceipt(res.booking);
+      onBookingSuccess(res.booking);
+    } catch (err) {
+      setError(err.message || 'Failed to complete booking.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="booking-modal-title"
+    >
+      <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-7 border border-slate-200 shadow-2xl space-y-5">
+        {receipt ? (
+          <div className="text-center space-y-4 py-2">
+            <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
+              <CheckCircle2 className="w-8 h-8" />
+            </div>
+            <div>
+              <h3 className="text-xl font-black text-slate-900">Court Slot Confirmed!</h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Your reservation has been placed and confirmed on the live system.
+              </p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-left space-y-2 text-xs">
+              <div className="flex justify-between pb-2 border-b border-slate-200">
+                <span className="text-slate-500">Booking Reference:</span>
+                <span className="font-mono font-bold text-indigo-700">{receipt.id}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Venue:</span>
+                <strong className="text-slate-900">{venue.name}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Court:</span>
+                <strong className="text-slate-900">{court.name} ({court.sport})</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Date:</span>
+                <strong className="text-slate-900">{date}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Time:</span>
+                <strong className="text-slate-900">{slot.startTime} - {slot.endTime}</strong>
+              </div>
+              <div className="flex justify-between pt-2 border-t border-slate-200">
+                <span className="text-slate-500">Authoritative Total:</span>
+                <strong className="text-base text-slate-900 font-black">₹{receipt.totalPrice}</strong>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center justify-end gap-2 pt-2">
+              <Link
+                to="/my-bookings"
+                className="w-full sm:w-auto px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl text-center transition-colors shadow-xs"
+              >
+                Go to My Bookings
+              </Link>
+              <button
+                type="button"
+                onClick={onClose}
+                className="w-full sm:w-auto px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <CalendarCheck className="w-5 h-5 text-indigo-600" />
+                <h3 id="booking-modal-title" className="text-base font-black text-slate-900">
+                  Review & Confirm Reservation
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+              >
+                ✕
+              </button>
+            </div>
+
+            {error && (
+              <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2.5 text-xs">
+              <div className="flex justify-between">
+                <span className="text-slate-500">Venue:</span>
+                <strong className="text-slate-900 text-right">{venue.name}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Court:</span>
+                <strong className="text-slate-900">{court.name} ({court.sport})</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Surface / Type:</span>
+                <span className="text-slate-700">{court.courtType} • {court.indoor ? 'Indoor' : 'Outdoor'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Date:</span>
+                <strong className="text-slate-900">{date}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Time Slot:</span>
+                <strong className="text-indigo-700">{slot.startTime} to {slot.endTime} (1 hr)</strong>
+              </div>
+              <div className="flex justify-between pt-2.5 border-t border-slate-200 items-baseline">
+                <span className="text-slate-700 font-bold">Total Payable:</span>
+                <span className="text-xl font-black text-slate-900">₹{court.pricePerHour}</span>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-indigo-50/60 border border-indigo-100 text-indigo-900 text-[11px] flex items-start gap-2">
+              <Info className="w-4 h-4 text-indigo-600 flex-shrink-0 mt-0.5" />
+              <span>
+                Real-time court reservation (Task 4). You can inspect and cancel confirmed bookings anytime from your My Bookings dashboard.
+              </span>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                disabled={loading}
+                onClick={onClose}
+                className="px-4 py-2.5 text-xs font-bold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={loading}
+                onClick={handleConfirm}
+                className="inline-flex items-center gap-1.5 px-5 py-2.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-xs transition-colors disabled:opacity-60"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Confirming…</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Confirm Booking</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </>
+                )}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function VenueDetailPage() {
   const { id } = useParams();
   const { isAuthenticated, role } = useAuth();
@@ -48,7 +230,7 @@ export default function VenueDetailPage() {
   const [error, setError] = useState(null);
   const [imgErr, setImgErr] = useState(false);
 
-  // Task 3: Courts & Availability State
+  // Task 3 & 4: Courts, Availability & Booking State
   const [courts, setCourts] = useState([]);
   const [courtsLoading, setCourtsLoading] = useState(true);
   const [selectedCourt, setSelectedCourt] = useState(null);
@@ -58,6 +240,10 @@ export default function VenueDetailPage() {
   const [availability, setAvailability] = useState(null);
   const [availLoading, setAvailLoading] = useState(false);
   const [availError, setAvailError] = useState(null);
+
+  // Task 4: Slot selection & Booking Modal state
+  const [selectedSlot, setSelectedSlot] = useState(null);
+  const [bookingModalOpen, setBookingModalOpen] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -89,14 +275,14 @@ export default function VenueDetailPage() {
   }, [id]);
 
   // Load availability when selected court or date changes
-  useEffect(() => {
-    if (!selectedCourt?.id || !selectedDate) {
+  const loadAvailability = (courtId, date) => {
+    if (!courtId || !date) {
       setAvailability(null);
       return;
     }
     setAvailLoading(true);
     setAvailError(null);
-    fetchCourtAvailability(selectedCourt.id, selectedDate)
+    fetchCourtAvailability(courtId, date)
       .then((data) => {
         setAvailability(data);
       })
@@ -104,6 +290,15 @@ export default function VenueDetailPage() {
         setAvailError(err.message || 'Unable to load court availability.');
       })
       .finally(() => setAvailLoading(false));
+  };
+
+  useEffect(() => {
+    setSelectedSlot(null);
+    if (selectedCourt?.id && selectedDate) {
+      loadAvailability(selectedCourt.id, selectedDate);
+    } else {
+      setAvailability(null);
+    }
   }, [selectedCourt?.id, selectedDate]);
 
   const todayStr = new Date().toISOString().slice(0, 10);
@@ -445,23 +640,37 @@ export default function VenueDetailPage() {
                           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
                             {availability.slots.map((slot) => {
                               const isAvail = slot.status === 'AVAILABLE';
+                              const isSelected = selectedSlot?.id === slot.id;
                               return (
-                                <div
+                                <button
                                   key={slot.id}
+                                  type="button"
+                                  disabled={!isAvail}
+                                  onClick={() => {
+                                    if (!isAvail) return;
+                                    setSelectedSlot(isSelected ? null : slot);
+                                  }}
                                   className={`p-2.5 rounded-xl border text-center transition-all ${
-                                    isAvail
-                                      ? 'bg-emerald-50/50 border-emerald-200/80 text-emerald-900 shadow-2xs'
+                                    isSelected
+                                      ? 'bg-indigo-600 border-indigo-600 text-white shadow-md ring-2 ring-indigo-400/40'
+                                      : isAvail
+                                      ? 'bg-emerald-50/50 border-emerald-200/80 text-emerald-900 hover:border-emerald-400 hover:bg-emerald-50 cursor-pointer shadow-2xs'
                                       : 'bg-slate-100/70 border-slate-200/60 text-slate-400 cursor-not-allowed opacity-75'
                                   }`}
                                 >
-                                  <p className="text-xs font-bold text-slate-800">
+                                  <p className={`text-xs font-bold ${isSelected ? 'text-white' : 'text-slate-800'}`}>
                                     {slot.startTime}
                                   </p>
-                                  <p className="text-[10px] text-slate-400">
+                                  <p className={`text-[10px] ${isSelected ? 'text-indigo-100' : 'text-slate-400'}`}>
                                     to {slot.endTime}
                                   </p>
                                   <div className="mt-1.5">
-                                    {isAvail ? (
+                                    {isSelected ? (
+                                      <span className="inline-flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-white text-indigo-700 shadow-2xs">
+                                        <Check className="w-2.5 h-2.5" />
+                                        Selected
+                                      </span>
+                                    ) : isAvail ? (
                                       <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300/60">
                                         <Check className="w-2.5 h-2.5" />
                                         Available
@@ -473,10 +682,23 @@ export default function VenueDetailPage() {
                                       </span>
                                     )}
                                   </div>
-                                </div>
+                                </button>
                               );
                             })}
                           </div>
+
+                          {/* Selected Slot Feedback Pill */}
+                          {selectedSlot && (
+                            <div className="mt-3.5 flex items-center justify-between p-3.5 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-950 text-xs">
+                              <div className="flex items-center gap-2">
+                                <CheckCircle2 className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+                                <span>
+                                  Selected: <strong>{selectedSlot.startTime} to {selectedSlot.endTime}</strong> on {selectedCourt.name}
+                                </span>
+                              </div>
+                              <span className="font-black text-slate-900">₹{selectedCourt.pricePerHour}</span>
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <p className="text-xs text-slate-500 py-4 text-center">
@@ -581,17 +803,28 @@ export default function VenueDetailPage() {
                   <div className="pt-2">
                     {isAuthenticated && role === 'CUSTOMER' ? (
                       <div className="space-y-2.5">
-                        <button
-                          type="button"
-                          disabled
-                          className="w-full flex items-center justify-center gap-2 py-3.5 px-4 bg-indigo-600/70 text-white font-bold text-sm rounded-xl cursor-not-allowed shadow-xs"
-                          title="Court slot reservation & checkout activates in Task 4"
-                        >
-                          Book a Court Slot
-                          <ArrowRight className="w-4 h-4" />
-                        </button>
-                        <p className="text-[11px] text-center text-slate-400 font-medium">
-                          Viewing availability above. Booking & checkout unlocks in Task 4.
+                        {selectedSlot ? (
+                          <button
+                            type="button"
+                            onClick={() => setBookingModalOpen(true)}
+                            className="w-full flex items-center justify-center gap-2 py-3.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded-xl shadow-md shadow-indigo-200 transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          >
+                            <span>Book Slot ({selectedSlot.startTime})</span>
+                            <ArrowRight className="w-4 h-4" />
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled
+                            className="w-full flex items-center justify-center gap-2 py-3.5 px-4 bg-slate-200 text-slate-500 font-bold text-sm rounded-xl cursor-not-allowed"
+                          >
+                            <span>Select an Available Slot</span>
+                          </button>
+                        )}
+                        <p className="text-[11px] text-center text-slate-500 font-medium">
+                          {selectedSlot
+                            ? `Selected: ${selectedSlot.startTime} to ${selectedSlot.endTime} (1 hr)`
+                            : 'Click any green "Available" slot above to proceed'}
                         </p>
                       </div>
                     ) : !isAuthenticated ? (
@@ -634,6 +867,21 @@ export default function VenueDetailPage() {
       </main>
 
       <Footer />
+
+      {/* Task 4: Booking Confirmation Modal */}
+      {bookingModalOpen && selectedSlot && selectedCourt && (
+        <BookingModal
+          venue={venue}
+          court={selectedCourt}
+          slot={selectedSlot}
+          date={selectedDate}
+          onClose={() => setBookingModalOpen(false)}
+          onBookingSuccess={() => {
+            setSelectedSlot(null);
+            loadAvailability(selectedCourt.id, selectedDate);
+          }}
+        />
+      )}
     </div>
   );
 }

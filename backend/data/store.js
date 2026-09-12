@@ -380,30 +380,30 @@ export const store = {
     {
       id: 'BK-80066572',
       userId: 'u-101',
-      userName: 'Rahul Sharma',
+      courtId: 'c-1',
       venueId: 'v-1',
-      venueName: 'Game Arena, Bodakdev',
-      courtName: 'Court-1 Standard',
       date: '2026-09-20',
-      timeSlot: '08:00 AM - 09:00 AM',
-      amount: 400,
-      status: 'confirmed',
-      paymentMethod: 'UPI',
-      createdAt: '2026-09-11',
+      startTime: '08:00 AM',
+      endTime: '09:00 AM',
+      pricePerHour: 400,
+      totalPrice: 400,
+      status: 'CONFIRMED',
+      createdAt: '2026-09-11T10:00:00.000Z',
+      updatedAt: '2026-09-11T10:00:00.000Z',
     },
     {
       id: 'BK-80066573',
       userId: 'u-101',
-      userName: 'Rahul Sharma',
+      courtId: 'c-4',
       venueId: 'v-2',
-      venueName: 'PlayZone, Vastrapur',
-      courtName: 'Tennis Court A',
       date: '2026-09-22',
-      timeSlot: '07:00 PM - 08:00 PM',
-      amount: 600,
-      status: 'confirmed',
-      paymentMethod: 'Card',
-      createdAt: '2026-09-10',
+      startTime: '07:00 PM',
+      endTime: '08:00 PM',
+      pricePerHour: 600,
+      totalPrice: 600,
+      status: 'CONFIRMED',
+      createdAt: '2026-09-10T10:00:00.000Z',
+      updatedAt: '2026-09-10T10:00:00.000Z',
     },
   ],
 
@@ -486,5 +486,34 @@ export function safeCourt(court) {
     isActive: Boolean(court.isActive),
     createdAt: court.createdAt,
     updatedAt: court.updatedAt,
+  };
+}
+
+/**
+ * Returns a safe customer booking object with enriched venue/court metadata.
+ */
+export function safeBooking(booking) {
+  if (!booking) return null;
+  const court = store.courts.find((c) => c.id === booking.courtId);
+  const venue = store.venues.find((v) => v.id === (booking.venueId || court?.venueId));
+
+  return {
+    id: booking.id,
+    userId: booking.userId,
+    courtId: booking.courtId,
+    venueId: booking.venueId || court?.venueId || null,
+    courtName: court ? court.name : (booking.courtName || 'Court'),
+    sport: court ? court.sport : (booking.sport || 'Sports'),
+    venueName: venue ? venue.name : (booking.venueName || 'Venue'),
+    venueLocation: venue ? venue.location : '',
+    venueCity: venue ? venue.city : '',
+    date: booking.date,
+    startTime: booking.startTime,
+    endTime: booking.endTime,
+    pricePerHour: Number(booking.pricePerHour || court?.pricePerHour || 0),
+    totalPrice: Number(booking.totalPrice || 0),
+    status: booking.status,
+    createdAt: booking.createdAt,
+    updatedAt: booking.updatedAt,
   };
 }

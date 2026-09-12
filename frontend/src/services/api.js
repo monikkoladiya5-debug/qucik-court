@@ -223,3 +223,39 @@ export async function fetchCourtAvailability(courtId, date) {
   return apiRequest('GET', `/courts/${courtId}/availability?date=${encodeURIComponent(date)}`);
 }
 
+// ─── Bookings ─────────────────────────────────────────────────────────────────
+
+/**
+ * POST /api/bookings  (CUSTOMER)
+ * Body: { courtId, date, startTime, endTime }
+ * Returns { status, booking }
+ */
+export async function createBooking(data) {
+  return apiRequest('POST', '/bookings', data, true);
+}
+
+/**
+ * GET /api/bookings/my  (CUSTOMER)
+ * Returns { status, count, bookings }
+ */
+export async function fetchMyBookings() {
+  return apiRequest('GET', '/bookings/my', null, true);
+}
+
+/**
+ * GET /api/bookings/:id
+ * Returns { status, booking }
+ */
+export async function fetchBooking(id) {
+  return apiRequest('GET', `/bookings/${id}`, null, true);
+}
+
+/**
+ * DELETE /api/bookings/:id  (CUSTOMER)
+ * Returns { status, message, booking }
+ */
+export async function cancelBooking(id) {
+  return apiRequest('DELETE', `/bookings/${id}`, null, true);
+}
+
+
