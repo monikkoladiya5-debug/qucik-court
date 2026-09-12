@@ -9,6 +9,7 @@ import VenuesPage from './pages/VenuesPage';
 import VenueDetailPage from './pages/VenueDetailPage';
 import OwnerVenuesPage from './pages/OwnerVenuesPage';
 import MyBookingsPage from './pages/MyBookingsPage';
+import PlayersPage from './pages/PlayersPage';
 import { fetchHealth, fetchSummary } from './services/api';
 import {
   Activity, CheckCircle2, ShieldCheck, Database, Server,
@@ -390,6 +391,14 @@ export default function App() {
             element={
               <ProtectedRoute allowedRoles={['CUSTOMER']}>
                 <MyBookingsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/players"
+            element={
+              <ProtectedRoute allowedRoles={['CUSTOMER']}>
+                <PlayersPage />
               </ProtectedRoute>
             }
           />

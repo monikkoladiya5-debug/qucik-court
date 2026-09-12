@@ -410,25 +410,48 @@ export const store = {
   players: [
     {
       id: 'p-1',
+      userId: null,
       name: 'Smeet Badminton Fan',
       sport: 'Badminton',
       skillLevel: 'Intermediate',
-      age: 24,
       distance: '5 km away',
       preferredDays: 'Weekdays',
       preferredTime: 'Evenings',
+      availabilityStatus: 'AVAILABLE',
+      bio: 'Recreational badminton player looking for doubles practice partners in Ahmedabad.',
       imageUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+      createdAt: '2026-08-01T10:00:00.000Z',
+      updatedAt: '2026-08-01T10:00:00.000Z',
     },
     {
       id: 'p-2',
+      userId: null,
       name: 'Karan Tennis Pro',
       sport: 'Tennis',
       skillLevel: 'Advanced',
-      age: 28,
       distance: '8 km away',
       preferredDays: 'Weekends',
       preferredTime: 'Mornings',
+      availabilityStatus: 'AVAILABLE',
+      bio: 'Experienced tennis player seeking competitive singles and sparring sessions.',
       imageUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80',
+      createdAt: '2026-08-10T10:00:00.000Z',
+      updatedAt: '2026-08-10T10:00:00.000Z',
+    },
+    {
+      id: 'p-3',
+      userId: 'u-101',
+      name: 'Rahul Sharma',
+      sport: 'Badminton',
+      skillLevel: 'Intermediate',
+      distance: '2 km away',
+      preferredDays: 'Weekdays',
+      preferredTime: 'Evenings',
+      availabilityStatus: 'AVAILABLE',
+      bio: 'Badminton and tennis enthusiast looking for friendly evening matches.',
+      imageUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80',
+      createdAt: '2026-09-01T10:00:00.000Z',
+      updatedAt: '2026-09-01T10:00:00.000Z',
     },
   ],
 
@@ -517,3 +540,26 @@ export function safeBooking(booking) {
     updatedAt: booking.updatedAt,
   };
 }
+
+/**
+ * Returns a safe customer-facing player object.
+ * Strips passwordHash, email, phone, age, and internal IDs per data minimization rules.
+ */
+export function safePlayer(player) {
+  if (!player) return null;
+  return {
+    id: player.id,
+    name: player.name,
+    sport: player.sport,
+    skillLevel: player.skillLevel,
+    preferredDays: player.preferredDays || 'Flexible',
+    preferredTime: player.preferredTime || 'Flexible',
+    availabilityStatus: player.availabilityStatus || 'AVAILABLE',
+    bio: player.bio || '',
+    distance: player.distance || '',
+    imageUrl: player.imageUrl || null,
+    createdAt: player.createdAt,
+    updatedAt: player.updatedAt,
+  };
+}
+

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import {
   Activity, LogOut, User, Building2, ShieldCheck,
-  Menu, X, ChevronRight, Sparkles, CalendarCheck
+  Menu, X, ChevronRight, Sparkles, CalendarCheck, Users
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -66,19 +66,34 @@ export default function Header() {
             </NavLink>
 
             {isAuthenticated && role === 'CUSTOMER' && (
-              <NavLink
-                to="/my-bookings"
-                className={({ isActive }) =>
-                  `px-3.5 py-1.5 text-sm font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
-                    isActive
-                      ? 'bg-indigo-50 text-indigo-700 shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                  }`
-                }
-              >
-                <CalendarCheck className="w-4 h-4 text-indigo-600" />
-                <span>My Bookings</span>
-              </NavLink>
+              <>
+                <NavLink
+                  to="/players"
+                  className={({ isActive }) =>
+                    `px-3.5 py-1.5 text-sm font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
+                      isActive
+                        ? 'bg-indigo-50 text-indigo-700 shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    }`
+                  }
+                >
+                  <Users className="w-4 h-4 text-indigo-600" />
+                  <span>Find Players</span>
+                </NavLink>
+                <NavLink
+                  to="/my-bookings"
+                  className={({ isActive }) =>
+                    `px-3.5 py-1.5 text-sm font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
+                      isActive
+                        ? 'bg-indigo-50 text-indigo-700 shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    }`
+                  }
+                >
+                  <CalendarCheck className="w-4 h-4 text-indigo-600" />
+                  <span>My Bookings</span>
+                </NavLink>
+              </>
             )}
 
             {isAuthenticated && role === 'OWNER' && (
@@ -193,21 +208,38 @@ export default function Header() {
           </NavLink>
 
           {isAuthenticated && role === 'CUSTOMER' && (
-            <NavLink
-              to="/my-bookings"
-              onClick={() => setMobileMenuOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
-                  isActive ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700 hover:bg-slate-50'
-                }`
-              }
-            >
-              <div className="flex items-center gap-2">
-                <CalendarCheck className="w-4 h-4 text-indigo-600" />
-                <span>My Bookings</span>
-              </div>
-              <ChevronRight className="w-4 h-4 text-slate-400" />
-            </NavLink>
+            <>
+              <NavLink
+                to="/players"
+                onClick={() => setMobileMenuOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+                    isActive ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700 hover:bg-slate-50'
+                  }`
+                }
+              >
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-indigo-600" />
+                  <span>Find Players</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-slate-400" />
+              </NavLink>
+              <NavLink
+                to="/my-bookings"
+                onClick={() => setMobileMenuOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+                    isActive ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700 hover:bg-slate-50'
+                  }`
+                }
+              >
+                <div className="flex items-center gap-2">
+                  <CalendarCheck className="w-4 h-4 text-indigo-600" />
+                  <span>My Bookings</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-slate-400" />
+              </NavLink>
+            </>
           )}
 
           {isAuthenticated && role === 'OWNER' && (

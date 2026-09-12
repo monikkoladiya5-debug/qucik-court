@@ -258,4 +258,46 @@ export async function cancelBooking(id) {
   return apiRequest('DELETE', `/bookings/${id}`, null, true);
 }
 
+// ─── Players (Task 5) ─────────────────────────────────────────────────────────
+
+/**
+ * GET /api/players?sport=&skillLevel=&preferredTime=&availabilityStatus=&q= (CUSTOMER)
+ * Returns { status, count, players }
+ */
+export async function fetchPlayers(filters = {}) {
+  const params = new URLSearchParams();
+  if (filters.sport) params.set('sport', filters.sport);
+  if (filters.skillLevel) params.set('skillLevel', filters.skillLevel);
+  if (filters.preferredTime) params.set('preferredTime', filters.preferredTime);
+  if (filters.availabilityStatus) params.set('availabilityStatus', filters.availabilityStatus);
+  if (filters.q) params.set('q', filters.q);
+  const qs = params.toString();
+  return apiRequest('GET', `/players${qs ? `?${qs}` : ''}`, null, true);
+}
+
+/**
+ * GET /api/players/:id (CUSTOMER)
+ * Returns { status, player }
+ */
+export async function fetchPlayer(id) {
+  return apiRequest('GET', `/players/${id}`, null, true);
+}
+
+/**
+ * GET /api/players/me/profile (CUSTOMER)
+ * Returns { status, player }
+ */
+export async function fetchMyPlayerProfile() {
+  return apiRequest('GET', '/players/me/profile', null, true);
+}
+
+/**
+ * PUT /api/players/me/profile (CUSTOMER)
+ * Body: { sport, skillLevel, preferredDays, preferredTime, availabilityStatus, bio }
+ * Returns { status, message, player }
+ */
+export async function updateMyPlayerProfile(data) {
+  return apiRequest('PUT', '/players/me/profile', data, true);
+}
+
 
