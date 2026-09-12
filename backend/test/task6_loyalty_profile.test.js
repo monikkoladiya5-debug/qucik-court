@@ -388,10 +388,11 @@ describe('Task 6: Loyalty Points Calculation & Security', () => {
 
   it('Booking whose end time has not passed on the current day earns 0 points', async () => {
     const now = new Date();
-    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    
-    // Booking 4 hours into the future today
-    const futureHour = (now.getHours() + 4) % 24;
+    // Calculate a booking time 4 hours in the future; if this crosses midnight, advance the date accordingly
+    const futureTime = new Date(now.getTime() + 4 * 60 * 60 * 1000);
+    const bookingDateStr = `${futureTime.getFullYear()}-${String(futureTime.getMonth() + 1).padStart(2, '0')}-${String(futureTime.getDate()).padStart(2, '0')}`;
+
+    const futureHour = futureTime.getHours();
     const endFutureHour = (futureHour + 1) % 24;
     const formatHour = (h) => {
       const period = h >= 12 ? 'PM' : 'AM';
@@ -404,7 +405,7 @@ describe('Task 6: Loyalty Points Calculation & Security', () => {
       userId: 'u-101',
       courtId: 'c-2',
       venueId: 'v-1',
-      date: todayStr,
+      date: bookingDateStr,
       startTime: formatHour(futureHour),
       endTime: formatHour(endFutureHour),
       pricePerHour: 400,
