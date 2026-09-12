@@ -36,19 +36,18 @@ export default function Footer() {
         </div>
 
         <div>
-          <h4 className="text-sm font-semibold text-white uppercase tracking-wider mb-4">Architecture</h4>
-          <p className="text-xs text-slate-400 mb-2">
-            React + Express + In-Memory Store
-          </p>
-          <span className="inline-block px-2.5 py-1 rounded bg-slate-800 text-purple-400 text-xs font-mono">
-            No External DB (Demo Mode)
-          </span>
+          <h4 className="text-sm font-semibold text-white uppercase tracking-wider mb-4">Facility Owners</h4>
+          <ul className="space-y-2 text-sm">
+            <li><a href="/owner/dashboard" className="hover:text-white transition-colors">Owner Dashboard</a></li>
+            <li><a href="/owner/venues" className="hover:text-white transition-colors">Manage Facilities</a></li>
+            <li><a href="/auth" className="hover:text-white transition-colors">Partner With Us</a></li>
+          </ul>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 pt-8 border-t border-slate-800 flex flex-col md:flex-row items-center justify-between text-xs text-slate-500">
         <p>© 2026 QuickCourt. All rights reserved.</p>
-        <p className="mt-2 md:mt-0">Built cleanly with React, Tailwind & Express.</p>
+        <p className="mt-2 md:mt-0">Verified Sports Venue & Court Reservation Platform.</p>
       </div>
     </footer>
   );
