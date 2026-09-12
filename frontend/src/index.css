@@ -35,6 +35,11 @@
   background-size: 24px 24px;
 }
 
+.bg-court-pattern-dark {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.06) 1.2px, transparent 1.2px);
+  background-size: 24px 24px;
+}
+
 .bg-mesh-gradient {
   background: radial-gradient(at 0% 0%, rgba(79, 70, 229, 0.08) 0px, transparent 50%),
               radial-gradient(at 100% 0%, rgba(16, 185, 129, 0.08) 0px, transparent 50%),
@@ -71,4 +76,18 @@
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+}
+
+/* Responsive Table Customer Identity & Email Utilities */
+.table-email-cell {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (min-width: 640px) {
+  .table-email-cell {
+    max-width: 220px;
+  }
 }
