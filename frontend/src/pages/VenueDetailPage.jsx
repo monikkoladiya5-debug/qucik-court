@@ -12,6 +12,7 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { fetchVenue, fetchCourts, fetchCourtAvailability, createBooking } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { formatBookingDate, getLocalDateString } from '../utils/date';
 
 const SPORT_CONFIG = {
   Badminton:  { icon: Trophy,      bg: 'bg-emerald-500/10', text: 'text-emerald-300', border: 'border-emerald-500/20' },
@@ -47,6 +48,16 @@ function BookingModal({ venue, court, slot, date, onClose, onBookingSuccess }) {
   const [error, setError] = useState(null);
   const [receipt, setReceipt] = useState(null);
 
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if (e.key === 'Escape' && !loading) {
+        onClose();
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [loading, onClose]);
+
   const handleConfirm = async () => {
     try {
       setLoading(true);
@@ -72,6 +83,11 @@ function BookingModal({ venue, court, slot, date, onClose, onBookingSuccess }) {
       role="dialog"
       aria-modal="true"
       aria-labelledby="booking-modal-title"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !loading) {
+          onClose();
+        }
+      }}
     >
       <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-2xl space-y-5 text-slate-100 my-8">
         {receipt ? (
@@ -101,7 +117,7 @@ function BookingModal({ venue, court, slot, date, onClose, onBookingSuccess }) {
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">Date:</span>
-                <strong className="text-white">{date}</strong>
+                <strong className="text-white">{formatBookingDate(date)}</strong>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">Time:</span>
@@ -170,7 +186,7 @@ function BookingModal({ venue, court, slot, date, onClose, onBookingSuccess }) {
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">Date:</span>
-                <strong className="text-white">{date}</strong>
+                <strong className="text-white">{formatBookingDate(date)}</strong>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">Time Slot:</span>
@@ -238,9 +254,7 @@ export default function VenueDetailPage() {
   const [courts, setCourts] = useState([]);
   const [courtsLoading, setCourtsLoading] = useState(true);
   const [selectedCourt, setSelectedCourt] = useState(null);
-  const [selectedDate, setSelectedDate] = useState(() => {
-    return new Date().toISOString().slice(0, 10);
-  });
+  const [selectedDate, setSelectedDate] = useState(() => getLocalDateString());
   const [availability, setAvailability] = useState(null);
   const [availLoading, setAvailLoading] = useState(false);
   const [availError, setAvailError] = useState(null);
@@ -305,10 +319,10 @@ export default function VenueDetailPage() {
     }
   }, [selectedCourt?.id, selectedDate]);
 
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = getLocalDateString();
   const tomorrowDate = new Date();
   tomorrowDate.setDate(tomorrowDate.getDate() + 1);
-  const tomorrowStr = tomorrowDate.toISOString().slice(0, 10);
+  const tomorrowStr = getLocalDateString(tomorrowDate);
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100 relative">
@@ -801,7 +815,7 @@ export default function VenueDetailPage() {
 
                     <div className="flex items-center justify-between text-slate-400 py-1 border-b border-slate-800/60">
                       <span>Date</span>
-                      <strong className="text-white">{selectedDate}</strong>
+                      <strong className="text-white">{formatBookingDate(selectedDate)}</strong>
                     </div>
 
                     <div className="flex items-center justify-between text-slate-400 py-1 border-b border-slate-800/60">

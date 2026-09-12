@@ -64,3 +64,17 @@ export function formatBookingDate(dateStr) {
 
   return trimmed;
 }
+
+/**
+ * Returns a date string in "YYYY-MM-DD" format using the user's local timezone
+ * to prevent UTC midnight date-shift bugs.
+ * 
+ * @param {Date} [d=new Date()] - Date object to format
+ * @returns {string} Formatted date string in "YYYY-MM-DD"
+ */
+export function getLocalDateString(d = new Date()) {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}

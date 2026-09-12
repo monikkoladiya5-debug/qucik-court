@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { useAuth } from '../context/AuthContext';
@@ -9,9 +10,11 @@ import {
   updateMyPlayerProfile
 } from '../services/api';
 import {
-  Users, Search, Filter, Sparkles, UserCheck, Clock,
-  Calendar, Award, MapPin, CheckCircle2, AlertCircle,
-  X, Edit3, Shield, RefreshCw, Compass, Trophy
+  Users, Search, UserCheck, Clock,
+  Calendar, MapPin, CheckCircle2, AlertCircle,
+  X, Edit3, ShieldCheck, RefreshCw, Trophy,
+  Zap, Award, Flame, Sparkles, Layers, Activity,
+  ChevronRight, ExternalLink, SlidersHorizontal, Check
 } from 'lucide-react';
 
 const SPORTS_OPTIONS = ['All', 'Badminton', 'Tennis', 'Pickleball', 'Football', 'Basketball', 'Squash'];
@@ -19,10 +22,25 @@ const SKILL_OPTIONS = ['All', 'Beginner', 'Intermediate', 'Advanced'];
 const TIME_OPTIONS = ['All', 'Mornings', 'Afternoons', 'Evenings', 'Flexible'];
 const STATUS_OPTIONS = ['All', 'AVAILABLE', 'BUSY'];
 
+const SPORT_CONFIG = {
+  Badminton:  { icon: Trophy,      bg: 'bg-emerald-500/10', text: 'text-emerald-300', border: 'border-emerald-500/20' },
+  Tennis:     { icon: Zap,         bg: 'bg-amber-500/10',   text: 'text-amber-300',   border: 'border-amber-500/20' },
+  Football:   { icon: Award,       bg: 'bg-blue-500/10',    text: 'text-blue-300',    border: 'border-blue-500/20' },
+  Basketball: { icon: Flame,       bg: 'bg-orange-500/10',  text: 'text-orange-300',  border: 'border-orange-200' },
+  Pickleball: { icon: Sparkles,    bg: 'bg-purple-500/10',  text: 'text-purple-300',  border: 'border-purple-500/20' },
+  Cricket:    { icon: ShieldCheck, bg: 'bg-red-500/10',     text: 'text-red-300',     border: 'border-red-500/20' },
+  Squash:     { icon: Layers,      bg: 'bg-teal-500/10',    text: 'text-teal-300',    border: 'border-teal-500/20' },
+  default:    { icon: Activity,    bg: 'bg-slate-800',      text: 'text-slate-300',   border: 'border-slate-700' },
+};
+
+function getSportStyle(sport) {
+  return SPORT_CONFIG[sport] || SPORT_CONFIG.default;
+}
+
 const SKILL_BADGE_STYLES = {
-  Beginner: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  Intermediate: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-  Advanced: 'bg-purple-50 text-purple-700 border-purple-200',
+  Beginner: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20',
+  Intermediate: 'bg-sky-500/10 text-sky-300 border-sky-500/20',
+  Advanced: 'bg-purple-500/10 text-purple-300 border-purple-500/20',
 };
 
 export default function PlayersPage() {
@@ -74,7 +92,7 @@ export default function PlayersPage() {
       setPlayers(data.players || []);
     } catch (err) {
       console.error('Failed to load players:', err);
-      setError(err.message || 'Unable to fetch players. Please try again.');
+      setError(err.message || 'Unable to fetch players. Please check your connection.');
     } finally {
       setLoading(false);
     }
@@ -105,6 +123,18 @@ export default function PlayersPage() {
   useEffect(() => {
     loadMyProfile();
   }, [loadMyProfile]);
+
+  // Keyboard Escape listener to dismiss open dialogs
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if (e.key === 'Escape') {
+        if (selectedPlayer) setSelectedPlayer(null);
+        if (isEditProfileOpen && !profileSaving) setIsEditProfileOpen(false);
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedPlayer, isEditProfileOpen, profileSaving]);
 
   // ─── Open Player Detail ─────────────────────────────────────────────────────
   async function handleOpenDetail(player) {
@@ -173,110 +203,146 @@ export default function PlayersPage() {
     selectedStatus !== 'All';
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900">
+    <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100 relative">
+      {/* Background athletic pattern overlay */}
+      <div className="fixed inset-0 bg-court-pattern opacity-10 pointer-events-none" />
+
       <Header />
 
-      <main className="flex-1">
-        {/* ── Hero & Profile Banner ────────────────────────────────────────── */}
-        <section className="bg-gradient-to-b from-slate-900 via-indigo-950 to-slate-900 text-white py-12 px-4 sm:px-6 lg:px-8 border-b border-indigo-950/60 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute bottom-0 left-10 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-
-          <div className="max-w-7xl mx-auto">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-              <div>
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-xs font-bold mb-3">
-                  <Compass className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>COMMUNITY DISCOVERY</span>
-                </div>
-                <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white mb-2">
-                  Find Players & Sparring Partners
-                </h1>
-                <p className="text-slate-300 text-sm sm:text-base max-w-2xl leading-relaxed">
-                  Connect with fellow sports enthusiasts in your city. Filter by sport, skill level, and preferred play schedule to discover local partners.
-                </p>
-              </div>
-
-              {/* My Profile Quick Card */}
-              <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl p-5 sm:w-80 shadow-xl flex flex-col justify-between">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-                    <UserCheck className="w-4 h-4" />
-                    My Player Profile
-                  </span>
-                  <span
-                    className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider ${
-                      myProfile?.availabilityStatus === 'AVAILABLE'
-                        ? 'bg-emerald-500/30 text-emerald-300 border border-emerald-500/40'
-                        : 'bg-amber-500/30 text-amber-300 border border-amber-500/40'
-                    }`}
-                  >
-                    {myProfile?.availabilityStatus || 'AVAILABLE'}
-                  </span>
-                </div>
-
-                <div className="text-sm font-bold text-white mb-1">
-                  {myProfile?.name || user?.name || 'Customer Player'}
-                </div>
-                <div className="text-xs text-indigo-200 mb-3 flex items-center gap-2">
-                  <span>{myProfile?.sport || 'Badminton'}</span>
-                  <span>•</span>
-                  <span>{myProfile?.skillLevel || 'Intermediate'}</span>
-                  <span>•</span>
-                  <span>{myProfile?.preferredTime || 'Evenings'}</span>
-                </div>
-
-                <button
-                  id="btn-edit-my-profile"
-                  onClick={() => setIsEditProfileOpen(true)}
-                  className="w-full inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-colors shadow-sm"
-                >
-                  <Edit3 className="w-3.5 h-3.5" />
-                  <span>Update My Playing Preferences</span>
-                </button>
-              </div>
+      <main className="relative z-10 flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
+        
+        {/* ── Community Header ────────────────────────────────────────────── */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-slate-800">
+          <div className="max-w-2xl">
+            <div className="flex items-center gap-2 text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2">
+              <Users className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Community Discovery</span>
+              <span className="text-slate-600">/</span>
+              <span className="text-slate-400 font-medium">Local Matchmaking</span>
             </div>
-          </div>
-        </section>
 
-        {/* ── Filters & Search Section ─────────────────────────────────────── */}
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6">
-          <div className="bg-white rounded-2xl shadow-lg border border-slate-200/80 p-5 space-y-4">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight">
+              Find Players & Sparring Partners
+            </h1>
+            <p className="mt-1.5 text-sm text-slate-400 leading-relaxed">
+              Meet players who share your sports interests. Filter by sport, skill level, and play schedule to set up your next match.
+            </p>
+          </div>
+
+          {/* My Player Profile Mini-Card */}
+          <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5 sm:min-w-[320px] shadow-xl backdrop-blur-md flex flex-col justify-between">
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                <UserCheck className="w-3.5 h-3.5" />
+                <span>My Playing Status</span>
+              </span>
+              <span
+                className={`inline-flex items-center gap-1 text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider border ${
+                  myProfile?.availabilityStatus === 'AVAILABLE'
+                    ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                    : 'bg-slate-800 text-slate-400 border-slate-700'
+                }`}
+              >
+                <span
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    myProfile?.availabilityStatus === 'AVAILABLE' ? 'bg-emerald-400' : 'bg-slate-500'
+                  }`}
+                />
+                {myProfile?.availabilityStatus || 'AVAILABLE'}
+              </span>
+            </div>
+
+            <div className="text-sm font-black text-white">
+              {myProfile?.name || user?.name || 'Player Profile'}
+            </div>
             
-            {/* Search input */}
+            <div className="text-xs text-slate-400 mt-0.5 mb-3 flex items-center gap-2 flex-wrap">
+              <span className="text-emerald-400 font-semibold">{myProfile?.sport || 'Badminton'}</span>
+              <span>•</span>
+              <span>{myProfile?.skillLevel || 'Intermediate'}</span>
+              <span>•</span>
+              <span>{myProfile?.preferredTime || 'Evenings'}</span>
+            </div>
+
+            <button
+              id="btn-edit-my-profile"
+              type="button"
+              onClick={() => setIsEditProfileOpen(true)}
+              className="w-full inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-800 text-slate-200 hover:text-white text-xs font-bold transition-colors border border-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+            >
+              <Edit3 className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Update Playing Preferences</span>
+            </button>
+          </div>
+        </div>
+
+        {/* ── Player Discovery Filters Area ───────────────────────────────── */}
+        <section aria-label="Player discovery filters" className="mt-8 space-y-4">
+          <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xl backdrop-blur-md space-y-4">
+            
+            {/* Search Input Bar */}
             <div className="relative">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" aria-hidden="true" />
               <input
                 id="input-player-search"
-                type="text"
+                type="search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search players by name, sport, or bio..."
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50/50"
+                placeholder="Search players by name, sport, or bio keywords…"
+                aria-label="Search players by name, sport, or bio keywords"
+                className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-slate-950/90 border border-slate-800 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition-all"
               />
               {searchQuery && (
                 <button
+                  type="button"
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400 hover:text-slate-600"
+                  aria-label="Clear player search"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1 rounded-md"
                 >
-                  Clear
+                  <X className="w-4 h-4" />
                 </button>
               )}
             </div>
 
-            {/* Filter controls row */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* Quick 1-Click Sport Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 no-scrollbar text-xs">
+              {SPORTS_OPTIONS.map((sport) => {
+                const isSelected = selectedSport === sport;
+                const style = getSportStyle(sport);
+                const SportIcon = style.icon;
+
+                return (
+                  <button
+                    key={sport}
+                    type="button"
+                    onClick={() => setSelectedSport(sport)}
+                    aria-pressed={isSelected}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full font-bold whitespace-nowrap border transition-all ${
+                      isSelected
+                        ? 'bg-emerald-500 text-slate-950 border-emerald-500 shadow-sm shadow-emerald-500/20'
+                        : 'bg-slate-950/80 text-slate-400 border-slate-800 hover:border-slate-700 hover:bg-slate-800 hover:text-slate-200'
+                    }`}
+                  >
+                    {sport !== 'All' && <SportIcon className="w-3.5 h-3.5" aria-hidden="true" />}
+                    <span>{sport === 'All' ? 'All Sports' : sport}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Secondary Filter Dropdowns */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1 border-t border-slate-800/80">
               
-              {/* Sport Filter */}
+              {/* Sport Dropdown */}
               <div>
-                <label htmlFor="filter-sport" className="block text-xs font-bold text-slate-600 mb-1">
-                  Sport
+                <label htmlFor="filter-sport" className="block text-xs font-bold text-slate-400 mb-1">
+                  Sport Type
                 </label>
                 <select
                   id="filter-sport"
                   value={selectedSport}
                   onChange={(e) => setSelectedSport(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-slate-700"
+                  className="w-full px-3 py-2 text-xs font-semibold rounded-xl bg-slate-950 border border-slate-800 text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-400 transition-colors"
                 >
                   {SPORTS_OPTIONS.map((sport) => (
                     <option key={sport} value={sport}>
@@ -286,16 +352,16 @@ export default function PlayersPage() {
                 </select>
               </div>
 
-              {/* Skill Level Filter */}
+              {/* Skill Level Dropdown */}
               <div>
-                <label htmlFor="filter-skill" className="block text-xs font-bold text-slate-600 mb-1">
+                <label htmlFor="filter-skill" className="block text-xs font-bold text-slate-400 mb-1">
                   Skill Level
                 </label>
                 <select
                   id="filter-skill"
                   value={selectedSkill}
                   onChange={(e) => setSelectedSkill(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-slate-700"
+                  className="w-full px-3 py-2 text-xs font-semibold rounded-xl bg-slate-950 border border-slate-800 text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-400 transition-colors"
                 >
                   {SKILL_OPTIONS.map((lvl) => (
                     <option key={lvl} value={lvl}>
@@ -305,53 +371,54 @@ export default function PlayersPage() {
                 </select>
               </div>
 
-              {/* Preferred Time Filter */}
+              {/* Preferred Time Dropdown */}
               <div>
-                <label htmlFor="filter-time" className="block text-xs font-bold text-slate-600 mb-1">
+                <label htmlFor="filter-time" className="block text-xs font-bold text-slate-400 mb-1">
                   Preferred Time
                 </label>
                 <select
                   id="filter-time"
                   value={selectedTime}
                   onChange={(e) => setSelectedTime(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-slate-700"
+                  className="w-full px-3 py-2 text-xs font-semibold rounded-xl bg-slate-950 border border-slate-800 text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-400 transition-colors"
                 >
                   {TIME_OPTIONS.map((time) => (
                     <option key={time} value={time}>
-                      {time === 'All' ? 'Any Time Period' : time}
+                      {time === 'All' ? 'Any Play Period' : time}
                     </option>
                   ))}
                 </select>
               </div>
 
-              {/* Availability Filter */}
+              {/* Availability Dropdown */}
               <div>
-                <label htmlFor="filter-status" className="block text-xs font-bold text-slate-600 mb-1">
-                  Availability
+                <label htmlFor="filter-status" className="block text-xs font-bold text-slate-400 mb-1">
+                  Player Availability
                 </label>
                 <select
                   id="filter-status"
                   value={selectedStatus}
                   onChange={(e) => setSelectedStatus(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-slate-700"
+                  className="w-full px-3 py-2 text-xs font-semibold rounded-xl bg-slate-950 border border-slate-800 text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-400 transition-colors"
                 >
                   <option value="All">All Statuses</option>
-                  <option value="AVAILABLE">Available</option>
-                  <option value="BUSY">Busy</option>
+                  <option value="AVAILABLE">Available to Play</option>
+                  <option value="BUSY">Currently Busy</option>
                 </select>
               </div>
             </div>
 
-            {/* Active filter summary & reset */}
+            {/* Active Filter Chips & Reset Bar */}
             {hasActiveFilters && (
-              <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
-                <span className="text-slate-500 font-medium">
-                  Showing filtered results
+              <div className="flex items-center justify-between pt-2 border-t border-slate-800/80 text-xs">
+                <span className="text-slate-400 font-medium">
+                  Showing filtered community results
                 </span>
                 <button
                   id="btn-clear-player-filters"
+                  type="button"
                   onClick={handleClearFilters}
-                  className="text-indigo-600 hover:text-indigo-800 font-bold inline-flex items-center gap-1"
+                  className="text-rose-400 hover:text-rose-300 font-bold inline-flex items-center gap-1 transition-colors"
                 >
                   <RefreshCw className="w-3 h-3" />
                   <span>Reset All Filters</span>
@@ -361,35 +428,35 @@ export default function PlayersPage() {
           </div>
         </section>
 
-        {/* ── Player Grid Section ─────────────────────────────────────────── */}
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        {/* ── Player Results Area ─────────────────────────────────────────── */}
+        <section aria-label="Discoverable players" className="mt-8">
           
           {/* Header & count */}
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between pb-3 mb-5 border-b border-slate-800/80 text-xs font-medium text-slate-400">
             <div>
-              <h2 className="text-lg font-bold text-slate-900">
-                Discoverable Players
-              </h2>
-              <p className="text-xs text-slate-500">
-                {players.length} {players.length === 1 ? 'player found' : 'players found'}
-              </p>
+              Showing <strong className="text-white font-black">{players.length}</strong> active player{players.length !== 1 ? 's' : ''}
+              {hasActiveFilters && ' matching criteria'}
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-slate-300 font-semibold">Live Community</span>
             </div>
           </div>
 
           {/* Loading State */}
           {loading && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="bg-white rounded-2xl p-6 border border-slate-200 animate-pulse space-y-4">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div key={i} className="bg-slate-900/80 rounded-2xl p-6 border border-slate-800 animate-pulse space-y-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-slate-200" />
+                    <div className="w-12 h-12 rounded-full bg-slate-800" />
                     <div className="space-y-2 flex-1">
-                      <div className="h-4 bg-slate-200 rounded w-2/3" />
-                      <div className="h-3 bg-slate-200 rounded w-1/3" />
+                      <div className="h-4 bg-slate-800 rounded w-2/3" />
+                      <div className="h-3 bg-slate-800 rounded w-1/3" />
                     </div>
                   </div>
-                  <div className="h-12 bg-slate-100 rounded-xl" />
-                  <div className="h-8 bg-slate-200 rounded-lg" />
+                  <div className="h-10 bg-slate-950/80 rounded-xl" />
+                  <div className="h-8 bg-slate-800 rounded-lg" />
                 </div>
               ))}
             </div>
@@ -397,13 +464,14 @@ export default function PlayersPage() {
 
           {/* Error State */}
           {!loading && error && (
-            <div className="p-8 text-center bg-white rounded-2xl border border-red-200 shadow-sm max-w-md mx-auto">
-              <AlertCircle className="w-10 h-10 text-red-500 mx-auto mb-3" />
-              <h3 className="text-sm font-bold text-slate-900 mb-1">Failed to Load Players</h3>
-              <p className="text-xs text-slate-500 mb-4">{error}</p>
+            <div className="p-8 text-center bg-slate-900/90 rounded-3xl border border-rose-500/30 shadow-xl max-w-md mx-auto" role="alert">
+              <AlertCircle className="w-10 h-10 text-rose-400 mx-auto mb-3" />
+              <h2 className="text-base font-bold text-white mb-1">Failed to Load Players</h2>
+              <p className="text-xs text-slate-400 mb-5 leading-relaxed">{error}</p>
               <button
+                type="button"
                 onClick={loadPlayers}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-colors"
+                className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-xl text-xs font-bold transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
               >
                 Try Again
               </button>
@@ -412,20 +480,21 @@ export default function PlayersPage() {
 
           {/* Empty State */}
           {!loading && !error && players.length === 0 && (
-            <div className="p-12 text-center bg-white rounded-2xl border border-slate-200/80 shadow-sm max-w-md mx-auto space-y-4">
-              <div className="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto">
-                <Users className="w-7 h-7" />
+            <div className="p-12 sm:p-16 text-center bg-slate-900/60 rounded-3xl border border-slate-800 max-w-md mx-auto space-y-4">
+              <div className="w-16 h-16 rounded-2xl bg-slate-800/80 text-emerald-400 flex items-center justify-center mx-auto border border-slate-700">
+                <Users className="w-8 h-8 stroke-[1.5]" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-slate-900 mb-1">No Players Found</h3>
-                <p className="text-xs text-slate-500 leading-relaxed">
+                <h2 className="text-lg font-bold text-white mb-1">No Players Found</h2>
+                <p className="text-xs text-slate-400 leading-relaxed max-w-xs mx-auto">
                   No active players match your selected filters. Try broadening your sport, skill, or time period criteria.
                 </p>
               </div>
               {hasActiveFilters && (
                 <button
+                  type="button"
                   onClick={handleClearFilters}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-colors"
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold transition-colors"
                 >
                   Clear Filters
                 </button>
@@ -438,109 +507,123 @@ export default function PlayersPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {players.map((player) => {
                 const isOwnProfile = myProfile && (player.id === myProfile.id || player.name === user?.name);
+                const sportStyle = getSportStyle(player.sport);
+                const SportIcon = sportStyle.icon;
 
                 return (
-                  <div
+                  <article
                     key={player.id}
-                    className={`bg-white rounded-2xl border p-6 shadow-xs hover:shadow-md transition-all flex flex-col justify-between relative ${
-                      isOwnProfile ? 'border-indigo-300 ring-1 ring-indigo-200' : 'border-slate-200/90'
+                    className={`bg-slate-900/90 rounded-2xl border p-6 shadow-xl hover:shadow-2xl transition-all flex flex-col justify-between relative backdrop-blur-md ${
+                      isOwnProfile
+                        ? 'border-emerald-500/50 ring-1 ring-emerald-500/30'
+                        : 'border-slate-800 hover:border-emerald-500/30'
                     }`}
                   >
-                    {/* Top Badges */}
-                    <div className="flex items-start justify-between gap-3 mb-4">
-                      <div className="flex items-center gap-3">
-                        {player.imageUrl ? (
-                          <img
-                            src={player.imageUrl}
-                            alt={player.name}
-                            className="w-12 h-12 rounded-full object-cover border border-slate-200 shadow-2xs"
-                          />
-                        ) : (
-                          <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-indigo-600 to-emerald-500 text-white font-black text-base flex items-center justify-center shadow-2xs">
-                            {player.name ? player.name.charAt(0).toUpperCase() : 'P'}
-                          </div>
-                        )}
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-bold text-slate-900 text-sm">{player.name}</h3>
-                            {isOwnProfile && (
-                              <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded-md bg-indigo-100 text-indigo-700">
-                                You
-                              </span>
-                            )}
-                          </div>
-                          {player.distance && (
-                            <div className="flex items-center gap-1 text-[11px] text-slate-500 mt-0.5">
-                              <MapPin className="w-3 h-3 text-slate-400" />
-                              <span>{player.distance}</span>
+                    {/* Top Identity Block */}
+                    <div>
+                      <div className="flex items-start justify-between gap-3 mb-4">
+                        <div className="flex items-center gap-3">
+                          {player.imageUrl ? (
+                            <img
+                              src={player.imageUrl}
+                              alt={player.name}
+                              className="w-12 h-12 rounded-full object-cover border border-slate-700 shadow-sm"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-800 text-slate-950 font-black text-base flex items-center justify-center shadow-sm">
+                              {player.name ? player.name.charAt(0).toUpperCase() : 'P'}
                             </div>
                           )}
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-extrabold text-white text-base leading-snug">{player.name}</h3>
+                              {isOwnProfile && (
+                                <span className="text-[10px] font-black uppercase px-1.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                  You
+                                </span>
+                              )}
+                            </div>
+                            {player.distance && (
+                              <div className="flex items-center gap-1 text-[11px] text-slate-400 mt-0.5">
+                                <MapPin className="w-3 h-3 text-slate-500" />
+                                <span>{player.distance}</span>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
 
-                      {/* Availability status badge */}
-                      <span
-                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                          player.availabilityStatus === 'AVAILABLE'
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                            : 'bg-slate-100 text-slate-600 border border-slate-200'
-                        }`}
-                      >
+                        {/* Availability status badge */}
                         <span
-                          className={`w-1.5 h-1.5 rounded-full ${
-                            player.availabilityStatus === 'AVAILABLE' ? 'bg-emerald-500' : 'bg-slate-400'
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${
+                            player.availabilityStatus === 'AVAILABLE'
+                              ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                              : 'bg-slate-800 text-slate-400 border-slate-700'
                           }`}
-                        />
-                        {player.availabilityStatus === 'AVAILABLE' ? 'Available' : 'Busy'}
-                      </span>
-                    </div>
-
-                    {/* Sports & Skill tags */}
-                    <div className="flex flex-wrap gap-1.5 mb-3">
-                      <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-800">
-                        {player.sport}
-                      </span>
-                      <span
-                        className={`px-2.5 py-1 rounded-lg text-xs font-semibold border ${
-                          SKILL_BADGE_STYLES[player.skillLevel] || 'bg-slate-50 text-slate-700 border-slate-200'
-                        }`}
-                      >
-                        {player.skillLevel}
-                      </span>
-                    </div>
-
-                    {/* Bio snippet */}
-                    <p className="text-xs text-slate-600 line-clamp-2 mb-4 leading-relaxed italic">
-                      {player.bio ? `"${player.bio}"` : 'Active player on QuickCourt looking for matches.'}
-                    </p>
-
-                    {/* Preferred play timing */}
-                    <div className="bg-slate-50 rounded-xl p-3 mb-4 space-y-1.5 text-xs text-slate-600 border border-slate-100">
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-400 flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
-                          Days:
+                        >
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              player.availabilityStatus === 'AVAILABLE' ? 'bg-emerald-400' : 'bg-slate-500'
+                            }`}
+                          />
+                          {player.availabilityStatus === 'AVAILABLE' ? 'Available' : 'Busy'}
                         </span>
-                        <span className="font-semibold text-slate-700">{player.preferredDays}</span>
                       </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-400 flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          Time Period:
-                        </span>
-                        <span className="font-semibold text-slate-700">{player.preferredTime}</span>
+
+                      {/* Sports & Skill tags */}
+                      <div className="flex flex-wrap items-center gap-1.5 mb-3">
+                        {player.sport && (
+                          <span className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-lg border ${sportStyle.bg} ${sportStyle.text} ${sportStyle.border}`}>
+                            <SportIcon className="w-3.5 h-3.5" aria-hidden="true" />
+                            <span>{player.sport}</span>
+                          </span>
+                        )}
+
+                        {player.skillLevel && (
+                          <span
+                            className={`px-2.5 py-1 rounded-lg text-xs font-semibold border ${
+                              SKILL_BADGE_STYLES[player.skillLevel] || 'bg-slate-800 text-slate-300 border-slate-700'
+                            }`}
+                          >
+                            {player.skillLevel}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Bio snippet */}
+                      <p className="text-xs text-slate-400 line-clamp-2 mb-4 leading-relaxed italic">
+                        {player.bio ? `"${player.bio}"` : 'Active player on QuickCourt looking for matches.'}
+                      </p>
+
+                      {/* Preferred play timing */}
+                      <div className="bg-slate-950/80 rounded-xl p-3 mb-4 space-y-1.5 text-xs border border-slate-800">
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-400 flex items-center gap-1.5">
+                            <Calendar className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>Preferred Days:</span>
+                          </span>
+                          <span className="font-semibold text-slate-200">{player.preferredDays || 'Flexible'}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-400 flex items-center gap-1.5">
+                            <Clock className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>Time Period:</span>
+                          </span>
+                          <span className="font-semibold text-slate-200">{player.preferredTime || 'Flexible'}</span>
+                        </div>
                       </div>
                     </div>
 
                     {/* CTA Button */}
                     <button
                       id={`btn-view-player-${player.id}`}
+                      type="button"
                       onClick={() => handleOpenDetail(player)}
-                      className="w-full py-2 px-4 rounded-xl text-xs font-bold transition-all bg-slate-900 hover:bg-indigo-600 text-white flex items-center justify-center gap-1.5"
+                      className="w-full py-2.5 px-4 rounded-xl text-xs font-bold transition-all bg-slate-800 hover:bg-emerald-500 hover:text-slate-950 text-slate-200 border border-slate-700 hover:border-emerald-500 flex items-center justify-center gap-1.5 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
                     >
                       <span>View Player Profile</span>
+                      <ChevronRight className="w-3.5 h-3.5" />
                     </button>
-                  </div>
+                  </article>
                 );
               })}
             </div>
@@ -548,15 +631,21 @@ export default function PlayersPage() {
         </section>
       </main>
 
+      <Footer />
+
       {/* ── Player Detail Modal ───────────────────────────────────────────── */}
       {selectedPlayer && (
         <div
-          className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4"
-          onClick={() => setSelectedPlayer(null)}
+          className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-in fade-in"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="player-detail-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setSelectedPlayer(null);
+          }}
         >
           <div
-            className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-5"
-            onClick={(e) => e.stopPropagation()}
+            className="bg-slate-900 rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl border border-slate-800 space-y-5 relative"
           >
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3.5">
@@ -564,39 +653,43 @@ export default function PlayersPage() {
                   <img
                     src={selectedPlayer.imageUrl}
                     alt={selectedPlayer.name}
-                    className="w-14 h-14 rounded-full object-cover border-2 border-indigo-100"
+                    className="w-14 h-14 rounded-full object-cover border-2 border-emerald-500/30"
                   />
                 ) : (
-                  <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-indigo-600 to-emerald-500 text-white font-black text-lg flex items-center justify-center">
+                  <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-700 text-slate-950 font-black text-lg flex items-center justify-center">
                     {selectedPlayer.name ? selectedPlayer.name.charAt(0).toUpperCase() : 'P'}
                   </div>
                 )}
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900">{selectedPlayer.name}</h3>
+                  <h3 id="player-detail-title" className="text-lg font-black text-white">
+                    {selectedPlayer.name}
+                  </h3>
                   <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-xs font-bold text-indigo-600">{selectedPlayer.sport}</span>
-                    <span className="text-slate-300">•</span>
-                    <span className="text-xs font-semibold text-slate-600">{selectedPlayer.skillLevel}</span>
+                    <span className="text-xs font-bold text-emerald-400">{selectedPlayer.sport}</span>
+                    <span className="text-slate-600">•</span>
+                    <span className="text-xs font-semibold text-slate-300">{selectedPlayer.skillLevel}</span>
                   </div>
                 </div>
               </div>
 
               <button
+                type="button"
                 onClick={() => setSelectedPlayer(null)}
-                className="p-1.5 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                aria-label="Close player details"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Availability status */}
-            <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-slate-100 text-xs">
-              <span className="text-slate-500 font-medium">Player Status</span>
+            <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-950 border border-slate-800 text-xs">
+              <span className="text-slate-400 font-medium">Availability Status</span>
               <span
-                className={`font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
+                className={`font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider text-[10px] border ${
                   selectedPlayer.availabilityStatus === 'AVAILABLE'
-                    ? 'bg-emerald-100 text-emerald-800'
-                    : 'bg-slate-200 text-slate-700'
+                    ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                    : 'bg-slate-800 text-slate-400 border-slate-700'
                 }`}
               >
                 {selectedPlayer.availabilityStatus === 'AVAILABLE' ? 'Available to Play' : 'Currently Busy'}
@@ -609,19 +702,19 @@ export default function PlayersPage() {
                 Playing Preferences
               </h4>
               <div className="grid grid-cols-2 gap-3 text-xs">
-                <div className="p-3 rounded-xl bg-indigo-50/50 border border-indigo-100/60">
-                  <div className="text-slate-500 mb-1 flex items-center gap-1">
-                    <Calendar className="w-3.5 h-3.5 text-indigo-600" />
+                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
+                  <div className="text-slate-400 mb-1 flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-emerald-400" />
                     <span>Preferred Days</span>
                   </div>
-                  <div className="font-bold text-slate-900">{selectedPlayer.preferredDays}</div>
+                  <div className="font-bold text-white">{selectedPlayer.preferredDays || 'Flexible'}</div>
                 </div>
-                <div className="p-3 rounded-xl bg-indigo-50/50 border border-indigo-100/60">
-                  <div className="text-slate-500 mb-1 flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5 text-indigo-600" />
+                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
+                  <div className="text-slate-400 mb-1 flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-emerald-400" />
                     <span>Preferred Time</span>
                   </div>
-                  <div className="font-bold text-slate-900">{selectedPlayer.preferredTime}</div>
+                  <div className="font-bold text-white">{selectedPlayer.preferredTime || 'Flexible'}</div>
                 </div>
               </div>
             </div>
@@ -632,26 +725,36 @@ export default function PlayersPage() {
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
                   About & Play Style
                 </h4>
-                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 text-xs text-slate-700 leading-relaxed">
+                <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 text-xs text-slate-300 leading-relaxed">
                   {selectedPlayer.bio}
                 </div>
               </div>
             )}
 
             {/* Safe Community Notice */}
-            <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-100 flex items-start gap-2.5 text-xs text-emerald-800">
-              <Shield className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+            <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-start gap-2.5 text-xs text-emerald-300">
+              <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
               <p className="leading-relaxed">
-                Connect on the court — coordinate matches by booking any court session together at your nearest QuickCourt facility.
+                Connect on the court &mdash; coordinate matches by booking a court session together at your nearest QuickCourt facility.
               </p>
             </div>
 
-            <button
-              onClick={() => setSelectedPlayer(null)}
-              className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-colors"
-            >
-              Close
-            </button>
+            <div className="flex items-center justify-end gap-2 pt-1">
+              <Link
+                to="/venues"
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl transition-colors"
+              >
+                <span>Browse Venues</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </Link>
+              <button
+                type="button"
+                onClick={() => setSelectedPlayer(null)}
+                className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-xl text-xs font-bold transition-colors shadow-sm"
+              >
+                Done
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -659,41 +762,49 @@ export default function PlayersPage() {
       {/* ── Edit My Player Profile Modal ─────────────────────────────────── */}
       {isEditProfileOpen && (
         <div
-          className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto"
-          onClick={() => setIsEditProfileOpen(false)}
+          className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-in fade-in"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="edit-profile-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !profileSaving) setIsEditProfileOpen(false);
+          }}
         >
           <div
-            className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-6 my-8"
-            onClick={(e) => e.stopPropagation()}
+            className="bg-slate-900 rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-800 space-y-6 my-8"
           >
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/20">
                   <Edit3 className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-slate-900">Update Player Profile</h3>
-                  <p className="text-xs text-slate-500">Configure how you appear to other players</p>
+                  <h3 id="edit-profile-title" className="text-base font-black text-white">
+                    Update Player Profile
+                  </h3>
+                  <p className="text-xs text-slate-400">Configure how you appear to other local players</p>
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setIsEditProfileOpen(false)}
-                className="p-1.5 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                aria-label="Close edit profile dialog"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {profileSuccess && (
-              <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-300 flex items-center gap-2" role="status">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                 <span>{profileSuccess}</span>
               </div>
             )}
 
             {profileError && (
-              <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+              <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-300 flex items-center gap-2" role="alert">
+                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
                 <span>{profileError}</span>
               </div>
             )}
@@ -701,20 +812,20 @@ export default function PlayersPage() {
             <form onSubmit={handleSaveProfile} className="space-y-4 text-xs">
               {/* Name (Read-only) */}
               <div>
-                <label className="block font-bold text-slate-700 mb-1">
+                <label className="block font-bold text-slate-300 mb-1">
                   Player Name (Linked to Account)
                 </label>
                 <input
                   type="text"
                   value={myProfile?.name || user?.name || ''}
                   disabled
-                  className="w-full px-3 py-2 rounded-xl bg-slate-100 border border-slate-200 text-slate-500 font-medium cursor-not-allowed"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-400 font-medium cursor-not-allowed"
                 />
               </div>
 
               {/* Primary Sport */}
               <div>
-                <label htmlFor="form-sport" className="block font-bold text-slate-700 mb-1">
+                <label htmlFor="form-sport" className="block font-bold text-slate-300 mb-1">
                   Primary Sport *
                 </label>
                 <input
@@ -725,20 +836,20 @@ export default function PlayersPage() {
                   value={formSport}
                   onChange={(e) => setFormSport(e.target.value)}
                   placeholder="e.g. Badminton, Tennis, Pickleball"
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-400 font-medium"
                 />
               </div>
 
               {/* Skill Level */}
               <div>
-                <label htmlFor="form-skill" className="block font-bold text-slate-700 mb-1">
+                <label htmlFor="form-skill" className="block font-bold text-slate-300 mb-1">
                   Skill Level *
                 </label>
                 <select
                   id="form-skill"
                   value={formSkill}
                   onChange={(e) => setFormSkill(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-slate-800"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-400 font-medium"
                 >
                   <option value="Beginner">Beginner</option>
                   <option value="Intermediate">Intermediate</option>
@@ -749,14 +860,14 @@ export default function PlayersPage() {
               {/* Timing Preferences Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label htmlFor="form-days" className="block font-bold text-slate-700 mb-1">
+                  <label htmlFor="form-days" className="block font-bold text-slate-300 mb-1">
                     Preferred Days *
                   </label>
                   <select
                     id="form-days"
                     value={formDays}
                     onChange={(e) => setFormDays(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-slate-800"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-400 font-medium"
                   >
                     <option value="Weekdays">Weekdays</option>
                     <option value="Weekends">Weekends</option>
@@ -764,14 +875,14 @@ export default function PlayersPage() {
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="form-time" className="block font-bold text-slate-700 mb-1">
+                  <label htmlFor="form-time" className="block font-bold text-slate-300 mb-1">
                     Preferred Time Period *
                   </label>
                   <select
                     id="form-time"
                     value={formTime}
                     onChange={(e) => setFormTime(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-slate-800"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-400 font-medium"
                   >
                     <option value="Mornings">Mornings</option>
                     <option value="Afternoons">Afternoons</option>
@@ -783,14 +894,14 @@ export default function PlayersPage() {
 
               {/* Availability Status */}
               <div>
-                <label htmlFor="form-status" className="block font-bold text-slate-700 mb-1">
+                <label htmlFor="form-status" className="block font-bold text-slate-300 mb-1">
                   Availability Status *
                 </label>
                 <select
                   id="form-status"
                   value={formStatus}
                   onChange={(e) => setFormStatus(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-slate-800"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-400 font-medium"
                 >
                   <option value="AVAILABLE">AVAILABLE (Open to match invites)</option>
                   <option value="BUSY">BUSY (Not taking match invites)</option>
@@ -800,10 +911,10 @@ export default function PlayersPage() {
               {/* Bio */}
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label htmlFor="form-bio" className="font-bold text-slate-700">
+                  <label htmlFor="form-bio" className="font-bold text-slate-300">
                     Playing Bio (Optional)
                   </label>
-                  <span className="text-[11px] text-slate-400">
+                  <span className="text-[11px] text-slate-500">
                     {formBio.length} / 300
                   </span>
                 </div>
@@ -814,30 +925,30 @@ export default function PlayersPage() {
                   value={formBio}
                   onChange={(e) => setFormBio(e.target.value)}
                   placeholder="Share your playing style, frequency, or sparring preferences..."
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-normal"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-400 font-normal"
                 />
               </div>
 
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
+              <div className="pt-3 border-t border-slate-800 flex items-center justify-end gap-2.5">
                 <button
                   type="button"
                   onClick={() => setIsEditProfileOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold transition-colors"
+                  className="px-4 py-2.5 rounded-xl border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 font-bold transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={profileSaving}
-                  className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                  className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold transition-all shadow-sm disabled:opacity-50 flex items-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-400"
                 >
                   {profileSaving ? (
                     <>
                       <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                      <span>Saving...</span>
+                      <span>Saving…</span>
                     </>
                   ) : (
-                    <span>Save Profile</span>
+                    <span>Save Preferences</span>
                   )}
                 </button>
               </div>
@@ -845,8 +956,6 @@ export default function PlayersPage() {
           </div>
         </div>
       )}
-
-      <Footer />
     </div>
   );
 }

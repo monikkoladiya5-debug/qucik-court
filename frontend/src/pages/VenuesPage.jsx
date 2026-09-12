@@ -125,13 +125,13 @@ function VenueCard({ venue }) {
         </div>
 
         {/* Card Footer: Hours, Rate & Book Action */}
-        <div className="pt-3.5 border-t border-slate-800 flex items-center justify-between mt-auto">
+        <div className="pt-3.5 border-t border-slate-800 flex flex-wrap items-center justify-between gap-y-2 mt-auto">
           <div className="flex items-center gap-1.5 text-xs font-medium text-slate-400">
-            <Clock className="w-3.5 h-3.5 text-slate-500" />
+            <Clock className="w-3.5 h-3.5 text-slate-500 shrink-0" />
             <span className="truncate max-w-[110px] sm:max-w-[130px]">{venue.openingHours}</span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0">
             <div className="text-right">
               <span className="text-xs font-medium text-slate-400 mr-1">from</span>
               <span className="text-base font-black text-emerald-400">₹{venue.pricePerHour}</span>
@@ -534,7 +534,7 @@ export default function VenuesPage() {
         <div className="flex items-center justify-between pb-3 mb-5 border-b border-slate-800/80 text-xs font-medium text-slate-400">
           <div className="flex items-center gap-2">
             <span>
-              Showing <strong className="text-white font-black">{venues.length}</strong> verified facility{venues.length !== 1 ? 'ies' : ''}
+              Showing <strong className="text-white font-black">{venues.length}</strong> verified {venues.length === 1 ? 'facility' : 'facilities'}
               {hasFilters && ' matching your criteria'}
             </span>
           </div>

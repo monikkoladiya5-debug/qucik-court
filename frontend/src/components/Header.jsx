@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import {
   Activity, LogOut, User, Building2, ShieldCheck,
@@ -17,6 +17,16 @@ export default function Header() {
   const { isAuthenticated, user, role, logout } = useAuth();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if (e.key === 'Escape' && mobileMenuOpen) {
+        setMobileMenuOpen(false);
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [mobileMenuOpen]);
 
   const meta = role ? ROLE_META[role] : null;
   const RoleIcon = meta?.icon;
@@ -269,7 +279,7 @@ export default function Header() {
 
       {/* Mobile navigation drawer */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-t border-slate-800 bg-slate-950 px-4 pt-3 pb-5 space-y-2 animate-in slide-in-from-top-2 duration-150 shadow-2xl">
+        <nav aria-label="Mobile Navigation" className="md:hidden border-t border-slate-800 bg-slate-950 px-4 pt-3 pb-5 space-y-2 animate-in slide-in-from-top-2 duration-150 shadow-2xl">
           {/* Primary CTA inside mobile drawer */}
           <Link
             to="/venues"
@@ -428,7 +438,7 @@ export default function Header() {
               </Link>
             </div>
           )}
-        </div>
+        </nav>
       )}
     </header>
   );
