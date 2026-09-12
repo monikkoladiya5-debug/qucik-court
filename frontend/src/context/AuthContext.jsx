@@ -52,6 +52,15 @@ export function AuthProvider({ children }) {
     setError(null);
   }, []);
 
+  const updateUser = useCallback((updatedFields) => {
+    setAuth((prev) => {
+      if (!prev?.user) return prev;
+      const updatedUser = { ...prev.user, ...updatedFields };
+      writeStorage(prev.token, updatedUser);
+      return { ...prev, user: updatedUser };
+    });
+  }, []);
+
   const clearError = useCallback(() => setError(null), []);
 
   const value = {
@@ -65,6 +74,7 @@ export function AuthProvider({ children }) {
     setError,
     login,
     logout,
+    updateUser,
     clearError,
   };
 

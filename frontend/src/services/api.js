@@ -300,4 +300,32 @@ export async function updateMyPlayerProfile(data) {
   return apiRequest('PUT', '/players/me/profile', data, true);
 }
 
+// ─── Profile & Loyalty (Task 6) ───────────────────────────────────────────────
+
+/**
+ * GET /api/profile/me (CUSTOMER)
+ * Returns { status, profile }
+ */
+export async function fetchMyProfile() {
+  return apiRequest('GET', '/profile/me', null, true);
+}
+
+/**
+ * PUT /api/profile/me (CUSTOMER)
+ * Body: { name, phone, preferredSports, avatar }
+ * Returns { status, message, profile }
+ */
+export async function updateMyProfile(data) {
+  return apiRequest('PUT', '/profile/me', data, true);
+}
+
+/**
+ * GET /api/loyalty/me (CUSTOMER)
+ * Returns { status, loyalty: { totalPoints, pointsPerBooking, eligibleBookingsCount, upcomingBookingsCount, completedBookingRewards } }
+ */
+export async function fetchMyLoyalty() {
+  return apiRequest('GET', '/loyalty/me', null, true);
+}
+
+
 

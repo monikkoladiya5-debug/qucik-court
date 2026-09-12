@@ -93,6 +93,19 @@ export default function Header() {
                   <CalendarCheck className="w-4 h-4 text-indigo-600" />
                   <span>My Bookings</span>
                 </NavLink>
+                <NavLink
+                  to="/profile"
+                  className={({ isActive }) =>
+                    `px-3.5 py-1.5 text-sm font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
+                      isActive
+                        ? 'bg-indigo-50 text-indigo-700 shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    }`
+                  }
+                >
+                  <Sparkles className="w-4 h-4 text-indigo-600" />
+                  <span>Profile & Points</span>
+                </NavLink>
               </>
             )}
 
@@ -143,14 +156,37 @@ export default function Header() {
               )}
 
               {/* User Avatar & Name */}
-              <div className="hidden md:flex items-center gap-2 pl-2 border-l border-slate-200">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-700 text-white font-bold text-xs flex items-center justify-center shadow-xs">
-                  {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+              {role === 'CUSTOMER' ? (
+                <Link
+                  to="/profile"
+                  className="hidden md:flex items-center gap-2 pl-2 border-l border-slate-200 hover:opacity-85 transition group"
+                  title="View Customer Profile & Loyalty Points"
+                >
+                  {user.avatar ? (
+                    <img
+                      src={user.avatar}
+                      alt={user.name}
+                      className="w-8 h-8 rounded-full object-cover shadow-xs border border-indigo-200"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-700 text-white font-bold text-xs flex items-center justify-center shadow-xs">
+                      {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                    </div>
+                  )}
+                  <span className="text-sm font-medium text-slate-800 max-w-[120px] truncate group-hover:text-indigo-600 transition-colors">
+                    {user.name}
+                  </span>
+                </Link>
+              ) : (
+                <div className="hidden md:flex items-center gap-2 pl-2 border-l border-slate-200">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-700 text-white font-bold text-xs flex items-center justify-center shadow-xs">
+                    {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                  </div>
+                  <span className="text-sm font-medium text-slate-800 max-w-[120px] truncate">
+                    {user.name}
+                  </span>
                 </div>
-                <span className="text-sm font-medium text-slate-800 max-w-[120px] truncate">
-                  {user.name}
-                </span>
-              </div>
+              )}
 
               {/* Sign out */}
               <button
@@ -236,6 +272,21 @@ export default function Header() {
                 <div className="flex items-center gap-2">
                   <CalendarCheck className="w-4 h-4 text-indigo-600" />
                   <span>My Bookings</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-slate-400" />
+              </NavLink>
+              <NavLink
+                to="/profile"
+                onClick={() => setMobileMenuOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+                    isActive ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700 hover:bg-slate-50'
+                  }`
+                }
+              >
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-indigo-600" />
+                  <span>Profile & Points</span>
                 </div>
                 <ChevronRight className="w-4 h-4 text-slate-400" />
               </NavLink>

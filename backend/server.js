@@ -8,6 +8,8 @@ import venueRouter   from './routes/venues.js';
 import courtRouter   from './routes/courts.js';
 import bookingRouter from './routes/bookings.js';
 import playerRouter  from './routes/players.js';
+import profileRouter from './routes/profile.js';
+import loyaltyRouter from './routes/loyalty.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { store } from './data/store.js';
 
@@ -30,6 +32,8 @@ app.use('/api/venues',   venueRouter);
 app.use('/api/courts',   courtRouter);
 app.use('/api/bookings', bookingRouter);
 app.use('/api/players',  playerRouter);
+app.use('/api/profile',  profileRouter);
+app.use('/api/loyalty',  loyaltyRouter);
 
 // ─── Summary stats (foundation convenience endpoint) ──────────────────────────
 app.get('/api/summary', (req, res) => {

@@ -10,6 +10,7 @@ import VenueDetailPage from './pages/VenueDetailPage';
 import OwnerVenuesPage from './pages/OwnerVenuesPage';
 import MyBookingsPage from './pages/MyBookingsPage';
 import PlayersPage from './pages/PlayersPage';
+import ProfilePage from './pages/ProfilePage';
 import { fetchHealth, fetchSummary } from './services/api';
 import {
   Activity, CheckCircle2, ShieldCheck, Database, Server,
@@ -399,6 +400,14 @@ export default function App() {
             element={
               <ProtectedRoute allowedRoles={['CUSTOMER']}>
                 <PlayersPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute allowedRoles={['CUSTOMER']}>
+                <ProfilePage />
               </ProtectedRoute>
             }
           />
