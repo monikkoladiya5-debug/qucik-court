@@ -101,6 +101,17 @@ export function createBooking(req, res) {
     });
   }
 
+  // Disallow booking time slots that have already passed earlier today
+  const now = new Date();
+  const currentHour = now.getHours();
+  const localDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  if ((date === todayStr || date === localDateStr) && startHour <= currentHour) {
+    return res.status(400).json({
+      status: 'error',
+      message: 'Cannot book a time slot that has already passed.',
+    });
+  }
+
   // 5. Operating hours validation
   const { startHour: courtStart, endHour: courtEnd } = parseOperatingHours(court.operatingHours);
   if (startHour < courtStart || endHour > courtEnd) {
@@ -142,7 +153,7 @@ export function createBooking(req, res) {
   const pricePerHour = Number(court.pricePerHour);
   const totalPrice = pricePerHour * 1; // 1-hour booking duration
 
-  const now = new Date().toISOString();
+  const nowIso = now.toISOString();
 
   // 9. Construct booking — client cannot override id, userId, venueId, price, status, or timestamps
   const newBooking = {
@@ -156,8 +167,8 @@ export function createBooking(req, res) {
     pricePerHour,
     totalPrice,
     status: 'CONFIRMED',
-    createdAt: now,
-    updatedAt: now,
+    createdAt: nowIso,
+    updatedAt: nowIso,
   };
 
   store.bookings.push(newBooking);

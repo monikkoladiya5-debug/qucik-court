@@ -13,7 +13,7 @@ import { useAuth } from '../context/AuthContext';
  * On failure redirects to /auth.
  * Frontend protection is a UX layer; backend still enforces authorization.
  */
-export default function ProtectedRoute({ children, role }) {
+export default function ProtectedRoute({ children, role, allowedRoles }) {
   const { isAuthenticated, role: userRole } = useAuth();
 
   if (!isAuthenticated) {
@@ -22,6 +22,11 @@ export default function ProtectedRoute({ children, role }) {
 
   if (role && userRole !== role) {
     // Authenticated but wrong role — redirect to their own home
+    return <Navigate to="/" replace />;
+  }
+
+  if (allowedRoles && Array.isArray(allowedRoles) && !allowedRoles.includes(userRole)) {
+    // Authenticated but role not in allowedRoles list — redirect to home
     return <Navigate to="/" replace />;
   }
 

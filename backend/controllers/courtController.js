@@ -172,7 +172,7 @@ export function createCourt(req, res) {
     });
   }
 
-  const { name, sport, courtType, indoor, pricePerHour, operatingHours, isActive } = req.body;
+  const { name, sport, courtType, indoor, pricePerHour, operatingHours, isActive } = req.body || {};
 
   // Validation: required fields and types
   if (!name || typeof name !== 'string' || !name.trim()) {
@@ -253,7 +253,7 @@ export function updateCourt(req, res) {
     });
   }
 
-  const { name, sport, courtType, indoor, pricePerHour, operatingHours, isActive } = req.body;
+  const { name, sport, courtType, indoor, pricePerHour, operatingHours, isActive } = req.body || {};
 
   if (name !== undefined) {
     if (typeof name !== 'string' || !name.trim()) {

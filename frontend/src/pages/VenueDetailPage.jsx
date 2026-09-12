@@ -599,14 +599,14 @@ export default function VenueDetailPage() {
                         </div>
                       </div>
 
-                      {/* Task 3 Informational Banner */}
+                      {/* Live Availability & Booking Notice */}
                       <div className="flex items-start gap-2.5 p-3 rounded-xl bg-indigo-50/60 border border-indigo-100 text-indigo-900 text-xs">
                         <Info className="w-4 h-4 text-indigo-600 flex-shrink-0 mt-0.5" />
                         <div className="leading-relaxed">
-                          <p className="font-bold">Court Availability Viewer (Task 3)</p>
+                          <p className="font-bold">Court Availability & Instant Booking</p>
                           <p className="text-[11px] text-indigo-700/90 mt-0.5">
                             Slots shown reflect live facility operating schedules for <strong>{selectedDate}</strong>.
-                            Court slot booking & checkout will activate in Task 4.
+                            Select any available slot below to proceed with booking.
                           </p>
                         </div>
                       </div>

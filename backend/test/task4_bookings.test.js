@@ -174,6 +174,40 @@ describe('Task 4: Booking Input & Business Rule Validation', () => {
     assert.equal(res.status, 400);
   });
 
+  it('Rejects past time slot on current date -> 400', async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const currentHour = new Date().getHours();
+    if (currentHour > 0) {
+      const pastHour = Math.max(0, currentHour - 1);
+      const period = pastHour >= 12 && pastHour < 24 ? 'PM' : 'AM';
+      let h1 = pastHour % 12;
+      if (h1 === 0) h1 = 12;
+      const startTime = `${String(h1).padStart(2, '0')}:00 ${period}`;
+      const nextH = (pastHour + 1) % 24;
+      const nextPeriod = nextH >= 12 && nextH < 24 ? 'PM' : 'AM';
+      let h2 = nextH % 12;
+      if (h2 === 0) h2 = 12;
+      const endTime = `${String(h2).padStart(2, '0')}:00 ${nextPeriod}`;
+
+      const res = await fetch(`${baseUrl}/api/bookings`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${customerToken}`,
+        },
+        body: JSON.stringify({
+          courtId: 'c-1',
+          date: today,
+          startTime,
+          endTime,
+        }),
+      });
+      assert.equal(res.status, 400);
+      const data = await res.json();
+      assert.match(data.message, /already passed|facility schedule/i);
+    }
+  });
+
   it('Rejects invalid time duration (not 1 hour) -> 400', async () => {
     const res = await fetch(`${baseUrl}/api/bookings`, {
       method: 'POST',

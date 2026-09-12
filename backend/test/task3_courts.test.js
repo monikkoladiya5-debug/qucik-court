@@ -277,6 +277,17 @@ describe('Task 3: Court Management & Security', () => {
       body: JSON.stringify({ name: 'Test', sport: 'Cricket', pricePerHour: 500 }),
     });
     assert.equal(res3.status, 400);
+
+    // Empty body gracefully handled with 400 Bad Request
+    const res4 = await fetch(`${baseUrl}/api/venues/v-1/courts`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${ownerToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({}),
+    });
+    assert.equal(res4.status, 400);
   });
 
   it('DELETE /api/courts/:id - owner deletes own court', async () => {
