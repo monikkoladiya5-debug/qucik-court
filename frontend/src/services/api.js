@@ -337,5 +337,24 @@ export async function fetchOwnerDashboard() {
   return apiRequest('GET', '/owner/dashboard', null, true);
 }
 
+// ─── Admin Dashboard (Task 8) ─────────────────────────────────────────────────
+
+/**
+ * GET /api/admin/dashboard (ADMIN)
+ * Returns { status, summary, users, venues, bookings, pendingVenues }
+ */
+export async function fetchAdminDashboard() {
+  return apiRequest('GET', '/admin/dashboard', null, true);
+}
+
+/**
+ * PATCH /api/admin/users/:id/status (ADMIN)
+ * Body: { status: 'active' | 'suspended' }
+ * Returns { status, message, user }
+ */
+export async function toggleUserStatusApi(userId, status) {
+  return apiRequest('PATCH', `/admin/users/${userId}/status`, { status }, true);
+}
+
 
 

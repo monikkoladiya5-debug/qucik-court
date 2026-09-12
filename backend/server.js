@@ -11,6 +11,7 @@ import playerRouter  from './routes/players.js';
 import profileRouter from './routes/profile.js';
 import loyaltyRouter from './routes/loyalty.js';
 import ownerRouter   from './routes/owner.js';
+import adminRouter   from './routes/admin.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { store } from './data/store.js';
 
@@ -36,6 +37,7 @@ app.use('/api/players',  playerRouter);
 app.use('/api/profile',  profileRouter);
 app.use('/api/loyalty',  loyaltyRouter);
 app.use('/api/owner',    ownerRouter);
+app.use('/api/admin',    adminRouter);
 
 // ─── Summary stats (foundation convenience endpoint) ──────────────────────────
 app.get('/api/summary', (req, res) => {

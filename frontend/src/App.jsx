@@ -9,6 +9,7 @@ import VenuesPage from './pages/VenuesPage';
 import VenueDetailPage from './pages/VenueDetailPage';
 import OwnerVenuesPage from './pages/OwnerVenuesPage';
 import OwnerDashboardPage from './pages/OwnerDashboardPage';
+import AdminDashboardPage from './pages/AdminDashboardPage';
 import MyBookingsPage from './pages/MyBookingsPage';
 import PlayersPage from './pages/PlayersPage';
 import ProfilePage from './pages/ProfilePage';
@@ -347,45 +348,7 @@ function HomePage() {
   );
 }
 
-// ─── Admin Dashboard Stub ─────────────────────────────────────────────────────
-function AdminDashboardStub() {
-  return (
-    <ProtectedRoute role="ADMIN">
-      <div className="min-h-screen flex flex-col bg-slate-900 text-white">
-        <Header />
-        <main className="flex-1 flex items-center justify-center p-6">
-          <div className="max-w-md w-full text-center bg-slate-800/80 border border-slate-700 p-8 rounded-3xl shadow-2xl backdrop-blur-md">
-            <div className="w-16 h-16 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center mx-auto mb-4">
-              <ShieldCheck className="w-8 h-8" />
-            </div>
-            <h2 className="text-2xl font-black text-white mb-2">Admin Dashboard</h2>
-            <p className="text-xs text-slate-400 mb-6 leading-relaxed">
-              Platform administration and system oversight. Role access confirmed as ADMIN.
-            </p>
-            <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 text-left space-y-2 text-xs mb-6">
-              <div className="flex justify-between text-slate-400">
-                <span>Security Token:</span>
-                <span className="font-mono text-emerald-400 font-bold">ACTIVE (JWT)</span>
-              </div>
-              <div className="flex justify-between text-slate-400">
-                <span>Admin Clearance:</span>
-                <span className="text-indigo-300 font-semibold">ALL_FACILITIES</span>
-              </div>
-            </div>
-            <Link
-              to="/venues"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-colors"
-            >
-              <span>View All Venues</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-        </main>
-        <Footer />
-      </div>
-    </ProtectedRoute>
-  );
-}
+
 
 // ─── App Root with Router & Auth Provider ─────────────────────────────────────
 export default function App() {
@@ -437,7 +400,15 @@ export default function App() {
               </ProtectedRoute>
             }
           />
-          <Route path="/admin"         element={<AdminDashboardStub />} />
+          <Route
+            path="/admin/dashboard"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN']}>
+                <AdminDashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
           {/* Catch-all route redirects to home */}
           <Route path="*"              element={<Navigate to="/" replace />} />
         </Routes>

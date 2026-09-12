@@ -143,7 +143,7 @@ export default function Header() {
 
             {isAuthenticated && role === 'ADMIN' && (
               <NavLink
-                to="/admin"
+                to="/admin/dashboard"
                 className={({ isActive }) =>
                   `px-3.5 py-1.5 text-sm font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
                     isActive
@@ -153,7 +153,7 @@ export default function Header() {
                 }
               >
                 <ShieldCheck className="w-4 h-4 text-slate-600" />
-                <span>Admin</span>
+                <span>Admin Dashboard</span>
               </NavLink>
             )}
           </nav>
@@ -346,7 +346,7 @@ export default function Header() {
 
           {isAuthenticated && role === 'ADMIN' && (
             <NavLink
-              to="/admin"
+              to="/admin/dashboard"
               onClick={() => setMobileMenuOpen(false)}
               className={({ isActive }) =>
                 `flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
