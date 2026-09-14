@@ -5,45 +5,126 @@
 @layer base {
   html {
     scroll-behavior: smooth;
+    color-scheme: dark;
   }
   body {
-    @apply bg-slate-50 text-slate-900 min-h-screen flex flex-col font-['Inter',sans-serif];
+    @apply bg-[#0B0F17] text-slate-100 min-h-screen flex flex-col font-sans;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
   :focus-visible {
-    @apply outline-none ring-2 ring-indigo-500 ring-offset-2;
+    @apply outline-none ring-2 ring-lime-400 ring-offset-2 ring-offset-[#0B0F17];
   }
 }
 
-/* Glassmorphism */
+/* ─── Kinetic Obsidian UI Utility Classes ─────────────────────────────────── */
+
+@layer components {
+  /* Cards */
+  .qc-card {
+    @apply bg-[#181C24] border border-[#28303F] rounded-xl shadow-card transition-all;
+  }
+  .qc-card-elevated {
+    @apply bg-[#1E2430] border border-[#28303F] rounded-xl shadow-qc-card;
+  }
+  .qc-card-interactive {
+    @apply bg-[#181C24] border border-[#28303F] rounded-xl hover:border-lime-400/50 hover:bg-[#1E2430] transition-all;
+  }
+
+  /* Buttons */
+  .qc-btn-primary {
+    @apply bg-lime-400 text-slate-950 font-bold px-5 py-2.5 rounded-full hover:bg-lime-300 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-qc-lime disabled:opacity-50 disabled:pointer-events-none;
+  }
+  .qc-btn-secondary {
+    @apply bg-emerald-700 text-white font-semibold px-5 py-2.5 rounded-full hover:bg-emerald-600 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50;
+  }
+  .qc-btn-outline {
+    @apply bg-transparent text-slate-200 border border-[#28303F] font-semibold px-5 py-2.5 rounded-full hover:border-lime-400/50 hover:text-lime-400 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50;
+  }
+  .qc-btn-ghost {
+    @apply bg-transparent text-slate-300 font-medium px-4 py-2 rounded-lg hover:bg-white/5 hover:text-white transition-all flex items-center justify-center gap-2;
+  }
+
+  /* Form Inputs & Selects */
+  .qc-input {
+    @apply bg-[#0F131C] border border-[#28303F] text-slate-100 placeholder-slate-500 rounded-lg px-4 py-2.5 focus:outline-none focus:border-lime-400 focus:ring-1 focus:ring-lime-400 transition-all;
+  }
+  .qc-select {
+    @apply bg-[#0F131C] border border-[#28303F] text-slate-100 rounded-lg px-4 py-2.5 focus:outline-none focus:border-lime-400 focus:ring-1 focus:ring-lime-400 transition-all;
+  }
+
+  /* Status Badges */
+  .qc-badge {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wider;
+  }
+  .qc-badge-available {
+    @apply bg-emerald-950/60 text-emerald-300 border border-emerald-800/60;
+  }
+  .qc-badge-selected {
+    @apply bg-lime-950/60 text-lime-300 border border-lime-400/80;
+  }
+  .qc-badge-booked {
+    @apply bg-slate-900 text-slate-400 border border-slate-700/60;
+  }
+  .qc-badge-maintenance {
+    @apply bg-amber-950/60 text-amber-300 border border-amber-800/60;
+  }
+  .qc-badge-requested {
+    @apply bg-amber-950/80 text-amber-300 border border-amber-500/80;
+  }
+  .qc-badge-approved {
+    @apply bg-sky-950/80 text-sky-300 border border-sky-500/80;
+  }
+  .qc-badge-pending {
+    @apply bg-yellow-950/80 text-yellow-300 border border-yellow-500/80;
+  }
+  .qc-badge-confirmed {
+    @apply bg-emerald-950/80 text-emerald-300 border border-emerald-500/80;
+  }
+  .qc-badge-checked-in {
+    @apply bg-emerald-900/90 text-emerald-200 border border-emerald-400;
+  }
+  .qc-badge-completed {
+    @apply bg-slate-800 text-slate-300 border border-slate-600;
+  }
+  .qc-badge-rejected {
+    @apply bg-rose-950/80 text-rose-300 border border-rose-600/80;
+  }
+  .qc-badge-cancelled {
+    @apply bg-rose-950/50 text-rose-400 border border-rose-800/50;
+  }
+}
+
+/* Glassmorphism & Accent Surfaces */
 .glass-header {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(11, 15, 23, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(40, 48, 63, 0.8);
 }
 
 .glass-card {
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(24, 28, 36, 0.90);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid #28303F;
 }
 
 /* Athletic Grid Accent Background */
 .bg-court-pattern {
-  background-image: radial-gradient(#e2e8f0 1.2px, transparent 1.2px);
+  background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1.2px, transparent 1.2px);
   background-size: 24px 24px;
 }
 
 .bg-court-pattern-dark {
-  background-image: radial-gradient(rgba(255, 255, 255, 0.06) 1.2px, transparent 1.2px);
+  background-image: radial-gradient(rgba(163, 230, 53, 0.08) 1.2px, transparent 1.2px);
   background-size: 24px 24px;
 }
 
 .bg-mesh-gradient {
-  background: radial-gradient(at 0% 0%, rgba(79, 70, 229, 0.08) 0px, transparent 50%),
-              radial-gradient(at 100% 0%, rgba(16, 185, 129, 0.08) 0px, transparent 50%),
-              radial-gradient(at 50% 100%, rgba(244, 244, 245, 0.5) 0px, transparent 50%);
+  background: radial-gradient(at 0% 0%, rgba(4, 120, 87, 0.12) 0px, transparent 50%),
+              radial-gradient(at 100% 0%, rgba(163, 230, 53, 0.08) 0px, transparent 50%),
+              radial-gradient(at 50% 100%, rgba(11, 15, 23, 0.8) 0px, transparent 50%);
 }
 
 /* Shimmer Animation for Skeletons */
@@ -57,25 +138,34 @@
 }
 
 .skeleton-shimmer {
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background: linear-gradient(90deg, #181c24 25%, #28303f 50%, #181c24 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite linear;
 }
 
-/* Custom Scrollbar */
+/* Dark Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #f8fafc;
+  background: #0B0F17;
 }
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #28303F;
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #3B4556;
+}
+
+/* Hide scrollbar while keeping scroll functionality */
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE / Edge */
+  scrollbar-width: none;     /* Firefox */
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;             /* Chrome / Safari */
 }
 
 /* Responsive Table Customer Identity & Email Utilities */

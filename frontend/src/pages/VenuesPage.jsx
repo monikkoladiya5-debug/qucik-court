@@ -3,27 +3,14 @@ import { Link, useSearchParams } from 'react-router-dom';
 import {
   Search, SlidersHorizontal, MapPin, Star, Clock,
   X, Loader2, AlertCircle, Building2, ChevronRight,
-  ShieldCheck, Compass, Check, Trophy, Zap, Award,
-  Flame, Sparkles, Layers, Activity
+  ShieldCheck, Compass, Check, Activity
 } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import SportIcon from '../components/ui/SportIcon';
+import Badge from '../components/ui/Badge';
+import Button from '../components/ui/Button';
 import { fetchVenues, fetchVenueMeta } from '../services/api';
-
-const SPORT_CONFIG = {
-  Badminton:  { icon: Trophy,      bg: 'bg-emerald-500/10', text: 'text-emerald-300', border: 'border-emerald-500/20' },
-  Tennis:     { icon: Zap,         bg: 'bg-amber-500/10',   text: 'text-amber-300',   border: 'border-amber-500/20' },
-  Football:   { icon: Award,       bg: 'bg-blue-500/10',    text: 'text-blue-300',    border: 'border-blue-500/20' },
-  Basketball: { icon: Flame,       bg: 'bg-orange-500/10',  text: 'text-orange-300',  border: 'border-orange-500/20' },
-  Pickleball: { icon: Sparkles,    bg: 'bg-purple-500/10',  text: 'text-purple-300',  border: 'border-purple-500/20' },
-  Cricket:    { icon: ShieldCheck, bg: 'bg-red-500/10',     text: 'text-red-300',     border: 'border-red-500/20' },
-  Squash:     { icon: Layers,      bg: 'bg-teal-500/10',    text: 'text-teal-300',    border: 'border-teal-500/20' },
-  default:    { icon: Activity,    bg: 'bg-slate-800',      text: 'text-slate-300',   border: 'border-slate-700' },
-};
-
-function getSportStyle(sport) {
-  return SPORT_CONFIG[sport] || SPORT_CONFIG.default;
-}
 
 // ─── Venue Marketplace Card ───────────────────────────────────────────────────
 
@@ -33,11 +20,11 @@ function VenueCard({ venue }) {
   return (
     <Link
       to={`/venues/${venue.id}`}
-      className="group flex flex-col bg-slate-900/90 rounded-2xl border border-slate-800 hover:border-emerald-500/50 hover:shadow-xl hover:shadow-emerald-500/5 transition-all duration-200 overflow-hidden focus:outline-none focus:ring-2 focus:ring-emerald-400"
+      className="group flex flex-col bg-[#0F131C] rounded-2xl border border-[#28303F] hover:border-lime-400/50 hover:shadow-xl transition-all duration-200 overflow-hidden focus:outline-none focus:ring-2 focus:ring-lime-400"
       aria-label={`View details and book courts at ${venue.name}`}
     >
       {/* Cover Image */}
-      <div className="relative aspect-[16/10] bg-slate-950 overflow-hidden">
+      <div className="relative aspect-[16/10] bg-[#0B0F17] overflow-hidden">
         {!imgErr && venue.imageUrl ? (
           <img
             src={venue.imageUrl}
@@ -47,7 +34,7 @@ function VenueCard({ venue }) {
             loading="lazy"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-slate-700 bg-slate-950">
+          <div className="w-full h-full flex items-center justify-center text-slate-700 bg-[#0B0F17]">
             <Building2 className="w-14 h-14" />
           </div>
         )}
@@ -57,25 +44,25 @@ function VenueCard({ venue }) {
           <span
             className={`px-2.5 py-1 rounded-lg text-xs font-bold shadow-sm backdrop-blur-md border ${
               venue.indoor
-                ? 'bg-slate-950/85 text-emerald-400 border-emerald-500/30'
-                : 'bg-slate-950/85 text-cyan-400 border-cyan-500/30'
+                ? 'bg-[#0B0F17]/90 text-lime-400 border-lime-400/30'
+                : 'bg-[#0B0F17]/90 text-emerald-400 border-emerald-500/30'
             }`}
           >
-            {venue.indoor ? 'Indoor Arena' : 'Outdoor Court'}
+            {venue.indoor ? 'Indoor Arena' : 'Outdoor Turf'}
           </span>
         </div>
 
         {/* Rating & Court Badges */}
         <div className="absolute top-3 right-3 flex items-center gap-1.5">
           {venue.courtCount > 0 && (
-            <span className="bg-slate-950/85 backdrop-blur-md text-slate-300 border border-slate-800 text-[11px] font-semibold px-2 py-1 rounded-lg shadow-sm">
+            <span className="bg-[#0B0F17]/90 backdrop-blur-md text-slate-300 border border-[#28303F] text-[11px] font-semibold px-2 py-1 rounded-lg shadow-sm">
               {venue.courtCount} Courts
             </span>
           )}
           {venue.rating > 0 && (
-            <div className="flex items-center gap-1 bg-slate-950/85 backdrop-blur-md text-white text-xs font-bold px-2 py-1 rounded-lg border border-slate-800 shadow-sm">
+            <div className="flex items-center gap-1 bg-[#0B0F17]/90 backdrop-blur-md text-white text-xs font-bold px-2.5 py-1 rounded-lg border border-[#28303F] shadow-sm">
               <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-              <span>{venue.rating.toFixed(1)}</span>
+              <span className="font-mono">{venue.rating.toFixed(1)}</span>
               {venue.reviewCount > 0 && (
                 <span className="text-slate-400 font-normal text-[11px]">({venue.reviewCount})</span>
               )}
@@ -84,7 +71,7 @@ function VenueCard({ venue }) {
         </div>
 
         {/* Bottom subtle gradient */}
-        <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-slate-950/80 via-slate-950/30 to-transparent pointer-events-none" />
+        <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-[#0F131C] via-[#0F131C]/30 to-transparent pointer-events-none" />
       </div>
 
       {/* Card Details */}
@@ -92,10 +79,10 @@ function VenueCard({ venue }) {
         <div>
           {/* Title & City */}
           <div className="flex items-start justify-between gap-2 mb-1.5">
-            <h2 className="font-extrabold text-white text-base leading-snug group-hover:text-emerald-400 transition-colors line-clamp-1">
+            <h2 className="font-extrabold text-white text-base leading-snug group-hover:text-lime-400 transition-colors line-clamp-1">
               {venue.name}
             </h2>
-            <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 border border-slate-700/80 flex-shrink-0">
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-[#181C24] text-slate-300 border border-[#28303F] flex-shrink-0">
               {venue.city}
             </span>
           </div>
@@ -108,25 +95,21 @@ function VenueCard({ venue }) {
 
           {/* Sports Pills */}
           <div className="flex flex-wrap gap-1.5 mb-4">
-            {venue.sportTypes?.map((s) => {
-              const style = getSportStyle(s);
-              const SportIcon = style.icon;
-              return (
-                <span
-                  key={s}
-                  className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-lg border ${style.bg} ${style.text} ${style.border}`}
-                >
-                  <SportIcon className="w-3 h-3" aria-hidden="true" />
-                  <span>{s}</span>
-                </span>
-              );
-            })}
+            {venue.sportTypes?.map((s) => (
+              <span
+                key={s}
+                className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-lg border bg-[#181C24] text-slate-300 border-[#28303F]"
+              >
+                <SportIcon sport={s} className="w-3 h-3 text-lime-400" aria-hidden="true" />
+                <span>{s}</span>
+              </span>
+            ))}
           </div>
         </div>
 
         {/* Card Footer: Hours, Rate & Book Action */}
-        <div className="pt-3.5 border-t border-slate-800 flex flex-wrap items-center justify-between gap-y-2 mt-auto">
-          <div className="flex items-center gap-1.5 text-xs font-medium text-slate-400">
+        <div className="pt-3.5 border-t border-[#28303F] flex flex-wrap items-center justify-between gap-y-2 mt-auto">
+          <div className="flex items-center gap-1.5 text-xs font-medium text-slate-400 font-mono">
             <Clock className="w-3.5 h-3.5 text-slate-500 shrink-0" />
             <span className="truncate max-w-[110px] sm:max-w-[130px]">{venue.openingHours}</span>
           </div>
@@ -134,10 +117,10 @@ function VenueCard({ venue }) {
           <div className="flex items-center gap-3 shrink-0">
             <div className="text-right">
               <span className="text-xs font-medium text-slate-400 mr-1">from</span>
-              <span className="text-base font-black text-emerald-400">₹{venue.pricePerHour}</span>
-              <span className="text-xs font-medium text-slate-400">/hr</span>
+              <span className="text-base font-black text-lime-400 font-mono">₹{venue.pricePerHour}</span>
+              <span className="text-xs font-medium text-slate-400 font-sans">/hr</span>
             </div>
-            <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-500 group-hover:bg-emerald-400 text-slate-950 text-xs font-bold transition-colors shadow-sm shadow-emerald-500/20">
+            <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-lime-400 group-hover:bg-lime-300 text-slate-950 text-xs font-bold transition-colors shadow-qc-lime">
               Book Court <ChevronRight className="w-3.5 h-3.5 stroke-[2.5]" />
             </span>
           </div>
@@ -151,21 +134,21 @@ function VenueCard({ venue }) {
 
 function SkeletonCard() {
   return (
-    <div className="bg-slate-900/80 rounded-2xl border border-slate-800 overflow-hidden shadow-sm animate-pulse">
-      <div className="aspect-[16/10] bg-slate-800/80" />
+    <div className="bg-[#0F131C] rounded-2xl border border-[#28303F] overflow-hidden shadow-sm animate-pulse">
+      <div className="aspect-[16/10] bg-[#181C24]" />
       <div className="p-5 space-y-3.5">
         <div className="flex justify-between items-center">
-          <div className="h-5 bg-slate-800 rounded-lg w-2/3" />
-          <div className="h-4 bg-slate-800 rounded w-16" />
+          <div className="h-5 bg-[#181C24] rounded-lg w-2/3" />
+          <div className="h-4 bg-[#181C24] rounded w-16" />
         </div>
-        <div className="h-3.5 bg-slate-800/80 rounded w-1/2" />
+        <div className="h-3.5 bg-[#181C24] rounded w-1/2" />
         <div className="flex gap-2 pt-1">
-          <div className="h-6 bg-slate-800 rounded-lg w-20" />
-          <div className="h-6 bg-slate-800 rounded-lg w-20" />
+          <div className="h-6 bg-[#181C24] rounded-lg w-20" />
+          <div className="h-6 bg-[#181C24] rounded-lg w-20" />
         </div>
-        <div className="pt-3.5 border-t border-slate-800 flex justify-between items-center">
-          <div className="h-4 bg-slate-800 rounded w-24" />
-          <div className="h-6 bg-slate-800 rounded-lg w-20" />
+        <div className="pt-3.5 border-t border-[#28303F] flex justify-between items-center">
+          <div className="h-4 bg-[#181C24] rounded w-24" />
+          <div className="h-6 bg-[#181C24] rounded-lg w-20" />
         </div>
       </div>
     </div>
@@ -177,7 +160,7 @@ function SkeletonCard() {
 export default function VenuesPage() {
   const [searchParams] = useSearchParams();
 
-  // Filter state initialized from URL query params if present (e.g. from homepage category click)
+  // Filter state initialized from URL query params if present
   const [search, setSearch]         = useState(() => searchParams.get('search') || '');
   const [city, setCity]             = useState(() => searchParams.get('city') || '');
   const [sport, setSport]           = useState(() => searchParams.get('sport') || '');
@@ -236,18 +219,15 @@ export default function VenuesPage() {
   const activeFilterCount = [search.trim(), city, sport, indoor !== '' ? '1' : ''].filter(Boolean).length;
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100 relative">
-      {/* Background athletic pattern overlay */}
-      <div className="fixed inset-0 bg-court-pattern opacity-10 pointer-events-none" />
-
+    <div className="min-h-screen flex flex-col bg-[#0B0F17] text-slate-100 relative font-sans selection:bg-lime-400 selection:text-slate-950">
       <Header />
 
       <main className="relative z-10 flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
         
         {/* Marketplace Compact Header */}
         <div className="mb-6">
-          <div className="flex items-center gap-2 text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2">
-            <Compass className="w-3.5 h-3.5 text-emerald-400" />
+          <div className="flex items-center gap-2 text-xs font-bold text-lime-400 uppercase tracking-wider mb-2">
+            <Compass className="w-3.5 h-3.5 text-lime-400" />
             <span>Court Marketplace</span>
             <span className="text-slate-600">/</span>
             <span className="text-slate-400 font-medium">Explore Facilities</span>
@@ -258,14 +238,14 @@ export default function VenuesPage() {
               <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight">
                 Find & Compare Courts
               </h1>
-              <p className="mt-1.5 text-sm text-slate-400 max-w-2xl">
-                Explore verified sports venues, compare hourly rates and court amenities, and reserve your playtime.
+              <p className="mt-1.5 text-xs sm:text-sm text-slate-400 max-w-2xl">
+                Explore verified sports venues across India, compare hourly rates and court amenities, and reserve your playtime.
               </p>
             </div>
             
             {/* Trust / Verified Badge */}
-            <div className="hidden sm:inline-flex items-center gap-2 self-start md:self-auto py-2 px-3.5 rounded-xl bg-slate-900/90 border border-slate-800 text-xs text-slate-300 shadow-sm">
-              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+            <div className="hidden sm:inline-flex items-center gap-2 self-start md:self-auto py-2 px-3.5 rounded-xl bg-[#0F131C] border border-[#28303F] text-xs text-slate-300 shadow-sm">
+              <ShieldCheck className="w-4 h-4 text-lime-400" />
               <span>100% Verified Facilities</span>
             </div>
           </div>
@@ -274,7 +254,7 @@ export default function VenuesPage() {
         {/* Search & Filter Control Bar */}
         <section
           aria-label="Venue search and filter controls"
-          className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xl backdrop-blur-md mb-6 space-y-3.5"
+          className="bg-[#0F131C] border border-[#28303F] rounded-2xl p-4 sm:p-5 shadow-xl mb-6 space-y-3.5"
         >
           {/* Main Controls Row */}
           <div className="flex flex-col sm:flex-row gap-2.5">
@@ -288,7 +268,7 @@ export default function VenuesPage() {
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search by venue name, location, or sport…"
                 aria-label="Search venues"
-                className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-slate-950/80 border border-slate-800 text-slate-100 placeholder-slate-500 text-sm focus:bg-slate-950 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition-all"
+                className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-[#0B0F17] border border-[#28303F] text-slate-100 placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-lime-400 focus:border-transparent transition-all"
               />
               {search && (
                 <button
@@ -309,7 +289,7 @@ export default function VenuesPage() {
                 id="filter-city-inline"
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950/80 border border-slate-800 text-sm text-slate-200 focus:bg-slate-950 focus:outline-none focus:ring-2 focus:ring-emerald-400 transition-colors"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-[#0B0F17] border border-[#28303F] text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-lime-400 transition-colors"
               >
                 <option value="">All Cities</option>
                 {meta.cities?.map((c) => (
@@ -325,11 +305,11 @@ export default function VenuesPage() {
                 id="filter-indoor-inline"
                 value={indoor}
                 onChange={(e) => setIndoor(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950/80 border border-slate-800 text-sm text-slate-200 focus:bg-slate-950 focus:outline-none focus:ring-2 focus:ring-emerald-400 transition-colors"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-[#0B0F17] border border-[#28303F] text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-lime-400 transition-colors"
               >
                 <option value="">All Types</option>
                 <option value="true">Indoor Arena</option>
-                <option value="false">Outdoor Court</option>
+                <option value="false">Outdoor Turf</option>
               </select>
             </div>
 
@@ -339,16 +319,16 @@ export default function VenuesPage() {
               onClick={() => setShowFilters((prev) => !prev)}
               aria-expanded={showFilters}
               aria-controls="filter-panel"
-              className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border text-xs sm:text-sm font-bold transition-all focus:outline-none focus:ring-2 focus:ring-emerald-400 ${
+              className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border text-xs sm:text-sm font-bold transition-all focus:outline-none focus:ring-2 focus:ring-lime-400 ${
                 showFilters || activeFilterCount > 0
-                  ? 'bg-emerald-500 text-slate-950 border-emerald-500 shadow-sm shadow-emerald-500/20'
-                  : 'bg-slate-950/80 text-slate-300 border-slate-800 hover:bg-slate-800'
+                  ? 'bg-lime-400 text-slate-950 border-lime-400 shadow-qc-lime'
+                  : 'bg-[#0B0F17] text-slate-300 border-[#28303F] hover:bg-[#181C24]'
               }`}
             >
               <SlidersHorizontal className="w-4 h-4" />
               <span>Filters</span>
               {activeFilterCount > 0 && (
-                <span className="w-5 h-5 rounded-full bg-slate-950 text-emerald-400 text-xs font-black flex items-center justify-center">
+                <span className="w-5 h-5 rounded-full bg-slate-950 text-lime-400 text-xs font-black flex items-center justify-center">
                   {activeFilterCount}
                 </span>
               )}
@@ -363,16 +343,14 @@ export default function VenuesPage() {
               aria-pressed={sport === ''}
               className={`px-3 py-1.5 rounded-full font-bold whitespace-nowrap transition-all ${
                 sport === ''
-                  ? 'bg-emerald-500 text-slate-950 shadow-sm shadow-emerald-500/20'
-                  : 'bg-slate-950/80 text-slate-400 border border-slate-800 hover:bg-slate-800 hover:text-slate-200'
+                  ? 'bg-lime-400 text-slate-950 shadow-qc-lime'
+                  : 'bg-[#0B0F17] text-slate-400 border border-[#28303F] hover:bg-[#181C24] hover:text-slate-200'
               }`}
             >
               All Sports
             </button>
             {meta.sports?.map((s) => {
               const isSelected = sport === s;
-              const style = getSportStyle(s);
-              const SportIcon = style.icon;
               return (
                 <button
                   key={s}
@@ -381,11 +359,11 @@ export default function VenuesPage() {
                   aria-pressed={isSelected}
                   className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full font-bold whitespace-nowrap border transition-all ${
                     isSelected
-                      ? 'bg-emerald-500 text-slate-950 border-emerald-500 shadow-sm shadow-emerald-500/20'
-                      : 'bg-slate-950/80 text-slate-300 border-slate-800 hover:border-slate-700 hover:bg-slate-800'
+                      ? 'bg-lime-400 text-slate-950 border-lime-400 shadow-qc-lime'
+                      : 'bg-[#0B0F17] text-slate-300 border-[#28303F] hover:border-slate-700 hover:bg-[#181C24]'
                   }`}
                 >
-                  <SportIcon className="w-3.5 h-3.5" aria-hidden="true" />
+                  <SportIcon sport={s} className="w-3.5 h-3.5" aria-hidden="true" />
                   <span>{s}</span>
                 </button>
               );
@@ -394,14 +372,14 @@ export default function VenuesPage() {
 
           {/* Active Filter Chips & Reset Bar */}
           {hasFilters && (
-            <div className="pt-2 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-2">
+            <div className="pt-2 border-t border-[#28303F] flex flex-wrap items-center justify-between gap-2">
               <div className="flex flex-wrap items-center gap-1.5 text-xs">
                 <span className="text-slate-400 font-medium mr-1">Active:</span>
                 {search.trim() && (
                   <button
                     type="button"
                     onClick={() => setSearch('')}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700 text-[11px]"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#181C24] text-slate-200 hover:bg-slate-800 border border-[#28303F] text-[11px]"
                   >
                     <span>Search: "{search}"</span>
                     <X className="w-3 h-3 text-slate-400" />
@@ -411,33 +389,30 @@ export default function VenuesPage() {
                   <button
                     type="button"
                     onClick={() => setCity('')}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700 text-[11px]"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#181C24] text-slate-200 hover:bg-slate-800 border border-[#28303F] text-[11px]"
                   >
                     <span>City: {city}</span>
                     <X className="w-3 h-3 text-slate-400" />
                   </button>
                 )}
-                {sport && (() => {
-                  const SportIcon = getSportStyle(sport).icon;
-                  return (
-                    <button
-                      type="button"
-                      onClick={() => setSport('')}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700 text-[11px]"
-                    >
-                      <SportIcon className="w-3 h-3 text-emerald-400" aria-hidden="true" />
-                      <span>Sport: {sport}</span>
-                      <X className="w-3 h-3 text-slate-400" />
-                    </button>
-                  );
-                })()}
+                {sport && (
+                  <button
+                    type="button"
+                    onClick={() => setSport('')}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#181C24] text-slate-200 hover:bg-slate-800 border border-[#28303F] text-[11px]"
+                  >
+                    <SportIcon sport={sport} className="w-3 h-3 text-lime-400" aria-hidden="true" />
+                    <span>Sport: {sport}</span>
+                    <X className="w-3 h-3 text-slate-400" />
+                  </button>
+                )}
                 {indoor !== '' && (
                   <button
                     type="button"
                     onClick={() => setIndoor('')}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700 text-[11px]"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#181C24] text-slate-200 hover:bg-slate-800 border border-[#28303F] text-[11px]"
                   >
-                    <span>{indoor === 'true' ? 'Indoor Arena' : 'Outdoor Court'}</span>
+                    <span>{indoor === 'true' ? 'Indoor Arena' : 'Outdoor Turf'}</span>
                     <X className="w-3 h-3 text-slate-400" />
                   </button>
                 )}
@@ -458,9 +433,9 @@ export default function VenuesPage() {
         {showFilters && (
           <div
             id="filter-panel"
-            className="mb-6 p-5 bg-slate-900/95 rounded-2xl border border-slate-800 shadow-lg animate-in fade-in slide-in-from-top-2"
+            className="mb-6 p-5 bg-[#0F131C] rounded-2xl border border-[#28303F] shadow-lg animate-in fade-in slide-in-from-top-2"
           >
-            <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-800">
+            <div className="flex items-center justify-between pb-3 mb-4 border-b border-[#28303F]">
               <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400">Refine Search Results</h2>
               {hasFilters && (
                 <button
@@ -483,7 +458,7 @@ export default function VenuesPage() {
                   id="filter-city"
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-400 transition-colors"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#0B0F17] border border-[#28303F] text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-lime-400 transition-colors"
                 >
                   <option value="">All Cities</option>
                   {meta.cities?.map((c) => (
@@ -501,7 +476,7 @@ export default function VenuesPage() {
                   id="filter-sport-select"
                   value={sport}
                   onChange={(e) => setSport(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-400 transition-colors"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#0B0F17] border border-[#28303F] text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-lime-400 transition-colors"
                 >
                   <option value="">All Sports</option>
                   {meta.sports?.map((s) => (
@@ -519,11 +494,11 @@ export default function VenuesPage() {
                   id="filter-venue-type"
                   value={indoor}
                   onChange={(e) => setIndoor(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-400 transition-colors"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#0B0F17] border border-[#28303F] text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-lime-400 transition-colors"
                 >
                   <option value="">All Facilities (Indoor & Outdoor)</option>
                   <option value="true">Indoor Arena Only</option>
-                  <option value="false">Outdoor Court Only</option>
+                  <option value="false">Outdoor Turf Only</option>
                 </select>
               </div>
             </div>
@@ -531,7 +506,7 @@ export default function VenuesPage() {
         )}
 
         {/* Results Summary Bar */}
-        <div className="flex items-center justify-between pb-3 mb-5 border-b border-slate-800/80 text-xs font-medium text-slate-400">
+        <div className="flex items-center justify-between pb-3 mb-5 border-b border-[#28303F] text-xs font-medium text-slate-400">
           <div className="flex items-center gap-2">
             <span>
               Showing <strong className="text-white font-black">{venues.length}</strong> verified {venues.length === 1 ? 'facility' : 'facilities'}
@@ -540,32 +515,32 @@ export default function VenuesPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="w-2 h-2 rounded-full bg-lime-400 animate-pulse" />
             <span className="text-slate-300 font-semibold">Live Availability</span>
           </div>
         </div>
 
         {/* Venue Results Section */}
         {error ? (
-          <div className="flex flex-col items-center justify-center py-16 px-4 bg-slate-900/90 rounded-2xl border border-rose-500/30 text-center" role="alert">
+          <div className="flex flex-col items-center justify-center py-16 px-4 bg-[#0F131C] rounded-2xl border border-rose-500/30 text-center" role="alert">
             <div className="w-14 h-14 rounded-2xl bg-rose-500/10 text-rose-400 flex items-center justify-center mb-4">
               <AlertCircle className="w-7 h-7" />
             </div>
             <h2 className="text-lg font-bold text-white mb-1">Unable to Load Venues</h2>
             <p className="text-sm text-slate-400 max-w-sm mb-6 leading-relaxed">{error}</p>
-            <button
-              type="button"
+            <Button
+              variant="primary"
+              size="md"
               onClick={load}
-              className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold rounded-xl transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
             >
               Retry Search
-            </button>
+            </Button>
           </div>
         ) : loading ? (
           <>
             <div className="flex items-center justify-between text-xs font-semibold text-slate-400 mb-5">
               <span className="flex items-center gap-2">
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400" />
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-lime-400" />
                 Scanning sports venues…
               </span>
             </div>
@@ -576,8 +551,8 @@ export default function VenuesPage() {
             </div>
           </>
         ) : venues.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 px-4 bg-slate-900/60 rounded-2xl border border-slate-800 text-center">
-            <div className="w-16 h-16 rounded-3xl bg-slate-800/80 text-slate-400 flex items-center justify-center mb-4">
+          <div className="flex flex-col items-center justify-center py-20 px-4 bg-[#0F131C] rounded-2xl border border-[#28303F] text-center">
+            <div className="w-16 h-16 rounded-3xl bg-[#181C24] text-slate-400 flex items-center justify-center mb-4">
               <Building2 className="w-8 h-8 stroke-[1.5]" />
             </div>
             <h2 className="text-xl font-bold text-white mb-1">No Matching Venues Found</h2>
@@ -587,13 +562,13 @@ export default function VenuesPage() {
                 : 'No sports facilities are currently available in this area.'}
             </p>
             {hasFilters && (
-              <button
-                type="button"
+              <Button
+                variant="primary"
+                size="md"
                 onClick={clearFilters}
-                className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold rounded-xl transition-all shadow-sm"
               >
                 Clear All Filters
-              </button>
+              </Button>
             )}
           </div>
         ) : (
