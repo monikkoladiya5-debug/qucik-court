@@ -30,8 +30,8 @@ export function calculateBookingLoyalty(userId) {
       continue;
     }
 
-    // Only CONFIRMED bookings can earn points
-    if (b.status !== 'CONFIRMED') {
+    // Only confirmed, paid, checked-in or completed bookings can earn points
+    if (!['CONFIRMED', 'PAID', 'CHECKED_IN', 'COMPLETED'].includes(b.status)) {
       continue;
     }
 

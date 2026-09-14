@@ -132,17 +132,19 @@ export function getOwnerDashboard(req, res) {
   let bookingRevenue = 0;
 
   for (const b of myBookings) {
-    if (b.status === 'CANCELLED') {
+    if (b.status === 'CANCELLED' || b.status === 'REJECTED') {
       cancelledBookings += 1;
-    } else if (b.status === 'CONFIRMED') {
+    } else if (['CONFIRMED', 'PAID', 'CHECKED_IN', 'COMPLETED'].includes(b.status)) {
       confirmedBookings += 1;
       bookingRevenue += Number(b.totalPrice || 0);
 
-      if (isBookingElapsed(b, now)) {
+      if (b.status === 'COMPLETED' || isBookingElapsed(b, now)) {
         completedBookings += 1;
       } else {
         upcomingBookings += 1;
       }
+    } else if (['REQUESTED', 'APPROVED', 'PAYMENT_PENDING'].includes(b.status)) {
+      upcomingBookings += 1;
     }
   }
 

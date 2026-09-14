@@ -280,7 +280,8 @@ describe('Task 4: Price & Property Protection', () => {
     assert.equal(data.booking.pricePerHour, court.pricePerHour);
     assert.equal(data.booking.totalPrice, court.pricePerHour);
     assert.notEqual(data.booking.id, 'BK-HACKED');
-    assert.equal(data.booking.status, 'CONFIRMED');
+    assert.equal(data.booking.status, 'REQUESTED');
+    assert.equal(data.booking.paymentStatus, 'PENDING');
     assert.notEqual(data.booking.userId, 'u-hacked');
   });
 });
@@ -311,7 +312,8 @@ describe('Task 4: Server-Side Conflict Detection & Availability Integration', ()
 
     assert.equal(res.status, 201);
     const data = await res.json();
-    assert.equal(data.booking.status, 'CONFIRMED');
+    assert.equal(data.booking.status, 'REQUESTED');
+    assert.equal(data.booking.paymentStatus, 'PENDING');
   });
 
   it('Second overlapping booking on same court/date/time fails with 409 Conflict', async () => {

@@ -1,5 +1,14 @@
 import { store, safeBooking } from '../data/store.js';
 import {
+  BOOKING_STATUS,
+  PAYMENT_STATUS,
+  VALID_BOOKING_TRANSITIONS,
+  VALID_PAYMENT_TRANSITIONS,
+  isBookingActive,
+  isValidBookingTransition,
+  isValidPaymentTransition,
+} from '../config/bookingStates.js';
+import {
   parseOperatingHours,
   format12Hour,
   getDeterministicStatus,
@@ -31,12 +40,24 @@ export function parse12HourTime(timeStr) {
   return hour;
 }
 
+/**
+ * Checks whether an authenticated user is the owner of the venue for the booking.
+ */
+export function isVenueOwnerForBooking(user, booking) {
+  if (!user || !booking) return false;
+  if (user.role === 'ADMIN') return true;
+  if (user.role !== 'OWNER') return false;
+  const venue = store.venues.find((v) => v.id === booking.venueId);
+  return Boolean(venue && venue.ownerId === user.id);
+}
+
 // ─── CUSTOMER: Create Booking ─────────────────────────────────────────────────
 
 /**
  * POST /api/bookings
  * Requires: authenticate + requireRole('CUSTOMER')
  * Client input: { courtId, date, startTime, endTime }
+ * Initial State: REQUESTED (Payment: PENDING)
  * All privileged/financial attributes derived server-side.
  */
 export function createBooking(req, res) {
@@ -130,15 +151,14 @@ export function createBooking(req, res) {
     });
   }
 
-  // 7. Server-side conflict check: detect overlapping confirmed bookings
+  // 7. Server-side conflict check: detect active overlapping bookings
   const hasConflict = store.bookings.some((b) => {
-    if (b.courtId !== court.id || b.date !== date || b.status !== 'CONFIRMED') {
+    if (b.courtId !== court.id || b.date !== date || !isBookingActive(b.status)) {
       return false;
     }
     const bStart = parse12HourTime(b.startTime);
     const bEnd = parse12HourTime(b.endTime);
     if (bStart === null || bEnd === null) return false;
-    // Two intervals [startHour, endHour) and [bStart, bEnd) overlap if startHour < bEnd && endHour > bStart
     return startHour < bEnd && endHour > bStart;
   });
 
@@ -155,7 +175,7 @@ export function createBooking(req, res) {
 
   const nowIso = now.toISOString();
 
-  // 9. Construct booking — client cannot override id, userId, venueId, price, status, or timestamps
+  // 9. Construct booking — starts strictly as REQUESTED, paymentStatus PENDING
   const newBooking = {
     id: generateBookingId(),
     userId: req.user.id,
@@ -166,7 +186,9 @@ export function createBooking(req, res) {
     endTime: format12Hour(endHour),
     pricePerHour,
     totalPrice,
-    status: 'CONFIRMED',
+    status: BOOKING_STATUS.REQUESTED,
+    paymentStatus: PAYMENT_STATUS.PENDING,
+    paymentMethod: null,
     createdAt: nowIso,
     updatedAt: nowIso,
   };
@@ -198,12 +220,12 @@ export function getMyBookings(req, res) {
   });
 }
 
-// ─── CUSTOMER: Get Booking Details ────────────────────────────────────────────
+// ─── GET: Single Booking Details ──────────────────────────────────────────────
 
 /**
  * GET /api/bookings/:id
- * Requires: authenticate + requireRole('CUSTOMER')
- * Enforces object-level ownership check: Customer can only view their own booking.
+ * Requires: authenticate
+ * Object-level ownership check: Customer sees own booking, Owner sees venue's booking, Admin sees any.
  */
 export function getBooking(req, res) {
   const booking = store.bookings.find((b) => b.id === req.params.id);
@@ -211,8 +233,12 @@ export function getBooking(req, res) {
     return res.status(404).json({ status: 'error', message: 'Booking not found.' });
   }
 
-  // Ownership verification: Customer can only view their own booking
-  if (booking.userId !== req.user.id) {
+  // Ownership verification
+  const isCustomer = req.user.role === 'CUSTOMER' && booking.userId === req.user.id;
+  const isOwner = isVenueOwnerForBooking(req.user, booking);
+  const isAdmin = req.user.role === 'ADMIN';
+
+  if (!isCustomer && !isOwner && !isAdmin) {
     return res.status(403).json({
       status: 'error',
       message: 'You are not authorized to view this booking.',
@@ -225,12 +251,12 @@ export function getBooking(req, res) {
   });
 }
 
-// ─── CUSTOMER: Cancel Booking ─────────────────────────────────────────────────
+// ─── CANCEL: Cancel Booking ───────────────────────────────────────────────────
 
 /**
  * DELETE /api/bookings/:id
- * Requires: authenticate + requireRole('CUSTOMER')
- * Object-level ownership check: Customer can only cancel their own booking.
+ * Requires: authenticate
+ * Object-level ownership check: Customer can cancel own booking, Owner can cancel venue's booking, Admin can cancel any.
  */
 export function cancelBooking(req, res) {
   const booking = store.bookings.find((b) => b.id === req.params.id);
@@ -239,26 +265,309 @@ export function cancelBooking(req, res) {
   }
 
   // Ownership verification
-  if (booking.userId !== req.user.id) {
+  const isCustomer = req.user.role === 'CUSTOMER' && booking.userId === req.user.id;
+  const isOwner = isVenueOwnerForBooking(req.user, booking);
+  const isAdmin = req.user.role === 'ADMIN';
+
+  if (!isCustomer && !isOwner && !isAdmin) {
     return res.status(403).json({
       status: 'error',
       message: 'You are not authorized to cancel this booking.',
     });
   }
 
-  if (booking.status === 'CANCELLED') {
+  if (booking.status === BOOKING_STATUS.CANCELLED) {
     return res.status(400).json({
       status: 'error',
       message: 'This booking has already been cancelled.',
     });
   }
 
-  booking.status = 'CANCELLED';
+  if (!isValidBookingTransition(booking.status, BOOKING_STATUS.CANCELLED)) {
+    return res.status(400).json({
+      status: 'error',
+      message: `Cannot cancel a booking that is ${booking.status}.`,
+    });
+  }
+
+  booking.status = BOOKING_STATUS.CANCELLED;
+
+  // If already paid, mark as refunded
+  if (booking.paymentStatus === PAYMENT_STATUS.PAID) {
+    booking.paymentStatus = PAYMENT_STATUS.REFUNDED;
+  }
+
   booking.updatedAt = new Date().toISOString();
 
   return res.status(200).json({
     status: 'ok',
     message: 'Booking cancelled successfully.',
+    booking: safeBooking(booking),
+  });
+}
+
+// ─── OWNER / ADMIN: Approve Booking ───────────────────────────────────────────
+
+/**
+ * POST /api/bookings/:id/approve
+ * Requires: authenticate (OWNER of venue or ADMIN)
+ * Transition: REQUESTED -> APPROVED
+ */
+export function approveBooking(req, res) {
+  const booking = store.bookings.find((b) => b.id === req.params.id);
+  if (!booking) {
+    return res.status(404).json({ status: 'error', message: 'Booking not found.' });
+  }
+
+  const isOwner = isVenueOwnerForBooking(req.user, booking);
+  const isAdmin = req.user.role === 'ADMIN';
+
+  if (!isOwner && !isAdmin) {
+    return res.status(403).json({
+      status: 'error',
+      message: 'You are not authorized to approve bookings for this venue.',
+    });
+  }
+
+  if (!isValidBookingTransition(booking.status, BOOKING_STATUS.APPROVED)) {
+    return res.status(400).json({
+      status: 'error',
+      message: `Cannot approve a booking currently in '${booking.status}' status. Only '${BOOKING_STATUS.REQUESTED}' bookings can be approved.`,
+    });
+  }
+
+  booking.status = BOOKING_STATUS.APPROVED;
+  booking.updatedAt = new Date().toISOString();
+
+  return res.status(200).json({
+    status: 'ok',
+    message: 'Booking approved successfully. Awaiting payment.',
+    booking: safeBooking(booking),
+  });
+}
+
+// ─── OWNER / ADMIN: Reject Booking ────────────────────────────────────────────
+
+/**
+ * POST /api/bookings/:id/reject
+ * Requires: authenticate (OWNER of venue or ADMIN)
+ * Transition: REQUESTED -> REJECTED
+ */
+export function rejectBooking(req, res) {
+  const booking = store.bookings.find((b) => b.id === req.params.id);
+  if (!booking) {
+    return res.status(404).json({ status: 'error', message: 'Booking not found.' });
+  }
+
+  const isOwner = isVenueOwnerForBooking(req.user, booking);
+  const isAdmin = req.user.role === 'ADMIN';
+
+  if (!isOwner && !isAdmin) {
+    return res.status(403).json({
+      status: 'error',
+      message: 'You are not authorized to reject bookings for this venue.',
+    });
+  }
+
+  if (!isValidBookingTransition(booking.status, BOOKING_STATUS.REJECTED)) {
+    return res.status(400).json({
+      status: 'error',
+      message: `Cannot reject a booking currently in '${booking.status}' status.`,
+    });
+  }
+
+  booking.status = BOOKING_STATUS.REJECTED;
+  booking.updatedAt = new Date().toISOString();
+
+  return res.status(200).json({
+    status: 'ok',
+    message: 'Booking rejected.',
+    booking: safeBooking(booking),
+  });
+}
+
+// ─── CUSTOMER / ADMIN: Pay for Booking ────────────────────────────────────────
+
+/**
+ * POST /api/bookings/:id/pay
+ * Requires: authenticate (CUSTOMER who owns the booking or ADMIN)
+ * Transition: APPROVED / PAYMENT_PENDING / REQUESTED -> PAID / CONFIRMED
+ * Payment Status: PENDING -> PAID
+ */
+export function payBooking(req, res) {
+  const booking = store.bookings.find((b) => b.id === req.params.id);
+  if (!booking) {
+    return res.status(404).json({ status: 'error', message: 'Booking not found.' });
+  }
+
+  const isCustomer = req.user.role === 'CUSTOMER' && booking.userId === req.user.id;
+  const isAdmin = req.user.role === 'ADMIN';
+
+  if (!isCustomer && !isAdmin) {
+    return res.status(403).json({
+      status: 'error',
+      message: 'You are not authorized to pay for this booking.',
+    });
+  }
+
+  // Supported source states for payment
+  const payableStatuses = [
+    BOOKING_STATUS.APPROVED,
+    BOOKING_STATUS.PAYMENT_PENDING,
+    BOOKING_STATUS.REQUESTED, // For instant demo payment if auto-approved
+  ];
+
+  if (!payableStatuses.includes(booking.status)) {
+    return res.status(400).json({
+      status: 'error',
+      message: `Booking in '${booking.status}' status cannot receive payment. Must be '${BOOKING_STATUS.APPROVED}' or '${BOOKING_STATUS.PAYMENT_PENDING}'.`,
+    });
+  }
+
+  const { paymentMethod } = req.body || {};
+
+  booking.status = BOOKING_STATUS.CONFIRMED;
+  booking.paymentStatus = PAYMENT_STATUS.PAID;
+  booking.paymentMethod = paymentMethod || 'UPI';
+  booking.updatedAt = new Date().toISOString();
+
+  return res.status(200).json({
+    status: 'ok',
+    message: 'Payment confirmed successfully.',
+    booking: safeBooking(booking),
+  });
+}
+
+// ─── ROLE-CHECKED: Update Booking Status & Payment Status ─────────────────────
+
+/**
+ * PATCH /api/bookings/:id/status
+ * Requires: authenticate
+ * Validates role-appropriate state transitions.
+ * Body: { status?: BOOKING_STATUS, paymentStatus?: PAYMENT_STATUS, paymentMethod?: string }
+ */
+export function updateBookingStatus(req, res) {
+  const booking = store.bookings.find((b) => b.id === req.params.id);
+  if (!booking) {
+    return res.status(404).json({ status: 'error', message: 'Booking not found.' });
+  }
+
+  const { status: targetStatus, paymentStatus: targetPaymentStatus, paymentMethod } = req.body || {};
+
+  if (!targetStatus && !targetPaymentStatus) {
+    return res.status(400).json({
+      status: 'error',
+      message: 'At least one of status or paymentStatus is required.',
+    });
+  }
+
+  const isCustomer = req.user.role === 'CUSTOMER' && booking.userId === req.user.id;
+  const isOwner = isVenueOwnerForBooking(req.user, booking);
+  const isAdmin = req.user.role === 'ADMIN';
+
+  if (!isCustomer && !isOwner && !isAdmin) {
+    return res.status(403).json({
+      status: 'error',
+      message: 'You are not authorized to update this booking.',
+    });
+  }
+
+  // 1. Validate Target Booking Status Transition (if provided)
+  if (targetStatus) {
+    if (!Object.values(BOOKING_STATUS).includes(targetStatus)) {
+      return res.status(400).json({
+        status: 'error',
+        message: `Invalid booking status '${targetStatus}'. Allowed: ${Object.values(BOOKING_STATUS).join(', ')}`,
+      });
+    }
+
+    if (!isValidBookingTransition(booking.status, targetStatus)) {
+      return res.status(400).json({
+        status: 'error',
+        message: `Invalid state transition from '${booking.status}' to '${targetStatus}'.`,
+      });
+    }
+
+    // Role-specific transition permissions
+    if (isCustomer) {
+      const customerAllowed = [BOOKING_STATUS.CANCELLED, BOOKING_STATUS.PAID, BOOKING_STATUS.CONFIRMED];
+      if (!customerAllowed.includes(targetStatus)) {
+        return res.status(403).json({
+          status: 'error',
+          message: `Customer cannot transition booking to '${targetStatus}'.`,
+        });
+      }
+    }
+
+    if (isOwner && !isAdmin) {
+      const ownerAllowed = [
+        BOOKING_STATUS.APPROVED,
+        BOOKING_STATUS.REJECTED,
+        BOOKING_STATUS.PAYMENT_FAILED,
+        BOOKING_STATUS.PAYMENT_EXPIRED,
+        BOOKING_STATUS.CHECKED_IN,
+        BOOKING_STATUS.COMPLETED,
+        BOOKING_STATUS.CANCELLED,
+      ];
+      if (!ownerAllowed.includes(targetStatus)) {
+        return res.status(403).json({
+          status: 'error',
+          message: `Venue partner cannot transition booking to '${targetStatus}'.`,
+        });
+      }
+    }
+
+    booking.status = targetStatus;
+  }
+
+  // 2. Validate Target Payment Status Transition (if provided)
+  if (targetPaymentStatus) {
+    if (!Object.values(PAYMENT_STATUS).includes(targetPaymentStatus)) {
+      return res.status(400).json({
+        status: 'error',
+        message: `Invalid payment status '${targetPaymentStatus}'. Allowed: ${Object.values(PAYMENT_STATUS).join(', ')}`,
+      });
+    }
+
+    if (!isValidPaymentTransition(booking.paymentStatus || PAYMENT_STATUS.PENDING, targetPaymentStatus)) {
+      return res.status(400).json({
+        status: 'error',
+        message: `Invalid payment status transition from '${booking.paymentStatus || PAYMENT_STATUS.PENDING}' to '${targetPaymentStatus}'.`,
+      });
+    }
+
+    if (isCustomer && targetPaymentStatus !== PAYMENT_STATUS.PAID) {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Customer cannot arbitrarily set payment status.',
+      });
+    }
+
+    booking.paymentStatus = targetPaymentStatus;
+  }
+
+  // 3. Auto-sync payment state for certain booking state shifts
+  if ([BOOKING_STATUS.PAID, BOOKING_STATUS.CONFIRMED].includes(booking.status) && booking.paymentStatus !== PAYMENT_STATUS.PAID) {
+    booking.paymentStatus = PAYMENT_STATUS.PAID;
+  }
+
+  if (booking.status === BOOKING_STATUS.PAYMENT_FAILED && booking.paymentStatus !== PAYMENT_STATUS.FAILED) {
+    booking.paymentStatus = PAYMENT_STATUS.FAILED;
+  }
+
+  if (booking.status === BOOKING_STATUS.CANCELLED && booking.paymentStatus === PAYMENT_STATUS.PAID) {
+    booking.paymentStatus = PAYMENT_STATUS.REFUNDED;
+  }
+
+  if (paymentMethod) {
+    booking.paymentMethod = paymentMethod;
+  }
+
+  booking.updatedAt = new Date().toISOString();
+
+  return res.status(200).json({
+    status: 'ok',
+    message: 'Booking status updated successfully.',
     booking: safeBooking(booking),
   });
 }

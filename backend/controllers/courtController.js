@@ -1,4 +1,5 @@
 import { store, safeCourt } from '../data/store.js';
+import { isBookingActive } from '../config/bookingStates.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -401,13 +402,13 @@ export function getCourtAvailability(req, res) {
     const endTime = format12Hour(h + 1);
     let status = getDeterministicStatus(court, date, h);
 
-    // If an active CONFIRMED booking exists for this court, date and startTime, slot is UNAVAILABLE
+    // If an active booking exists for this court, date and startTime, slot is UNAVAILABLE
     const isBooked = store.bookings.some(
       (b) =>
         b.courtId === court.id &&
         b.date === date &&
         b.startTime === startTime &&
-        b.status === 'CONFIRMED'
+        isBookingActive(b.status)
     );
 
     if (isBooked) {
