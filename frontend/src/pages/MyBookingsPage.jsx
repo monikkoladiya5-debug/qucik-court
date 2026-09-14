@@ -2,6 +2,10 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import Button from '../components/ui/Button';
+import Badge from '../components/ui/Badge';
+import Card from '../components/ui/Card';
+import SportIcon from '../components/ui/SportIcon';
 import { fetchMyBookings, cancelBooking } from '../services/api';
 import { getLocalDateString } from '../utils/date';
 import {
@@ -9,20 +13,12 @@ import {
   Clock,
   MapPin,
   Building2,
-  CalendarCheck,
   AlertCircle,
   CheckCircle2,
   Loader2,
   ArrowRight,
-  XCircle,
   ShieldCheck,
-  Trophy,
   Zap,
-  Award,
-  Flame,
-  Sparkles,
-  Layers,
-  Activity,
   Ticket,
   ChevronRight,
   Search,
@@ -30,23 +26,10 @@ import {
   Check,
   AlertTriangle,
   CalendarDays,
-  ExternalLink
+  ExternalLink,
+  History,
+  XCircle
 } from 'lucide-react';
-
-const SPORT_CONFIG = {
-  Badminton:  { icon: Trophy,      bg: 'bg-emerald-500/10', text: 'text-emerald-300', border: 'border-emerald-500/20' },
-  Tennis:     { icon: Zap,         bg: 'bg-amber-500/10',   text: 'text-amber-300',   border: 'border-amber-500/20' },
-  Football:   { icon: Award,       bg: 'bg-blue-500/10',    text: 'text-blue-300',    border: 'border-blue-500/20' },
-  Basketball: { icon: Flame,       bg: 'bg-orange-500/10',  text: 'text-orange-300',  border: 'border-orange-200' },
-  Pickleball: { icon: Sparkles,    bg: 'bg-purple-500/10',  text: 'text-purple-300',  border: 'border-purple-500/20' },
-  Cricket:    { icon: ShieldCheck, bg: 'bg-red-500/10',     text: 'text-red-300',     border: 'border-red-500/20' },
-  Squash:     { icon: Layers,      bg: 'bg-teal-500/10',    text: 'text-teal-300',    border: 'border-teal-500/20' },
-  default:    { icon: Activity,    bg: 'bg-slate-800',      text: 'text-slate-300',   border: 'border-slate-700' },
-};
-
-function getSportStyle(sport) {
-  return SPORT_CONFIG[sport] || SPORT_CONFIG.default;
-}
 
 function parseTimeTo24(timeStr) {
   if (!timeStr) return { hours: 23, minutes: 59 };
@@ -169,7 +152,7 @@ export default function MyBookingsPage() {
         setSelectedPass((prev) => (prev ? { ...prev, status: 'CANCELLED' } : null));
       }
       setCancellingBooking(null);
-      setCancelSuccessMsg(`Reservation ${res.booking.id} has been cancelled successfully.`);
+      setCancelSuccessMsg(`Reservation #${res.booking?.id || cancellingBooking.id} has been cancelled.`);
       setTimeout(() => setCancelSuccessMsg(''), 5000);
     } catch (err) {
       setCancelError(err.message || 'Failed to cancel booking. Please try again.');
@@ -206,12 +189,11 @@ export default function MyBookingsPage() {
     return { upcoming, past, cancelled };
   }, [bookings]);
 
-  // Derived real metrics
+  // Derived metrics
   const upcomingCount = categorized.upcoming.length;
   const pastCount = categorized.past.length;
   const cancelledCount = categorized.cancelled.length;
   const totalCount = bookings.length;
-  const pointsEarned = pastCount * 10; // +10 points per completed eligible booking
 
   // Active filtered list
   const filteredBookings = useMemo(() => {
@@ -239,39 +221,37 @@ export default function MyBookingsPage() {
   const nextMatch = categorized.upcoming.length > 0 ? categorized.upcoming[0] : null;
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100 relative">
+    <div className="min-h-screen flex flex-col bg-[#0B0F17] text-slate-100 relative">
       {/* Background athletic pattern overlay */}
       <div className="fixed inset-0 bg-court-pattern opacity-10 pointer-events-none" />
 
       <Header />
 
       <main className="relative z-10 flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
-        
+
         {/* Page Top Header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-6 border-b border-slate-800">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-6 border-b border-[#28303F]">
           <div>
-            <div className="flex items-center gap-2 text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2">
-              <Ticket className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Personal Management</span>
+            <div className="flex items-center gap-2 text-xs font-bold text-lime-400 uppercase tracking-wider mb-2">
+              <Ticket className="w-3.5 h-3.5 text-lime-400" />
+              <span>Player Portal</span>
               <span className="text-slate-600">/</span>
-              <span className="text-slate-400 font-medium">Court Schedule</span>
+              <span className="text-slate-400 font-medium">My Bookings</span>
             </div>
 
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight">
-              My Court Bookings
+              Court Bookings & Passes
             </h1>
             <p className="mt-1.5 text-sm text-slate-400 max-w-2xl">
-              Review your reserved match times, access venue directions, and manage upcoming court schedules.
+              Manage your reserved court schedules, view match pass details, and track your game history.
             </p>
           </div>
 
           <div className="flex items-center gap-3 self-start md:self-auto flex-wrap">
-            <Link
-              to="/venues"
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-slate-950 text-xs font-bold rounded-xl shadow-sm shadow-emerald-500/20 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-400"
-            >
-              <span>Book Another Court</span>
-              <ArrowRight className="w-4 h-4 stroke-[2.5]" />
+            <Link to="/venues">
+              <Button variant="primary" size="md" icon={ArrowRight}>
+                Book a Court
+              </Button>
             </Link>
           </div>
         </div>
@@ -280,7 +260,7 @@ export default function MyBookingsPage() {
         {cancelSuccessMsg && (
           <div
             role="status"
-            className="mt-6 p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-semibold flex items-center justify-between shadow-lg shadow-emerald-500/5 animate-in fade-in slide-in-from-top-2"
+            className="mt-6 p-4 rounded-xl bg-emerald-950/80 border border-emerald-500/80 text-emerald-300 text-xs font-semibold flex items-center justify-between shadow-qc-mint animate-in fade-in slide-in-from-top-2"
           >
             <div className="flex items-center gap-2.5">
               <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
@@ -297,72 +277,72 @@ export default function MyBookingsPage() {
           </div>
         )}
 
-        {/* Overview Stats Strip - 100% Real Data Driven */}
+        {/* Overview Stats Strip */}
         <section aria-label="Bookings overview summary" className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-          <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5 backdrop-blur-md">
+          <Card variant="default" className="p-4 sm:p-5">
             <div className="flex items-center justify-between text-slate-400 mb-2">
-              <span className="text-xs font-bold uppercase tracking-wider">Upcoming</span>
-              <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+              <span className="text-[11px] font-bold uppercase tracking-wider">Upcoming</span>
+              <div className="w-7 h-7 rounded-lg bg-lime-400/10 text-lime-400 flex items-center justify-center">
                 <CalendarDays className="w-3.5 h-3.5" />
               </div>
             </div>
-            <p className="text-2xl sm:text-3xl font-black text-white">{upcomingCount}</p>
+            <p className="text-2xl sm:text-3xl font-black text-white font-mono">{upcomingCount}</p>
             <p className="text-[11px] text-slate-400 mt-1">Confirmed future games</p>
-          </div>
+          </Card>
 
-          <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5 backdrop-blur-md">
+          <Card variant="default" className="p-4 sm:p-5">
             <div className="flex items-center justify-between text-slate-400 mb-2">
-              <span className="text-xs font-bold uppercase tracking-wider">Completed</span>
-              <div className="w-7 h-7 rounded-lg bg-sky-500/10 text-sky-400 flex items-center justify-center">
+              <span className="text-[11px] font-bold uppercase tracking-wider">Completed</span>
+              <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
                 <Check className="w-3.5 h-3.5 stroke-[2.5]" />
               </div>
             </div>
-            <p className="text-2xl sm:text-3xl font-black text-white">{pastCount}</p>
+            <p className="text-2xl sm:text-3xl font-black text-white font-mono">{pastCount}</p>
             <p className="text-[11px] text-slate-400 mt-1">Past sessions played</p>
-          </div>
+          </Card>
 
-          <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5 backdrop-blur-md">
+          <Card variant="default" className="p-4 sm:p-5">
             <div className="flex items-center justify-between text-slate-400 mb-2">
-              <span className="text-xs font-bold uppercase tracking-wider">Loyalty Pts</span>
-              <div className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center">
-                <Sparkles className="w-3.5 h-3.5" />
+              <span className="text-[11px] font-bold uppercase tracking-wider">Cancelled</span>
+              <div className="w-7 h-7 rounded-lg bg-rose-500/10 text-rose-400 flex items-center justify-center">
+                <XCircle className="w-3.5 h-3.5" />
               </div>
             </div>
-            <p className="text-2xl sm:text-3xl font-black text-amber-400">{pointsEarned}</p>
-            <p className="text-[11px] text-slate-400 mt-1">+10 pts per game</p>
-          </div>
+            <p className="text-2xl sm:text-3xl font-black text-rose-400 font-mono">{cancelledCount}</p>
+            <p className="text-[11px] text-slate-400 mt-1">Cancelled bookings</p>
+          </Card>
 
-          <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5 backdrop-blur-md">
+          <Card variant="default" className="p-4 sm:p-5">
             <div className="flex items-center justify-between text-slate-400 mb-2">
-              <span className="text-xs font-bold uppercase tracking-wider">Total History</span>
-              <div className="w-7 h-7 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center">
-                <Ticket className="w-3.5 h-3.5" />
+              <span className="text-[11px] font-bold uppercase tracking-wider">Total Bookings</span>
+              <div className="w-7 h-7 rounded-lg bg-sky-500/10 text-sky-400 flex items-center justify-center">
+                <History className="w-3.5 h-3.5" />
               </div>
             </div>
-            <p className="text-2xl sm:text-3xl font-black text-white">{totalCount}</p>
-            <p className="text-[11px] text-slate-400 mt-1">Reservations logged</p>
-          </div>
+            <p className="text-2xl sm:text-3xl font-black text-white font-mono">{totalCount}</p>
+            <p className="text-[11px] text-slate-400 mt-1">Lifetime court holds</p>
+          </Card>
         </section>
 
         {/* Spotlight Next Upcoming Game (If active upcoming exists) */}
         {!loading && nextMatch && activeTab !== 'PAST' && activeTab !== 'CANCELLED' && (
           <section aria-label="Next upcoming match spotlight" className="mt-8">
-            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-emerald-950/40 via-slate-900/90 to-slate-900 border border-emerald-500/30 p-6 sm:p-7 shadow-xl backdrop-blur-md">
-              <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-              
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-950/40 via-[#0F131C] to-[#181C24] border border-lime-400/40 p-6 sm:p-7 shadow-qc-card backdrop-blur-md">
+              <div className="absolute top-0 right-0 w-80 h-80 bg-lime-400/5 rounded-full blur-3xl pointer-events-none" />
+
               <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500 text-slate-950 text-xs font-black uppercase tracking-wider shadow-sm">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-lime-400 text-slate-950 text-xs font-black uppercase tracking-wider shadow-qc-lime">
                       <Zap className="w-3.5 h-3.5 fill-slate-950" />
                       Next Game
                     </span>
                     {getRelativeDayLabel(nextMatch.date) && (
-                      <span className="px-2.5 py-0.5 rounded-full bg-slate-800 text-emerald-400 border border-emerald-500/30 text-xs font-bold">
+                      <span className="px-2.5 py-0.5 rounded-full bg-[#181C24] text-lime-400 border border-lime-400/30 text-xs font-bold font-mono">
                         {getRelativeDayLabel(nextMatch.date)}
                       </span>
                     )}
-                    <span className="text-xs text-slate-400 font-mono">
+                    <span className="text-xs text-slate-400 font-mono px-2 py-0.5 rounded bg-[#0B0F17] border border-[#28303F]">
                       #{nextMatch.id}
                     </span>
                   </div>
@@ -371,20 +351,22 @@ export default function MyBookingsPage() {
                     <h2 className="text-xl sm:text-2xl font-black text-white leading-tight">
                       {nextMatch.venueName}
                     </h2>
-                    <p className="text-sm font-bold text-emerald-400 mt-0.5">
-                      {nextMatch.courtName} {nextMatch.sport ? `• ${nextMatch.sport}` : ''}
+                    <p className="text-sm font-bold text-lime-400 mt-0.5 flex items-center gap-1.5">
+                      <SportIcon sport={nextMatch.sport} className="w-4 h-4 text-lime-400" />
+                      <span>{nextMatch.courtName}</span>
+                      {nextMatch.sport && <span className="text-slate-400">• {nextMatch.sport}</span>}
                     </p>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-4 sm:gap-6 text-xs text-slate-300 pt-1">
                     <div className="flex items-center gap-1.5">
-                      <Calendar className="w-4 h-4 text-emerald-400" />
-                      <span className="font-semibold">{formatBookingDate(nextMatch.date)}</span>
+                      <Calendar className="w-4 h-4 text-lime-400" />
+                      <span className="font-semibold font-mono">{formatBookingDate(nextMatch.date)}</span>
                     </div>
 
                     <div className="flex items-center gap-1.5">
-                      <Clock className="w-4 h-4 text-emerald-400" />
-                      <span className="font-semibold">{nextMatch.startTime} - {nextMatch.endTime}</span>
+                      <Clock className="w-4 h-4 text-lime-400" />
+                      <span className="font-semibold font-mono">{nextMatch.startTime} - {nextMatch.endTime}</span>
                     </div>
 
                     {nextMatch.venueLocation && (
@@ -396,27 +378,25 @@ export default function MyBookingsPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 pt-4 lg:pt-0 border-t lg:border-t-0 border-slate-800 flex-wrap">
+                <div className="flex items-center gap-3 pt-4 lg:pt-0 border-t lg:border-t-0 border-[#28303F] flex-wrap">
                   <div className="mr-4 text-left lg:text-right">
                     <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Rate</span>
-                    <span className="text-2xl font-black text-emerald-400">₹{nextMatch.totalPrice}</span>
+                    <span className="text-2xl font-black text-lime-400 font-mono">₹{nextMatch.totalPrice}</span>
                   </div>
 
-                  <button
-                    type="button"
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => setSelectedPass(nextMatch)}
-                    className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-xl border border-slate-700 transition-colors"
                   >
                     View Match Pass
-                  </button>
+                  </Button>
 
                   {nextMatch.venueId && (
-                    <Link
-                      to={`/venues/${nextMatch.venueId}`}
-                      className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold rounded-xl transition-colors shadow-sm shadow-emerald-500/20"
-                    >
-                      <span>Venue Directions</span>
-                      <ChevronRight className="w-3.5 h-3.5 stroke-[2.5]" />
+                    <Link to={`/venues/${nextMatch.venueId}`}>
+                      <Button variant="primary" size="sm" icon={ChevronRight}>
+                        Venue Info
+                      </Button>
                     </Link>
                   )}
                 </div>
@@ -428,22 +408,22 @@ export default function MyBookingsPage() {
         {/* Filter Navigation & Search Bar */}
         <section aria-label="Bookings filters" className="mt-8 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            
+
             {/* Segmented Filter Tabs */}
-            <div className="inline-flex p-1 bg-slate-900 border border-slate-800 rounded-xl max-w-full overflow-x-auto no-scrollbar">
+            <div className="inline-flex p-1 bg-[#0F131C] border border-[#28303F] rounded-xl max-w-full overflow-x-auto no-scrollbar">
               <button
                 type="button"
                 onClick={() => setActiveTab('UPCOMING')}
                 aria-pressed={activeTab === 'UPCOMING'}
                 className={`px-3.5 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
                   activeTab === 'UPCOMING'
-                    ? 'bg-emerald-500 text-slate-950 shadow-sm shadow-emerald-500/20'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                    ? 'bg-lime-400 text-slate-950 shadow-qc-lime'
+                    : 'text-slate-400 hover:text-white hover:bg-white/5'
                 }`}
               >
                 <span>Upcoming</span>
-                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                  activeTab === 'UPCOMING' ? 'bg-slate-950 text-emerald-400' : 'bg-slate-800 text-slate-400'
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
+                  activeTab === 'UPCOMING' ? 'bg-slate-950 text-lime-400' : 'bg-[#181C24] text-slate-400'
                 }`}>
                   {upcomingCount}
                 </span>
@@ -455,13 +435,13 @@ export default function MyBookingsPage() {
                 aria-pressed={activeTab === 'PAST'}
                 className={`px-3.5 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
                   activeTab === 'PAST'
-                    ? 'bg-emerald-500 text-slate-950 shadow-sm shadow-emerald-500/20'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                    ? 'bg-lime-400 text-slate-950 shadow-qc-lime'
+                    : 'text-slate-400 hover:text-white hover:bg-white/5'
                 }`}
               >
                 <span>Past Games</span>
-                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                  activeTab === 'PAST' ? 'bg-slate-950 text-emerald-400' : 'bg-slate-800 text-slate-400'
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
+                  activeTab === 'PAST' ? 'bg-slate-950 text-lime-400' : 'bg-[#181C24] text-slate-400'
                 }`}>
                   {pastCount}
                 </span>
@@ -473,13 +453,13 @@ export default function MyBookingsPage() {
                 aria-pressed={activeTab === 'CANCELLED'}
                 className={`px-3.5 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
                   activeTab === 'CANCELLED'
-                    ? 'bg-emerald-500 text-slate-950 shadow-sm shadow-emerald-500/20'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                    ? 'bg-lime-400 text-slate-950 shadow-qc-lime'
+                    : 'text-slate-400 hover:text-white hover:bg-white/5'
                 }`}
               >
                 <span>Cancelled</span>
-                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                  activeTab === 'CANCELLED' ? 'bg-slate-950 text-emerald-400' : 'bg-slate-800 text-slate-400'
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
+                  activeTab === 'CANCELLED' ? 'bg-slate-950 text-lime-400' : 'bg-[#181C24] text-slate-400'
                 }`}>
                   {cancelledCount}
                 </span>
@@ -491,13 +471,13 @@ export default function MyBookingsPage() {
                 aria-pressed={activeTab === 'ALL'}
                 className={`px-3.5 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
                   activeTab === 'ALL'
-                    ? 'bg-emerald-500 text-slate-950 shadow-sm shadow-emerald-500/20'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                    ? 'bg-lime-400 text-slate-950 shadow-qc-lime'
+                    : 'text-slate-400 hover:text-white hover:bg-white/5'
                 }`}
               >
                 <span>All</span>
-                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                  activeTab === 'ALL' ? 'bg-slate-950 text-emerald-400' : 'bg-slate-800 text-slate-400'
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
+                  activeTab === 'ALL' ? 'bg-slate-950 text-lime-400' : 'bg-[#181C24] text-slate-400'
                 }`}>
                   {totalCount}
                 </span>
@@ -513,7 +493,7 @@ export default function MyBookingsPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search venue or sport…"
                 aria-label="Filter your bookings"
-                className="w-full pl-10 pr-9 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-400 transition-colors"
+                className="w-full pl-10 pr-9 py-2 rounded-xl bg-[#0F131C] border border-[#28303F] text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-lime-400 transition-colors"
               />
               {searchQuery && (
                 <button
@@ -533,69 +513,67 @@ export default function MyBookingsPage() {
         <section aria-label="Bookings list" className="mt-6">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-24 space-y-3">
-              <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
+              <Loader2 className="w-8 h-8 animate-spin text-lime-400" />
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                 Retrieving Court Reservations…
               </p>
             </div>
           ) : error ? (
-            <div className="p-8 bg-slate-900/90 rounded-3xl border border-rose-500/30 text-center max-w-lg mx-auto shadow-xl" role="alert">
+            <div className="p-8 bg-[#0F131C] rounded-2xl border border-rose-500/30 text-center max-w-lg mx-auto shadow-qc-card" role="alert">
               <AlertCircle className="w-10 h-10 text-rose-400 mx-auto mb-3" />
               <h3 className="text-base font-bold text-white mb-1">Unable to Load Bookings</h3>
               <p className="text-xs text-slate-400 mb-5 leading-relaxed">{error}</p>
-              <button
-                type="button"
+              <Button
+                variant="primary"
+                size="sm"
                 onClick={loadBookings}
-                className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold rounded-xl transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
               >
                 Retry Request
-              </button>
+              </Button>
             </div>
           ) : filteredBookings.length === 0 ? (
-            <div className="p-12 sm:p-16 bg-slate-900/60 rounded-3xl border border-slate-800 text-center max-w-lg mx-auto shadow-sm">
-              <div className="w-16 h-16 rounded-2xl bg-slate-800/80 text-emerald-400 flex items-center justify-center mx-auto mb-4 border border-slate-700">
+            <div className="p-12 sm:p-16 bg-[#0F131C]/60 rounded-2xl border border-[#28303F] text-center max-w-lg mx-auto shadow-sm">
+              <div className="w-16 h-16 rounded-2xl bg-[#181C24] text-lime-400 flex items-center justify-center mx-auto mb-4 border border-[#28303F]">
                 <Calendar className="w-8 h-8 stroke-[1.5]" />
               </div>
-              
+
               <h3 className="text-lg font-bold text-white mb-1.5">
                 {searchQuery
                   ? 'No Matching Bookings'
                   : activeTab === 'UPCOMING'
-                  ? 'No Upcoming Games Scheduled'
-                  : activeTab === 'PAST'
-                  ? 'No Past Match Records'
-                  : activeTab === 'CANCELLED'
-                  ? 'No Cancelled Reservations'
-                  : 'No Bookings Found'}
+                    ? 'No Upcoming Games Scheduled'
+                    : activeTab === 'PAST'
+                      ? 'No Past Match Records'
+                      : activeTab === 'CANCELLED'
+                        ? 'No Cancelled Reservations'
+                        : 'No Bookings Found'}
               </h3>
 
               <p className="text-xs text-slate-400 mb-6 leading-relaxed max-w-sm mx-auto">
                 {searchQuery
                   ? `No reservations match "${searchQuery}". Try clearing your search.`
                   : activeTab === 'UPCOMING'
-                  ? 'You currently have zero active court holds. Find an open slot and get ready to play.'
-                  : activeTab === 'PAST'
-                  ? 'Completed court sessions and match archives will appear here after playtime ends.'
-                  : activeTab === 'CANCELLED'
-                  ? 'All your current bookings remain active and confirmed.'
-                  : "You haven't reserved any sports courts yet. Explore verified facilities in your area."}
+                    ? 'You currently have zero active court holds. Find an open slot and get ready to play.'
+                    : activeTab === 'PAST'
+                      ? 'Completed court sessions and match archives will appear here after playtime ends.'
+                      : activeTab === 'CANCELLED'
+                        ? 'All your current bookings remain active and confirmed.'
+                        : "You haven't reserved any sports courts yet. Explore verified facilities in your area."}
               </p>
 
               {searchQuery ? (
-                <button
-                  type="button"
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => setSearchQuery('')}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl transition-colors"
                 >
                   Clear Search Filter
-                </button>
+                </Button>
               ) : (
-                <Link
-                  to="/venues"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold rounded-xl shadow-sm shadow-emerald-500/20 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                >
-                  <span>Explore Open Courts</span>
-                  <ArrowRight className="w-4 h-4 stroke-[2.5]" />
+                <Link to="/venues">
+                  <Button variant="primary" size="md" icon={ArrowRight}>
+                    Explore Open Courts
+                  </Button>
                 </Link>
               )}
             </div>
@@ -605,80 +583,55 @@ export default function MyBookingsPage() {
                 const isConfirmed = b.status === 'CONFIRMED';
                 const isPast = isBookingPast(b);
                 const isUpcoming = isConfirmed && !isPast;
-                const sportStyle = getSportStyle(b.sport);
-                const SportIcon = sportStyle.icon;
+                const isCancelled = b.status === 'CANCELLED';
                 const dayLabel = getRelativeDayLabel(b.date);
+                const displayStatus = isCancelled ? 'CANCELLED' : isPast ? 'COMPLETED' : b.status;
 
                 return (
                   <article
                     key={b.id}
-                    className={`rounded-2xl border transition-all relative overflow-hidden backdrop-blur-md ${
+                    className={`rounded-xl border transition-all relative overflow-hidden backdrop-blur-md ${
                       isUpcoming
-                        ? 'bg-slate-900/90 border-slate-800 hover:border-emerald-500/40 hover:shadow-lg hover:shadow-emerald-500/5'
+                        ? 'bg-[#181C24] border-[#28303F] hover:border-lime-400/50 hover:shadow-qc-card'
                         : isConfirmed
-                        ? 'bg-slate-900/70 border-slate-800/80 hover:border-slate-700'
-                        : 'bg-slate-950/60 border-slate-800/50 opacity-75'
+                          ? 'bg-[#0F131C] border-[#28303F] hover:border-slate-700'
+                          : 'bg-[#0B0F17]/80 border-[#28303F]/60 opacity-80'
                     }`}
                   >
-                    {/* Top status indicator bar */}
+                    {/* Top status accent bar */}
                     <div className={`h-1 w-full ${
                       isUpcoming
-                        ? 'bg-emerald-500'
+                        ? 'bg-lime-400'
                         : isConfirmed
-                        ? 'bg-slate-700'
-                        : 'bg-rose-500/40'
+                          ? 'bg-emerald-600'
+                          : 'bg-rose-500/50'
                     }`} />
 
                     <div className="p-5 sm:p-6">
                       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-                        
+
                         {/* Left Info Column */}
                         <div className="space-y-2.5 min-w-0">
                           {/* Badges strip */}
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-mono text-[11px] font-bold px-2 py-0.5 rounded-md bg-slate-950 text-slate-400 border border-slate-800">
+                            <span className="font-mono text-[11px] font-bold px-2 py-0.5 rounded-md bg-[#0B0F17] text-slate-400 border border-[#28303F]">
                               #{b.id}
                             </span>
 
                             {/* Status badge */}
-                            <span
-                              className={`inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${
-                                isUpcoming
-                                  ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
-                                  : isConfirmed
-                                  ? 'bg-slate-800 text-slate-300 border-slate-700'
-                                  : 'bg-rose-500/15 text-rose-300 border-rose-500/30'
-                              }`}
-                            >
-                              {isUpcoming ? (
-                                <>
-                                  <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                                  <span>Confirmed • Upcoming</span>
-                                </>
-                              ) : isConfirmed ? (
-                                <>
-                                  <Check className="w-3 h-3 text-slate-400" />
-                                  <span>Completed</span>
-                                </>
-                              ) : (
-                                <>
-                                  <XCircle className="w-3 h-3 text-rose-400" />
-                                  <span>Cancelled</span>
-                                </>
-                              )}
-                            </span>
+                            <Badge status={displayStatus} />
 
                             {/* Relative Day Indicator */}
                             {dayLabel && isUpcoming && (
-                              <span className="px-2 py-0.5 rounded-md bg-emerald-500 text-slate-950 text-[11px] font-black uppercase">
+                              <span className="px-2 py-0.5 rounded-md bg-lime-400 text-slate-950 text-[10px] font-black uppercase tracking-wider">
                                 {dayLabel}
                               </span>
                             )}
 
                             {/* Sport Badge */}
                             {b.sport && (
-                              <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md border ${sportStyle.bg} ${sportStyle.text} ${sportStyle.border}`}>
-                                <SportIcon className="w-3 h-3" aria-hidden="true" />
+                              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-[#0F131C] text-slate-300 border border-[#28303F]">
+                                <SportIcon sport={b.sport} className="w-3.5 h-3.5 text-lime-400" />
                                 <span>{b.sport}</span>
                               </span>
                             )}
@@ -690,34 +643,34 @@ export default function MyBookingsPage() {
                               {b.venueId ? (
                                 <Link
                                   to={`/venues/${b.venueId}`}
-                                  className="hover:text-emerald-400 transition-colors inline-flex items-center gap-1.5 group"
+                                  className="hover:text-lime-400 transition-colors inline-flex items-center gap-1.5 group"
                                 >
                                   <span>{b.venueName}</span>
-                                  <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover:text-emerald-400 transition-colors" />
+                                  <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover:text-lime-400 transition-colors" />
                                 </Link>
                               ) : (
                                 b.venueName
                               )}
                             </h2>
-                            <p className="text-xs font-semibold text-emerald-400 mt-0.5">
+                            <p className="text-xs font-semibold text-lime-400 mt-0.5">
                               {b.courtName}
                             </p>
                           </div>
 
                           {/* Schedule & Location Details */}
-                          <div className="flex items-center gap-4 sm:gap-6 text-xs text-slate-300 flex-wrap pt-1">
+                          <div className="flex items-center gap-4 sm:gap-6 text-xs text-slate-300 flex-wrap pt-1 font-mono">
                             <span className="flex items-center gap-1.5 font-medium">
-                              <Calendar className="w-3.5 h-3.5 text-emerald-400" />
+                              <Calendar className="w-3.5 h-3.5 text-lime-400" />
                               <span>{formatBookingDate(b.date)}</span>
                             </span>
 
                             <span className="flex items-center gap-1.5 font-medium">
-                              <Clock className="w-3.5 h-3.5 text-emerald-400" />
-                              <span>{b.startTime} - {b.endTime} (1 hr)</span>
+                              <Clock className="w-3.5 h-3.5 text-lime-400" />
+                              <span>{b.startTime} - {b.endTime}</span>
                             </span>
 
                             {b.venueLocation && (
-                              <span className="flex items-center gap-1.5 text-slate-400 hidden sm:inline-flex">
+                              <span className="flex items-center gap-1.5 text-slate-400 hidden sm:inline-flex font-sans">
                                 <MapPin className="w-3.5 h-3.5 text-slate-500" />
                                 <span className="truncate max-w-[200px]">{b.venueLocation}</span>
                               </span>
@@ -726,31 +679,31 @@ export default function MyBookingsPage() {
                         </div>
 
                         {/* Right Financial & Action Controls */}
-                        <div className="flex items-center justify-between lg:justify-end gap-5 pt-4 lg:pt-0 border-t lg:border-t-0 border-slate-800/80">
+                        <div className="flex items-center justify-between lg:justify-end gap-4 pt-4 lg:pt-0 border-t lg:border-t-0 border-[#28303F]">
                           <div className="text-left lg:text-right">
                             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
                               Total Rate
                             </span>
-                            <span className="text-xl sm:text-2xl font-black text-emerald-400">
+                            <span className="text-xl sm:text-2xl font-black text-lime-400 font-mono">
                               ₹{b.totalPrice}
                             </span>
                           </div>
 
                           <div className="flex items-center gap-2">
                             {/* View Pass / Details Modal */}
-                            <button
-                              type="button"
+                            <Button
+                              variant="outline"
+                              size="sm"
                               onClick={() => setSelectedPass(b)}
-                              className="px-3 py-2 text-xs font-bold text-slate-200 hover:text-white bg-slate-800/90 hover:bg-slate-700 rounded-xl border border-slate-700 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-400"
                             >
                               Match Pass
-                            </button>
+                            </Button>
 
                             {/* Venue Facility Link */}
                             {b.venueId && (
                               <Link
                                 to={`/venues/${b.venueId}`}
-                                className="p-2 text-slate-400 hover:text-emerald-400 hover:bg-slate-800 rounded-xl border border-slate-800 transition-colors"
+                                className="p-2 text-slate-400 hover:text-lime-400 hover:bg-white/5 rounded-xl border border-[#28303F] transition-colors"
                                 title="View venue facility specifications"
                                 aria-label={`View venue details for ${b.venueName}`}
                               >
@@ -758,15 +711,15 @@ export default function MyBookingsPage() {
                               </Link>
                             )}
 
-                            {/* Cancellation Button (Preserved existing flow) */}
-                            {isConfirmed && (
+                            {/* Cancellation Button */}
+                            {isConfirmed && !isCancelled && !isPast && (
                               <button
                                 type="button"
                                 onClick={() => {
                                   setCancellingBooking(b);
                                   setCancelError(null);
                                 }}
-                                className="inline-flex items-center gap-1 px-3 py-2 text-xs font-bold text-rose-400 hover:text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-rose-400"
+                                className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-rose-400 hover:text-rose-300 bg-rose-950/40 hover:bg-rose-950/60 border border-rose-800/60 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-rose-500"
                               >
                                 <span>Cancel</span>
                               </button>
@@ -788,7 +741,7 @@ export default function MyBookingsPage() {
       {/* ─── Match Pass / Booking Details Modal ────────────────────────────────────── */}
       {selectedPass && (
         <div
-          className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-in fade-in"
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm overflow-y-auto animate-in fade-in"
           role="dialog"
           aria-modal="true"
           aria-labelledby="pass-modal-title"
@@ -796,123 +749,138 @@ export default function MyBookingsPage() {
             if (e.target === e.currentTarget) setSelectedPass(null);
           }}
         >
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl space-y-5 relative">
-            
-            {/* Modal Header */}
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/20">
-                  <Ticket className="w-5 h-5" />
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="bg-[#0F131C] border border-[#28303F] rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-2xl space-y-5 relative my-4 sm:my-8">
+
+              {/* Modal Header */}
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-lime-400/10 text-lime-400 flex items-center justify-center border border-lime-400/20 shrink-0">
+                    <Ticket className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 id="pass-modal-title" className="text-base font-black text-white truncate">
+                      QuickCourt Match Pass
+                    </h3>
+                    <p className="text-[11px] text-slate-400 font-mono break-all">
+                      Ref: #{selectedPass.id}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 id="pass-modal-title" className="text-base font-black text-white">
-                    QuickCourt Match Pass
-                  </h3>
-                  <p className="text-[11px] text-slate-400 font-mono">
-                    Ref: #{selectedPass.id}
-                  </p>
-                </div>
-              </div>
 
-              <button
-                type="button"
-                onClick={() => setSelectedPass(null)}
-                className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
-                aria-label="Close pass dialog"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Pass Ticket Body */}
-            <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3.5">
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
-                  Venue & Location
-                </span>
-                <p className="text-sm font-black text-white mt-0.5">
-                  {selectedPass.venueName}
-                </p>
-                {selectedPass.venueLocation && (
-                  <p className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
-                    <MapPin className="w-3 h-3 text-emerald-400" />
-                    <span>{selectedPass.venueLocation}</span>
-                  </p>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-800/80">
-                <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
-                    Playing Court
-                  </span>
-                  <p className="text-xs font-bold text-white mt-0.5">{selectedPass.courtName}</p>
-                </div>
-                <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
-                    Sport Type
-                  </span>
-                  <p className="text-xs font-bold text-emerald-400 mt-0.5">{selectedPass.sport || 'Sports'}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-800/80">
-                <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
-                    Date
-                  </span>
-                  <p className="text-xs font-bold text-white mt-0.5">{formatBookingDate(selectedPass.date)}</p>
-                </div>
-                <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
-                    Slot Time
-                  </span>
-                  <p className="text-xs font-bold text-white mt-0.5">{selectedPass.startTime} - {selectedPass.endTime}</p>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between pt-2 border-t border-slate-800/80">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                  Rate Paid
-                </span>
-                <span className="text-sm font-black text-emerald-400">
-                  ₹{selectedPass.totalPrice}
-                </span>
-              </div>
-            </div>
-
-            {/* Trust & Check-in instructions */}
-            <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800 flex items-center gap-2.5 text-xs text-slate-400">
-              <ShieldCheck className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-              <span>Present this digital pass or your booking reference at venue reception upon arrival.</span>
-            </div>
-
-            {/* Modal Actions */}
-            <div className="flex items-center justify-end gap-2 pt-2">
-              {selectedPass.venueId && (
-                <Link
-                  to={`/venues/${selectedPass.venueId}`}
-                  className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl transition-colors"
+                <button
+                  type="button"
+                  onClick={() => setSelectedPass(null)}
+                  className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/5 transition-colors shrink-0 ml-2"
+                  aria-label="Close pass dialog"
                 >
-                  View Venue Page
-                </Link>
-              )}
-              <button
-                type="button"
-                onClick={() => setSelectedPass(null)}
-                className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold rounded-xl transition-colors shadow-sm"
-              >
-                Done
-              </button>
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Pass Ticket Body */}
+              <div className="p-4 rounded-xl bg-[#0B0F17] border border-[#28303F] space-y-3.5 text-xs">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                    Venue & Location
+                  </span>
+                  <p className="text-sm font-black text-white mt-0.5 break-words">
+                    {selectedPass.venueName}
+                  </p>
+                  {selectedPass.venueLocation && (
+                    <p className="text-xs text-slate-400 flex items-start gap-1 mt-0.5">
+                      <MapPin className="w-3.5 h-3.5 text-lime-400 shrink-0 mt-0.5" />
+                      <span className="break-words">{selectedPass.venueLocation}</span>
+                    </p>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2.5 border-t border-[#28303F]">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                      Playing Court
+                    </span>
+                    <p className="text-xs font-bold text-white mt-0.5 break-words">{selectedPass.courtName}</p>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                      Sport Type
+                    </span>
+                    <p className="text-xs font-bold text-lime-400 mt-0.5 flex items-center gap-1">
+                      <SportIcon sport={selectedPass.sport} className="w-3.5 h-3.5 text-lime-400" />
+                      <span>{selectedPass.sport || 'Sports'}</span>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2.5 border-t border-[#28303F]">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                      Date
+                    </span>
+                    <p className="text-xs font-bold text-white font-mono mt-0.5">{formatBookingDate(selectedPass.date)}</p>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                      Slot Time
+                    </span>
+                    <p className="text-xs font-bold text-white font-mono mt-0.5">{selectedPass.startTime} - {selectedPass.endTime}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2.5 border-t border-[#28303F]">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    Rate Paid
+                  </span>
+                  <span className="text-sm font-black text-lime-400 font-mono">
+                    ₹{selectedPass.totalPrice}
+                  </span>
+                </div>
+              </div>
+
+              {/* Status & Check-in instructions */}
+              <div className="flex items-center justify-between p-3 rounded-xl bg-[#181C24] border border-[#28303F]">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                  <span className="text-xs text-slate-300">Status</span>
+                </div>
+                <Badge status={selectedPass.status === 'CONFIRMED' && isBookingPast(selectedPass) ? 'COMPLETED' : selectedPass.status} />
+              </div>
+
+              <div className="p-3 rounded-xl bg-[#0B0F17]/60 border border-[#28303F] text-[11px] text-slate-400 leading-relaxed">
+                Present this digital pass or your booking reference at venue reception upon arrival.
+              </div>
+
+              {/* Modal Actions */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-2">
+                {selectedPass.venueId && (
+                  <Link
+                    to={`/venues/${selectedPass.venueId}`}
+                    className="w-full sm:w-auto"
+                  >
+                    <Button variant="outline" size="sm" className="w-full">
+                      View Venue Page
+                    </Button>
+                  </Link>
+                )}
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => setSelectedPass(null)}
+                  className="w-full sm:w-auto"
+                >
+                  Done
+                </Button>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* ─── Cancellation Confirmation Dialog (Preserved existing flow) ────────── */}
+      {/* ─── Cancellation Confirmation Dialog ────────────────────────────────────────── */}
       {cancellingBooking && (
         <div
-          className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in"
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm overflow-y-auto animate-in fade-in"
           role="dialog"
           aria-modal="true"
           aria-labelledby="cancel-dialog-title"
@@ -923,57 +891,54 @@ export default function MyBookingsPage() {
             }
           }}
         >
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center">
-              <AlertTriangle className="w-6 h-6" />
-            </div>
-
-            <div>
-              <h3 id="cancel-dialog-title" className="text-base font-black text-white">
-                Cancel Court Reservation?
-              </h3>
-              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                Are you sure you want to cancel your reservation for{' '}
-                <strong className="text-white">{cancellingBooking.courtName}</strong> at{' '}
-                <strong className="text-white">{cancellingBooking.venueName}</strong> on{' '}
-                <strong className="text-emerald-400">{formatBookingDate(cancellingBooking.date)}</strong> from{' '}
-                <strong className="text-white">{cancellingBooking.startTime} to {cancellingBooking.endTime}</strong>?
-              </p>
-            </div>
-
-            {cancelError && (
-              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-medium" role="alert">
-                {cancelError}
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="bg-[#0F131C] border border-[#28303F] rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-2xl space-y-4 my-4 sm:my-8">
+              <div className="w-12 h-12 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center">
+                <AlertTriangle className="w-6 h-6" />
               </div>
-            )}
 
-            <div className="flex items-center justify-end gap-2 pt-2">
-              <button
-                type="button"
-                disabled={cancelLoading}
-                onClick={() => {
-                  setCancellingBooking(null);
-                  setCancelError(null);
-                }}
-                className="px-4 py-2.5 text-xs font-bold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-xl transition-colors"
-              >
-                Keep Booking
-              </button>
-              <button
-                type="button"
-                disabled={cancelLoading}
-                onClick={handleCancelConfirm}
-                className="inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-slate-950 bg-rose-500 hover:bg-rose-400 rounded-xl transition-colors disabled:opacity-60 shadow-sm shadow-rose-500/20"
-              >
-                {cancelLoading ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>Cancelling…</span>
-                  </>
-                ) : (
-                  <span>Confirm Cancellation</span>
-                )}
-              </button>
+              <div>
+                <h3 id="cancel-dialog-title" className="text-base font-black text-white">
+                  Cancel Court Reservation?
+                </h3>
+                <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                  Are you sure you want to cancel your reservation for{' '}
+                  <strong className="text-white">{cancellingBooking.courtName}</strong> at{' '}
+                  <strong className="text-white">{cancellingBooking.venueName}</strong> on{' '}
+                  <strong className="text-lime-400 font-mono">{formatBookingDate(cancellingBooking.date)}</strong> from{' '}
+                  <strong className="text-white font-mono">{cancellingBooking.startTime} to {cancellingBooking.endTime}</strong>?
+                </p>
+              </div>
+
+              {cancelError && (
+                <div className="p-3 rounded-xl bg-rose-950/50 border border-rose-800/80 text-rose-300 text-xs font-medium" role="alert">
+                  {cancelError}
+                </div>
+              )}
+
+              <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={cancelLoading}
+                  onClick={() => {
+                    setCancellingBooking(null);
+                    setCancelError(null);
+                  }}
+                  className="w-full sm:w-auto"
+                >
+                  Keep Booking
+                </Button>
+                <Button
+                  variant="danger"
+                  size="sm"
+                  loading={cancelLoading}
+                  onClick={handleCancelConfirm}
+                  className="w-full sm:w-auto"
+                >
+                  Confirm Cancellation
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -981,3 +946,4 @@ export default function MyBookingsPage() {
     </div>
   );
 }
+
