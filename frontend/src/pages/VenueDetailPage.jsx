@@ -31,7 +31,7 @@ function getAmenityIcon(amenity) {
 }
 
 // ─── Booking Confirmation Dialog ──────────────────────────────────────────────
-function BookingModal({ venue, court, slot, date, onClose, onBookingSuccess }) {
+function BookingModal({ venue, court, slot, date, onClose, onBookingSuccess, onBookingConflict }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [receipt, setReceipt] = useState(null);
@@ -60,6 +60,9 @@ function BookingModal({ venue, court, slot, date, onClose, onBookingSuccess }) {
       onBookingSuccess(res.booking);
     } catch (err) {
       setError(err.message || 'Failed to complete booking.');
+      if (onBookingConflict) {
+        onBookingConflict();
+      }
     } finally {
       setLoading(false);
     }
@@ -935,6 +938,9 @@ export default function VenueDetailPage() {
           slot={selectedSlot}
           date={selectedDate}
           onClose={() => setBookingModalOpen(false)}
+          onBookingConflict={() => {
+            loadAvailability(selectedCourt.id, selectedDate);
+          }}
           onBookingSuccess={() => {
             setSelectedSlot(null);
             loadAvailability(selectedCourt.id, selectedDate);

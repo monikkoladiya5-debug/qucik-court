@@ -1,5 +1,6 @@
 import { store, safeCourt } from '../data/store.js';
 import { isBookingActive } from '../config/bookingStates.js';
+import { parse12HourTime } from './bookingController.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -402,14 +403,17 @@ export function getCourtAvailability(req, res) {
     const endTime = format12Hour(h + 1);
     let status = getDeterministicStatus(court, date, h);
 
-    // If an active booking exists for this court, date and startTime, slot is UNAVAILABLE
-    const isBooked = store.bookings.some(
-      (b) =>
-        b.courtId === court.id &&
-        b.date === date &&
-        b.startTime === startTime &&
-        isBookingActive(b.status)
-    );
+    // If an active booking overlaps with this 1-hour slot [h, h+1), slot is UNAVAILABLE
+    const isBooked = store.bookings.some((b) => {
+      if (b.courtId !== court.id || b.date !== date || !isBookingActive(b.status)) {
+        return false;
+      }
+      if (b.startTime === startTime) return true;
+      const bStart = parse12HourTime(b.startTime);
+      const bEnd = parse12HourTime(b.endTime);
+      if (bStart === null || bEnd === null) return false;
+      return h < bEnd && (h + 1) > bStart;
+    });
 
     if (isBooked) {
       status = 'UNAVAILABLE';
