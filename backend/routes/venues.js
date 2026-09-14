@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   listVenues,
   getVenue,
+  getRecommendedVenues,
   listCities,
   listSports,
   listMyVenues,
@@ -22,6 +23,9 @@ const router = Router();
 // Public meta
 router.get('/meta/cities',  listCities);
 router.get('/meta/sports',  listSports);
+
+// Public: Smart recommendations (must precede /:id)
+router.get('/recommendations', getRecommendedVenues);
 
 // Owner: list own venues (static "my" segment — must precede /:id)
 router.get('/my/venues',    authenticate, requireRole('OWNER'), listMyVenues);

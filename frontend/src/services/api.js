@@ -104,12 +104,34 @@ export async function fetchMe() {
  */
 export async function fetchVenues(filters = {}) {
   const params = new URLSearchParams();
-  if (filters.city)   params.set('city',   filters.city);
-  if (filters.sport)  params.set('sport',  filters.sport);
-  if (filters.search) params.set('search', filters.search);
-  if (filters.indoor !== undefined) params.set('indoor', String(filters.indoor));
+  if (filters.city) params.set('city', filters.city);
+  if (filters.sport) params.set('sport', filters.sport);
+  if (filters.search || filters.q) params.set('search', filters.search || filters.q);
+  if (filters.indoor !== undefined && filters.indoor !== '' && filters.indoor !== null) {
+    params.set('indoor', String(filters.indoor));
+  }
+  if (filters.maxPrice !== undefined && filters.maxPrice !== '' && filters.maxPrice !== null) {
+    params.set('maxPrice', String(filters.maxPrice));
+  }
+  if (filters.minPrice !== undefined && filters.minPrice !== '' && filters.minPrice !== null) {
+    params.set('minPrice', String(filters.minPrice));
+  }
+  if (filters.sortBy) params.set('sortBy', filters.sortBy);
   const qs = params.toString();
   return apiRequest('GET', `/venues${qs ? `?${qs}` : ''}`);
+}
+
+/**
+ * GET /api/venues/recommendations?city=&sport=&limit=
+ * Returns { status, count, personalized, recommendations }
+ */
+export async function fetchRecommendedVenues(params = {}) {
+  const qp = new URLSearchParams();
+  if (params.city) qp.set('city', params.city);
+  if (params.sport) qp.set('sport', params.sport);
+  if (params.limit) qp.set('limit', String(params.limit));
+  const qs = qp.toString();
+  return apiRequest('GET', `/venues/recommendations${qs ? `?${qs}` : ''}`, null, true);
 }
 
 /**
@@ -256,6 +278,40 @@ export async function fetchBooking(id) {
  */
 export async function cancelBooking(id) {
   return apiRequest('DELETE', `/bookings/${id}`, null, true);
+}
+
+/**
+ * POST /api/bookings/:id/pay  (CUSTOMER / ADMIN)
+ * Body: { paymentMethod: 'UPI' | 'Card' | 'Pay at Venue' }
+ * Returns { status, message, booking }
+ */
+export async function payBooking(id, data = {}) {
+  return apiRequest('POST', `/bookings/${id}/pay`, data, true);
+}
+
+/**
+ * POST /api/bookings/:id/approve  (OWNER / ADMIN)
+ * Returns { status, message, booking }
+ */
+export async function approveBooking(id) {
+  return apiRequest('POST', `/bookings/${id}/approve`, null, true);
+}
+
+/**
+ * POST /api/bookings/:id/reject  (OWNER / ADMIN)
+ * Returns { status, message, booking }
+ */
+export async function rejectBooking(id) {
+  return apiRequest('POST', `/bookings/${id}/reject`, null, true);
+}
+
+/**
+ * PATCH /api/bookings/:id/status
+ * Body: { status?: string, paymentStatus?: string, paymentMethod?: string }
+ * Returns { status, message, booking }
+ */
+export async function updateBookingStatus(id, data) {
+  return apiRequest('PATCH', `/bookings/${id}/status`, data, true);
 }
 
 // ─── Players (Task 5) ─────────────────────────────────────────────────────────

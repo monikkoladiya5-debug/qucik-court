@@ -208,7 +208,7 @@ describe('Task 4: Booking Input & Business Rule Validation', () => {
     }
   });
 
-  it('Rejects invalid time duration (not 1 hour) -> 400', async () => {
+  it('Rejects invalid time duration (end time <= start time) -> 400', async () => {
     const res = await fetch(`${baseUrl}/api/bookings`, {
       method: 'POST',
       headers: {
@@ -218,8 +218,8 @@ describe('Task 4: Booking Input & Business Rule Validation', () => {
       body: JSON.stringify({
         courtId: 'c-1',
         date: '2026-10-15',
-        startTime: '10:00 AM',
-        endTime: '12:00 PM', // 2 hours
+        startTime: '12:00 PM',
+        endTime: '10:00 AM', // end before start
       }),
     });
     assert.equal(res.status, 400);

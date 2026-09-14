@@ -322,8 +322,8 @@ function AdminDashboardInner() {
                   System Operational
                 </span>
                 {currentAdmin && (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-900 border border-slate-800 text-[11px] font-mono text-slate-400">
-                    Overseer: {currentAdmin.email}
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-900 border border-slate-800 text-[11px] font-mono text-slate-400 min-w-0">
+                    <span className="truncate max-w-[160px] sm:max-w-[220px]">Overseer: {currentAdmin.email}</span>
                   </span>
                 )}
               </div>
@@ -581,7 +581,7 @@ function AdminDashboardInner() {
               
               {/* Navigation Segmented Tab Bar */}
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-5 border-b border-slate-800">
-                <div className="flex items-center gap-2 overflow-x-auto" role="tablist" aria-label="Admin Control Tabs">
+                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar" role="tablist" aria-label="Admin Control Tabs">
                   {[
                     { key: 'OVERVIEW', label: 'Platform Overview', count: null },
                     { key: 'USERS', label: 'User Directory', count: users.length },

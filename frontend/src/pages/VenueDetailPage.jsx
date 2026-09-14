@@ -30,11 +30,19 @@ function getAmenityIcon(amenity) {
   return CheckCircle2;
 }
 
-// ─── Booking Confirmation Dialog ──────────────────────────────────────────────
-function BookingModal({ venue, court, slot, date, onClose, onBookingSuccess, onBookingConflict }) {
+// ─── Booking Request Dialog ──────────────────────────────────────────────
+function BookingModal({ venue, court, slots, date, onClose, onBookingSuccess, onBookingConflict }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [receipt, setReceipt] = useState(null);
+
+  const selectedSlots = Array.isArray(slots) ? slots : (slots ? [slots] : []);
+  const firstSlot = selectedSlots[0];
+  const lastSlot = selectedSlots[selectedSlots.length - 1];
+  const startTime = firstSlot?.startTime;
+  const endTime = lastSlot?.endTime;
+  const durationHours = selectedSlots.length;
+  const totalPrice = (court?.pricePerHour || 0) * durationHours;
 
   useEffect(() => {
     function handleKeyDown(e) {
@@ -53,13 +61,16 @@ function BookingModal({ venue, court, slot, date, onClose, onBookingSuccess, onB
       const res = await createBooking({
         courtId: court.id,
         date,
-        startTime: slot.startTime,
-        endTime: slot.endTime,
+        startTime,
+        endTime,
       });
       setReceipt(res.booking);
       onBookingSuccess(res.booking);
     } catch (err) {
-      setError(err.message || 'Failed to complete booking.');
+      const isConflict = err.status === 409 || (err.message && err.message.toLowerCase().includes('already been booked'));
+      setError(isConflict
+        ? 'One or more of the selected slots was just booked by another player. Schedule has been refreshed. Please pick another available time.'
+        : (err.message || 'Failed to submit booking request.'));
       if (onBookingConflict) {
         onBookingConflict();
       }
@@ -84,20 +95,24 @@ function BookingModal({ venue, court, slot, date, onClose, onBookingSuccess, onB
         <div className="bg-[#0F131C] border border-[#28303F] rounded-3xl max-w-lg w-full p-5 sm:p-7 shadow-2xl space-y-5 text-slate-100 my-4 sm:my-8 relative">
           {receipt ? (
             <div className="text-center space-y-4 py-2">
-              <div className="w-16 h-16 rounded-2xl bg-lime-400/10 text-lime-400 border border-lime-400/20 flex items-center justify-center mx-auto shadow-qc-lime">
-                <CheckCircle2 className="w-9 h-9" />
+              <div className="w-16 h-16 rounded-2xl bg-amber-400/10 text-amber-400 border border-amber-400/20 flex items-center justify-center mx-auto shadow-qc-amber">
+                <Clock className="w-9 h-9" />
               </div>
               <div>
-                <h3 className="text-xl font-black text-white">Court Slot Confirmed!</h3>
+                <h3 className="text-xl font-black text-white">Booking Request Sent!</h3>
                 <p className="text-xs text-slate-400 mt-1">
-                  Your court reservation has been authoritatively placed and locked on the live schedule.
+                  Your court reservation request has been submitted. The venue partner will review and approve your slot before payment.
                 </p>
               </div>
 
               <div className="p-4 rounded-2xl bg-[#0B0F17] border border-[#28303F] text-left space-y-2.5 text-xs">
-                <div className="flex justify-between gap-2 flex-wrap pb-2.5 border-b border-[#28303F]">
+                <div className="flex justify-between gap-2 flex-wrap pb-2.5 border-b border-[#28303F] items-center">
                   <span className="text-slate-400 shrink-0">Booking Reference:</span>
                   <span className="font-mono font-bold text-lime-400 break-all text-right min-w-0">{receipt.id}</span>
+                </div>
+                <div className="flex justify-between gap-2 flex-wrap items-center">
+                  <span className="text-slate-400 shrink-0">Lifecycle Status:</span>
+                  <Badge status={receipt.status} label="Waiting for Owner Approval" />
                 </div>
                 <div className="flex justify-between gap-2 flex-wrap">
                   <span className="text-slate-400 shrink-0">Venue:</span>
@@ -112,13 +127,20 @@ function BookingModal({ venue, court, slot, date, onClose, onBookingSuccess, onB
                   <strong className="text-white text-right min-w-0">{formatBookingDate(date)}</strong>
                 </div>
                 <div className="flex justify-between gap-2 flex-wrap">
-                  <span className="text-slate-400 shrink-0">Time:</span>
-                  <strong className="text-lime-400 font-mono text-right min-w-0">{slot.startTime} - {slot.endTime}</strong>
+                  <span className="text-slate-400 shrink-0">Time Range:</span>
+                  <strong className="text-lime-400 font-mono text-right min-w-0">{receipt.startTime} – {receipt.endTime} ({durationHours} {durationHours === 1 ? 'hour' : 'hours'})</strong>
                 </div>
                 <div className="flex justify-between gap-2 flex-wrap pt-2.5 border-t border-[#28303F] items-baseline">
-                  <span className="text-slate-400 shrink-0">Total Payable:</span>
+                  <span className="text-slate-400 shrink-0">Total Authoritative Rate:</span>
                   <strong className="text-lg text-lime-400 font-black font-mono">₹{receipt.totalPrice}</strong>
                 </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-[#181C24] border border-[#28303F] text-[11px] text-slate-300 text-left flex items-start gap-2">
+                <Info className="w-4 h-4 text-lime-400 shrink-0 mt-0.5" />
+                <span>
+                  Once approved by the facility owner, you will be notified to complete payment via UPI, Card, or select Pay at Venue.
+                </span>
               </div>
 
               <div className="flex flex-col sm:flex-row items-center justify-end gap-2 pt-2">
@@ -126,7 +148,7 @@ function BookingModal({ venue, court, slot, date, onClose, onBookingSuccess, onB
                   to="/my-bookings"
                   className="w-full sm:w-auto px-5 py-2.5 bg-lime-400 hover:bg-lime-300 active:bg-lime-500 text-slate-950 text-xs font-bold rounded-xl text-center transition-all shadow-qc-lime"
                 >
-                  Go to My Bookings
+                  View in My Bookings
                 </Link>
                 <button
                   type="button"
@@ -143,7 +165,7 @@ function BookingModal({ venue, court, slot, date, onClose, onBookingSuccess, onB
                 <div className="flex items-center gap-2">
                   <CalendarCheck className="w-5 h-5 text-lime-400" />
                   <h3 id="booking-modal-title" className="text-base font-black text-white">
-                    Review & Confirm Reservation
+                    Request Court Reservation
                   </h3>
                 </div>
                 <button
@@ -181,20 +203,28 @@ function BookingModal({ venue, court, slot, date, onClose, onBookingSuccess, onB
                   <strong className="text-white text-right min-w-0">{formatBookingDate(date)}</strong>
                 </div>
                 <div className="flex justify-between gap-2 flex-wrap">
-                  <span className="text-slate-400 shrink-0">Time Slot:</span>
-                  <strong className="text-lime-400 font-mono text-right min-w-0">{slot.startTime} to {slot.endTime} (1 hr)</strong>
+                  <span className="text-slate-400 shrink-0">Time Range:</span>
+                  <strong className="text-lime-400 font-mono text-right min-w-0">{startTime} to {endTime} ({durationHours} {durationHours === 1 ? 'hr' : 'hrs'})</strong>
+                </div>
+                <div className="flex justify-between gap-2 flex-wrap">
+                  <span className="text-slate-400 shrink-0">Hourly Rate:</span>
+                  <span className="text-slate-300 font-mono text-right">₹{court.pricePerHour} × {durationHours} hr{durationHours > 1 ? 's' : ''}</span>
                 </div>
                 <div className="flex justify-between gap-2 flex-wrap pt-2.5 border-t border-[#28303F] items-baseline">
-                  <span className="text-slate-300 font-bold shrink-0">Total Payable:</span>
-                  <span className="text-xl font-black text-lime-400 font-mono">₹{court.pricePerHour}</span>
+                  <span className="text-slate-300 font-bold shrink-0">Total Price:</span>
+                  <span className="text-xl font-black text-lime-400 font-mono">₹{totalPrice}</span>
                 </div>
               </div>
 
-              <div className="p-3 rounded-xl bg-[#0B0F17] border border-[#28303F] text-slate-300 text-[11px] flex items-start gap-2">
-                <Info className="w-4 h-4 text-lime-400 flex-shrink-0 mt-0.5" />
-                <span>
-                  Authoritative court reservation. Confirmed bookings lock your time slot on the live schedule. In QuickCourt V1, payment is settled directly at venue check-in.
-                </span>
+              {/* Journey Stepper Micro-Card */}
+              <div className="p-3 rounded-xl bg-[#0B0F17] border border-[#28303F] text-slate-300 text-[11px] space-y-1.5">
+                <div className="flex items-center gap-1.5 font-bold text-white">
+                  <Info className="w-3.5 h-3.5 text-lime-400" />
+                  <span>Booking Journey:</span>
+                </div>
+                <div className="text-[11px] text-slate-400 leading-relaxed">
+                  Request Slot → Owner Approval → Complete Payment (UPI / Card / Pay at Venue) → Confirmed Booking.
+                </div>
               </div>
 
               <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-2">
@@ -215,11 +245,11 @@ function BookingModal({ venue, court, slot, date, onClose, onBookingSuccess, onB
                   {loading ? (
                     <>
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>Confirming…</span>
+                      <span>Sending Request…</span>
                     </>
                   ) : (
                     <>
-                      <span>Confirm Booking</span>
+                      <span>Send Booking Request ({durationHours} {durationHours === 1 ? 'Hour' : 'Hours'})</span>
                       <ArrowRight className="w-3.5 h-3.5" />
                     </>
                   )}
@@ -253,8 +283,8 @@ export default function VenueDetailPage() {
   const [availLoading, setAvailLoading] = useState(false);
   const [availError, setAvailError] = useState(null);
 
-  // Slot selection & Booking Modal state
-  const [selectedSlot, setSelectedSlot] = useState(null);
+  // Consecutive multi-slot selection & Booking Modal state
+  const [selectedSlots, setSelectedSlots] = useState([]);
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
 
   useEffect(() => {
@@ -305,7 +335,7 @@ export default function VenueDetailPage() {
   };
 
   useEffect(() => {
-    setSelectedSlot(null);
+    setSelectedSlots([]);
     if (selectedCourt?.id && selectedDate) {
       loadAvailability(selectedCourt.id, selectedDate);
     } else {
@@ -313,10 +343,83 @@ export default function VenueDetailPage() {
     }
   }, [selectedCourt?.id, selectedDate]);
 
+  const handleSlotToggle = (slot) => {
+    if (slot.status !== 'AVAILABLE') return;
+
+    if (!selectedSlots || selectedSlots.length === 0) {
+      setSelectedSlots([slot]);
+      return;
+    }
+
+    const allSlots = availability?.slots || [];
+    const slotIdx = allSlots.findIndex((s) => s.id === slot.id);
+    if (slotIdx === -1) {
+      setSelectedSlots([slot]);
+      return;
+    }
+
+    const selectedIndices = selectedSlots
+      .map((s) => allSlots.findIndex((item) => item.id === s.id))
+      .filter((idx) => idx !== -1)
+      .sort((a, b) => a - b);
+
+    if (selectedIndices.length === 0) {
+      setSelectedSlots([slot]);
+      return;
+    }
+
+    const minIdx = selectedIndices[0];
+    const maxIdx = selectedIndices[selectedIndices.length - 1];
+
+    // Case A: Clicked an already selected slot
+    if (selectedSlots.some((s) => s.id === slot.id)) {
+      if (selectedSlots.length === 1) {
+        // Toggle off
+        setSelectedSlots([]);
+      } else if (slotIdx === maxIdx) {
+        // Remove end slot (shrink)
+        const newSlots = allSlots.slice(minIdx, maxIdx);
+        setSelectedSlots(newSlots);
+      } else if (slotIdx === minIdx) {
+        // Remove start slot (shrink)
+        const newSlots = allSlots.slice(minIdx + 1, maxIdx + 1);
+        setSelectedSlots(newSlots);
+      } else {
+        // Clicked middle slot — reset to single clicked slot
+        setSelectedSlots([slot]);
+      }
+      return;
+    }
+
+    // Case B: Clicked unselected slot
+    // Attempt continuous span from min(minIdx, slotIdx) to max(maxIdx, slotIdx)
+    const targetMin = Math.min(minIdx, slotIdx);
+    const targetMax = Math.max(maxIdx, slotIdx);
+    const candidateRange = allSlots.slice(targetMin, targetMax + 1);
+
+    // Ensure every slot in candidateRange is AVAILABLE
+    const allAvailable = candidateRange.every((s) => s.status === 'AVAILABLE');
+
+    if (allAvailable) {
+      setSelectedSlots(candidateRange);
+    } else {
+      // Non-consecutive or intermediate slot is booked/unavailable -> reset to clicked slot safely
+      setSelectedSlots([slot]);
+    }
+  };
+
   const todayStr = getLocalDateString();
   const tomorrowDate = new Date();
   tomorrowDate.setDate(tomorrowDate.getDate() + 1);
   const tomorrowStr = getLocalDateString(tomorrowDate);
+
+  // Multi-slot calculated properties
+  const hasSelectedSlots = selectedSlots.length > 0;
+  const firstSelectedSlot = hasSelectedSlots ? selectedSlots[0] : null;
+  const lastSelectedSlot = hasSelectedSlots ? selectedSlots[selectedSlots.length - 1] : null;
+  const selectedDuration = selectedSlots.length;
+  const courtHourlyRate = selectedCourt ? selectedCourt.pricePerHour : (venue ? venue.pricePerHour : 0);
+  const selectedTotalPrice = courtHourlyRate * selectedDuration;
 
   return (
     <div className="min-h-screen flex flex-col bg-[#0B0F17] text-slate-100 relative font-sans selection:bg-lime-400 selection:text-slate-950">
@@ -613,7 +716,7 @@ export default function VenueDetailPage() {
                             Step 3
                           </span>
                           <h3 className="text-sm font-extrabold text-white">
-                            Select Available Time Slot
+                            Select Consecutive Hourly Slots
                           </h3>
                         </div>
 
@@ -641,10 +744,17 @@ export default function VenueDetailPage() {
                         </div>
                       ) : availability?.slots?.length > 0 ? (
                         <div>
+                          <p className="text-[11px] text-slate-400 mb-3">
+                            Click adjacent available slots to extend your multi-hour booking. Non-consecutive slots start a fresh selection.
+                          </p>
+
                           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
                             {availability.slots.map((slot) => {
                               const isAvail = slot.status === 'AVAILABLE';
-                              const isSelected = selectedSlot?.id === slot.id;
+                              const isSelected = selectedSlots.some((s) => s.id === slot.id);
+                              const isFirst = firstSelectedSlot?.id === slot.id;
+                              const isLast = lastSelectedSlot?.id === slot.id;
+
                               return (
                                 <button
                                   key={slot.id}
@@ -652,10 +762,7 @@ export default function VenueDetailPage() {
                                   disabled={!isAvail}
                                   aria-pressed={isSelected}
                                   aria-label={`${slot.startTime} to ${slot.endTime}, ${isAvail ? (isSelected ? 'Selected slot' : 'Available slot') : 'Slot booked or unavailable'}`}
-                                  onClick={() => {
-                                    if (!isAvail) return;
-                                    setSelectedSlot(isSelected ? null : slot);
-                                  }}
+                                  onClick={() => handleSlotToggle(slot)}
                                   className={`p-3 rounded-xl border text-center transition-all min-w-0 ${
                                     isSelected
                                       ? 'bg-lime-400 border-lime-400 text-slate-950 shadow-qc-lime ring-2 ring-lime-400 scale-[1.02]'
@@ -674,7 +781,11 @@ export default function VenueDetailPage() {
                                     {isSelected ? (
                                       <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-slate-950 text-lime-400">
                                         <Check className="w-2.5 h-2.5" />
-                                        Selected
+                                        {selectedDuration > 1 && isFirst
+                                          ? 'Start'
+                                          : selectedDuration > 1 && isLast
+                                          ? 'End'
+                                          : 'Selected'}
                                       </span>
                                     ) : isAvail ? (
                                       <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-lime-400/10 text-lime-400 border border-lime-400/20">
@@ -692,16 +803,21 @@ export default function VenueDetailPage() {
                             })}
                           </div>
 
-                          {/* Selected Slot Feedback Banner */}
-                          {selectedSlot && (
-                            <div className="mt-4 flex items-center justify-between p-3.5 rounded-xl bg-lime-400/10 border border-lime-400/30 text-lime-400 text-xs">
+                          {/* Selected Slots Feedback Banner */}
+                          {hasSelectedSlots && (
+                            <div className="mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3.5 rounded-xl bg-lime-400/10 border border-lime-400/30 text-lime-400 text-xs">
                               <div className="flex items-center gap-2">
                                 <CheckCircle2 className="w-4 h-4 text-lime-400 flex-shrink-0" />
                                 <span>
-                                  Active Slot: <strong>{selectedSlot.startTime} to {selectedSlot.endTime}</strong> on {selectedCourt.name}
+                                  Active Range: <strong>{firstSelectedSlot.startTime} – {lastSelectedSlot.endTime}</strong> ({selectedDuration} {selectedDuration === 1 ? 'hour' : 'hours'}) on {selectedCourt.name}
                                 </span>
                               </div>
-                              <span className="font-black text-white font-mono">₹{selectedCourt.pricePerHour}</span>
+                              <div className="flex items-center gap-2 text-right">
+                                <span className="text-slate-300 font-mono text-[11px]">
+                                  ₹{selectedCourt.pricePerHour} × {selectedDuration} hr{selectedDuration > 1 ? 's' : ''} =
+                                </span>
+                                <span className="font-black text-white font-mono text-sm">₹{selectedTotalPrice}</span>
+                              </div>
                             </div>
                           )}
                         </div>
@@ -779,9 +895,11 @@ export default function VenueDetailPage() {
                       </p>
                       <div className="flex items-baseline gap-1 mt-1">
                         <span className="text-3xl font-black text-lime-400 font-mono">
-                          ₹{selectedCourt ? selectedCourt.pricePerHour : venue.pricePerHour}
+                          ₹{hasSelectedSlots ? selectedTotalPrice : courtHourlyRate}
                         </span>
-                        <span className="text-xs text-slate-400 font-medium font-sans">/ hour</span>
+                        <span className="text-xs text-slate-400 font-medium font-sans">
+                          {hasSelectedSlots ? `total (${selectedDuration} hr${selectedDuration > 1 ? 's' : ''})` : '/ hour'}
+                        </span>
                       </div>
                     </div>
                     <Badge variant="lime" dot>
@@ -809,9 +927,16 @@ export default function VenueDetailPage() {
                     </div>
 
                     <div className="flex items-center justify-between text-slate-400 py-1 border-b border-[#28303F]/60">
-                      <span>Time Slot</span>
-                      <strong className={selectedSlot ? 'text-lime-400 font-mono' : 'text-slate-500'}>
-                        {selectedSlot ? `${selectedSlot.startTime} - ${selectedSlot.endTime}` : 'No slot chosen'}
+                      <span>Time Range</span>
+                      <strong className={hasSelectedSlots ? 'text-lime-400 font-mono' : 'text-slate-500'}>
+                        {hasSelectedSlots ? `${firstSelectedSlot.startTime} – ${lastSelectedSlot.endTime}` : 'No slots chosen'}
+                      </strong>
+                    </div>
+
+                    <div className="flex items-center justify-between text-slate-400 py-1 border-b border-[#28303F]/60">
+                      <span>Duration</span>
+                      <strong className={hasSelectedSlots ? 'text-white font-mono' : 'text-slate-500'}>
+                        {hasSelectedSlots ? `${selectedDuration} ${selectedDuration === 1 ? 'hour' : 'hours'}` : '—'}
                       </strong>
                     </div>
 
@@ -828,13 +953,13 @@ export default function VenueDetailPage() {
                   <div className="pt-2">
                     {isAuthenticated && role === 'CUSTOMER' ? (
                       <div className="space-y-2.5">
-                        {selectedSlot ? (
+                        {hasSelectedSlots ? (
                           <button
                             type="button"
                             onClick={() => setBookingModalOpen(true)}
                             className="w-full flex items-center justify-center gap-2 py-3.5 px-4 bg-lime-400 hover:bg-lime-300 active:bg-lime-500 text-slate-950 font-black text-sm rounded-xl shadow-qc-lime transition-all focus:outline-none focus:ring-2 focus:ring-lime-400"
                           >
-                            <span>Confirm & Book Slot ({selectedSlot.startTime})</span>
+                            <span>Confirm & Book ({selectedDuration} {selectedDuration === 1 ? 'Hour' : 'Hours'} • ₹{selectedTotalPrice})</span>
                             <ArrowRight className="w-4 h-4 stroke-[2.5]" />
                           </button>
                         ) : (
@@ -843,13 +968,13 @@ export default function VenueDetailPage() {
                             disabled
                             className="w-full flex items-center justify-center gap-2 py-3.5 px-4 bg-[#181C24] text-slate-500 font-bold text-sm rounded-xl cursor-not-allowed border border-[#28303F]"
                           >
-                            <span>Select an Available Slot</span>
+                            <span>Select Consecutive Slot(s)</span>
                           </button>
                         )}
                         <p className="text-[11px] text-center text-slate-400 font-medium">
-                          {selectedSlot
-                            ? `Selected: ${selectedSlot.startTime} to ${selectedSlot.endTime} (1 hr)`
-                            : 'Click any green "Available" slot above to proceed'}
+                          {hasSelectedSlots
+                            ? `Selected: ${firstSelectedSlot.startTime} – ${lastSelectedSlot.endTime} (${selectedDuration} hr${selectedDuration > 1 ? 's' : ''})`
+                            : 'Click any green "Available" slot to start your booking'}
                         </p>
                       </div>
                     ) : !isAuthenticated ? (
@@ -889,15 +1014,15 @@ export default function VenueDetailPage() {
             </div>
 
             {/* Mobile Sticky Booking Action Bar */}
-            {selectedSlot && (
+            {hasSelectedSlots && (
               <div className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-[#0B0F17]/95 backdrop-blur-md border-t border-[#28303F] p-3 sm:p-4 shadow-2xl animate-in slide-in-from-bottom-2">
                 <div className="max-w-md mx-auto flex items-center justify-between gap-3">
                   <div>
                     <span className="text-[11px] text-slate-400 block truncate max-w-[140px]">
-                      {selectedCourt?.name} • {selectedSlot.startTime}
+                      {selectedCourt?.name} • {selectedDuration} hr ({firstSelectedSlot.startTime} – {lastSelectedSlot.endTime})
                     </span>
                     <span className="text-base font-black text-lime-400 font-mono">
-                      ₹{selectedCourt?.pricePerHour}
+                      ₹{selectedTotalPrice}
                     </span>
                   </div>
 
@@ -907,7 +1032,7 @@ export default function VenueDetailPage() {
                       onClick={() => setBookingModalOpen(true)}
                       className="px-5 py-2.5 bg-lime-400 hover:bg-lime-300 text-slate-950 font-black text-xs rounded-xl shadow-qc-lime flex items-center gap-1.5"
                     >
-                      <span>Book Slot</span>
+                      <span>Book ({selectedDuration} hr)</span>
                       <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
                     </button>
                   ) : !isAuthenticated ? (
@@ -931,18 +1056,18 @@ export default function VenueDetailPage() {
       <Footer />
 
       {/* Booking Confirmation Modal */}
-      {bookingModalOpen && selectedSlot && selectedCourt && (
+      {bookingModalOpen && hasSelectedSlots && selectedCourt && (
         <BookingModal
           venue={venue}
           court={selectedCourt}
-          slot={selectedSlot}
+          slots={selectedSlots}
           date={selectedDate}
           onClose={() => setBookingModalOpen(false)}
           onBookingConflict={() => {
             loadAvailability(selectedCourt.id, selectedDate);
           }}
           onBookingSuccess={() => {
-            setSelectedSlot(null);
+            setSelectedSlots([]);
             loadAvailability(selectedCourt.id, selectedDate);
           }}
         />

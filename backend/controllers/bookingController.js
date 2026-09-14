@@ -104,7 +104,7 @@ export function createBooking(req, res) {
     });
   }
 
-  // 4. Validate time range and 1-hour slot duration
+  // 4. Validate time range and multi-hour continuous duration
   const startHour = parse12HourTime(startTime);
   const endHour = parse12HourTime(endTime);
 
@@ -115,10 +115,11 @@ export function createBooking(req, res) {
     });
   }
 
-  if (startHour >= endHour || endHour - startHour !== 1) {
+  const durationHours = endHour - startHour;
+  if (durationHours < 1) {
     return res.status(400).json({
       status: 'error',
-      message: 'Bookings must be for exactly a 1-hour time slot.',
+      message: 'End time must be after start time.',
     });
   }
 
@@ -142,13 +143,15 @@ export function createBooking(req, res) {
     });
   }
 
-  // 6. Base availability check (active operating schedule)
-  const baseStatus = getDeterministicStatus(court, date, startHour);
-  if (baseStatus === 'UNAVAILABLE') {
-    return res.status(400).json({
-      status: 'error',
-      message: 'The requested time slot is unavailable on the facility schedule.',
-    });
+  // 6. Base availability check: every hourly segment in [startHour, endHour) must be available
+  for (let h = startHour; h < endHour; h++) {
+    const baseStatus = getDeterministicStatus(court, date, h);
+    if (baseStatus === 'UNAVAILABLE') {
+      return res.status(400).json({
+        status: 'error',
+        message: `The time slot ${format12Hour(h)} - ${format12Hour(h + 1)} is unavailable on the facility schedule.`,
+      });
+    }
   }
 
   // 7. Server-side conflict check: detect active overlapping bookings
@@ -169,9 +172,9 @@ export function createBooking(req, res) {
     });
   }
 
-  // 8. Authoritative price calculation derived directly from court
+  // 8. Authoritative price calculation derived directly from court rate and duration
   const pricePerHour = Number(court.pricePerHour);
-  const totalPrice = pricePerHour * 1; // 1-hour booking duration
+  const totalPrice = pricePerHour * durationHours;
 
   const nowIso = now.toISOString();
 
@@ -425,15 +428,18 @@ export function payBooking(req, res) {
   }
 
   const { paymentMethod } = req.body || {};
+  const isPayAtVenue = paymentMethod === 'PAY_AT_VENUE' || paymentMethod === 'Pay at Venue';
 
   booking.status = BOOKING_STATUS.CONFIRMED;
-  booking.paymentStatus = PAYMENT_STATUS.PAID;
-  booking.paymentMethod = paymentMethod || 'UPI';
+  booking.paymentStatus = isPayAtVenue ? PAYMENT_STATUS.PENDING : PAYMENT_STATUS.PAID;
+  booking.paymentMethod = isPayAtVenue ? 'Pay at Venue' : (paymentMethod || 'UPI');
   booking.updatedAt = new Date().toISOString();
 
   return res.status(200).json({
     status: 'ok',
-    message: 'Payment confirmed successfully.',
+    message: isPayAtVenue
+      ? 'Booking confirmed. Pay at venue upon arrival.'
+      : 'Payment confirmed successfully.',
     booking: safeBooking(booking),
   });
 }

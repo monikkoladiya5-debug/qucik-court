@@ -1,17 +1,17 @@
 import express from 'express';
 import cors from 'cors';
 
-import healthRouter  from './routes/health.js';
-import authRouter    from './routes/auth.js';
-import rbacRouter    from './routes/rbac.js';
-import venueRouter   from './routes/venues.js';
-import courtRouter   from './routes/courts.js';
+import healthRouter from './routes/health.js';
+import authRouter from './routes/auth.js';
+import rbacRouter from './routes/rbac.js';
+import venueRouter from './routes/venues.js';
+import courtRouter from './routes/courts.js';
 import bookingRouter from './routes/bookings.js';
-import playerRouter  from './routes/players.js';
+import playerRouter from './routes/players.js';
 import profileRouter from './routes/profile.js';
 import loyaltyRouter from './routes/loyalty.js';
-import ownerRouter   from './routes/owner.js';
-import adminRouter   from './routes/admin.js';
+import ownerRouter from './routes/owner.js';
+import adminRouter from './routes/admin.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { store } from './data/store.js';
 
@@ -27,17 +27,17 @@ app.use(cors({
 app.use(express.json());
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
-app.use('/api/health',   healthRouter);
-app.use('/api/auth',     authRouter);
-app.use('/api/rbac',     rbacRouter);
-app.use('/api/venues',   venueRouter);
-app.use('/api/courts',   courtRouter);
+app.use('/api/health', healthRouter);
+app.use('/api/auth', authRouter);
+app.use('/api/rbac', rbacRouter);
+app.use('/api/venues', venueRouter);
+app.use('/api/courts', courtRouter);
 app.use('/api/bookings', bookingRouter);
-app.use('/api/players',  playerRouter);
-app.use('/api/profile',  profileRouter);
-app.use('/api/loyalty',  loyaltyRouter);
-app.use('/api/owner',    ownerRouter);
-app.use('/api/admin',    adminRouter);
+app.use('/api/players', playerRouter);
+app.use('/api/profile', profileRouter);
+app.use('/api/loyalty', loyaltyRouter);
+app.use('/api/owner', ownerRouter);
+app.use('/api/admin', adminRouter);
 
 // ─── Summary stats (foundation convenience endpoint) ──────────────────────────
 app.get('/api/summary', (req, res) => {
@@ -70,7 +70,7 @@ const isMain = process.argv[1] && (
 );
 
 if (isMain && process.env.NODE_ENV !== 'test') {
-  app.listen(PORT, () => {
+  app.listen(PORT, '0.0.0.0', () => {
     console.log(`[QuickCourt Backend] Server listening on http://localhost:${PORT}`);
   });
 }

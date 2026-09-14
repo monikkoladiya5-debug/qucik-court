@@ -554,7 +554,9 @@ describe('Task 10: Booking Validation & Business Boundary Hardening', () => {
     assert.equal(res.status, 400);
   });
 
-  it('Booking with multi-hour duration (> 1 hr) returns 400', async () => {
+  it('Booking with multi-hour continuous duration succeeds and calculates correct total price', async () => {
+    // 2029-07-02 has 06:00 AM - 02:00 PM available on c-1
+    const court = store.courts.find((c) => c.id === 'c-1');
     const res = await fetch(`${baseUrl}/api/bookings`, {
       method: 'POST',
       headers: {
@@ -563,14 +565,15 @@ describe('Task 10: Booking Validation & Business Boundary Hardening', () => {
       },
       body: JSON.stringify({
         courtId: 'c-1',
-        date: '2026-11-20',
+        date: '2029-07-02',
         startTime: '10:00 AM',
         endTime: '12:00 PM',
       }),
     });
-    assert.equal(res.status, 400);
+    assert.equal(res.status, 201);
     const data = await res.json();
-    assert.match(data.message, /1-hour/i);
+    assert.equal(data.status, 'ok');
+    assert.equal(data.booking.totalPrice, Number(court.pricePerHour) * 2);
   });
 
   it('Booking with inverted hours (end before start) returns 400', async () => {

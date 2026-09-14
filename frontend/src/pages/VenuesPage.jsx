@@ -161,11 +161,13 @@ export default function VenuesPage() {
   const [searchParams] = useSearchParams();
 
   // Filter state initialized from URL query params if present
-  const [search, setSearch]         = useState(() => searchParams.get('search') || '');
+  const [search, setSearch]         = useState(() => searchParams.get('search') || searchParams.get('q') || '');
   const [city, setCity]             = useState(() => searchParams.get('city') || '');
   const [sport, setSport]           = useState(() => searchParams.get('sport') || '');
   const [indoor, setIndoor]         = useState(() => searchParams.get('indoor') || '');
-  const [showFilters, setShowFilters] = useState(() => Boolean(searchParams.get('city') || searchParams.get('indoor')));
+  const [maxPrice, setMaxPrice]     = useState(() => searchParams.get('maxPrice') || '');
+  const [sortBy, setSortBy]         = useState(() => searchParams.get('sortBy') || '');
+  const [showFilters, setShowFilters] = useState(() => Boolean(searchParams.get('city') || searchParams.get('indoor') || searchParams.get('maxPrice')));
 
   const [venues, setVenues]         = useState([]);
   const [meta, setMeta]             = useState({ cities: [], sports: [] });
@@ -189,6 +191,8 @@ export default function VenuesPage() {
       if (city)           filters.city   = city;
       if (sport)          filters.sport  = sport;
       if (indoor !== '')  filters.indoor = indoor === 'true';
+      if (maxPrice !== '') filters.maxPrice = maxPrice;
+      if (sortBy)         filters.sortBy = sortBy;
 
       const data = await fetchVenues(filters);
       setVenues(data.venues || []);
@@ -198,7 +202,7 @@ export default function VenuesPage() {
     } finally {
       setLoading(false);
     }
-  }, [search, city, sport, indoor]);
+  }, [search, city, sport, indoor, maxPrice, sortBy]);
 
   // Debounced search trigger (300ms)
   useEffect(() => {
@@ -213,10 +217,12 @@ export default function VenuesPage() {
     setCity('');
     setSport('');
     setIndoor('');
+    setMaxPrice('');
+    setSortBy('');
   }
 
-  const hasFilters = Boolean(search.trim() || city || sport || indoor !== '');
-  const activeFilterCount = [search.trim(), city, sport, indoor !== '' ? '1' : ''].filter(Boolean).length;
+  const hasFilters = Boolean(search.trim() || city || sport || indoor !== '' || maxPrice !== '' || sortBy);
+  const activeFilterCount = [search.trim(), city, sport, indoor !== '' ? '1' : '', maxPrice ? '1' : '', sortBy ? '1' : ''].filter(Boolean).length;
 
   return (
     <div className="min-h-screen flex flex-col bg-[#0B0F17] text-slate-100 relative font-sans selection:bg-lime-400 selection:text-slate-950">
@@ -416,6 +422,26 @@ export default function VenuesPage() {
                     <X className="w-3 h-3 text-slate-400" />
                   </button>
                 )}
+                {maxPrice !== '' && (
+                  <button
+                    type="button"
+                    onClick={() => setMaxPrice('')}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#181C24] text-slate-200 hover:bg-slate-800 border border-[#28303F] text-[11px]"
+                  >
+                    <span>Max Price: ₹{maxPrice}/hr</span>
+                    <X className="w-3 h-3 text-slate-400" />
+                  </button>
+                )}
+                {sortBy && (
+                  <button
+                    type="button"
+                    onClick={() => setSortBy('')}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#181C24] text-slate-200 hover:bg-slate-800 border border-[#28303F] text-[11px]"
+                  >
+                    <span>Sort: {sortBy.replace('_', ' ')}</span>
+                    <X className="w-3 h-3 text-slate-400" />
+                  </button>
+                )}
               </div>
 
               <button
@@ -448,7 +474,7 @@ export default function VenuesPage() {
               )}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
               {/* City Select */}
               <div>
                 <label htmlFor="filter-city" className="block text-xs font-bold text-slate-300 mb-1.5">
@@ -496,9 +522,47 @@ export default function VenuesPage() {
                   onChange={(e) => setIndoor(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-[#0B0F17] border border-[#28303F] text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-lime-400 transition-colors"
                 >
-                  <option value="">All Facilities (Indoor & Outdoor)</option>
+                  <option value="">All Facilities</option>
                   <option value="true">Indoor Arena Only</option>
                   <option value="false">Outdoor Turf Only</option>
+                </select>
+              </div>
+
+              {/* Max Budget Filter */}
+              <div>
+                <label htmlFor="filter-max-price" className="block text-xs font-bold text-slate-300 mb-1.5">
+                  Max Budget
+                </label>
+                <select
+                  id="filter-max-price"
+                  value={maxPrice}
+                  onChange={(e) => setMaxPrice(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#0B0F17] border border-[#28303F] text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-lime-400 transition-colors"
+                >
+                  <option value="">Any Price</option>
+                  <option value="400">Under ₹400 / hr</option>
+                  <option value="500">Under ₹500 / hr</option>
+                  <option value="600">Under ₹600 / hr</option>
+                  <option value="800">Under ₹800 / hr</option>
+                </select>
+              </div>
+
+              {/* Sort By */}
+              <div>
+                <label htmlFor="filter-sort-by" className="block text-xs font-bold text-slate-300 mb-1.5">
+                  Sort Results
+                </label>
+                <select
+                  id="filter-sort-by"
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#0B0F17] border border-[#28303F] text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-lime-400 transition-colors"
+                >
+                  <option value="">Default Featured</option>
+                  <option value="price_asc">Price: Low to High</option>
+                  <option value="price_desc">Price: High to Low</option>
+                  <option value="rating_desc">Highest Rated</option>
+                  <option value="courts_desc">Most Courts</option>
                 </select>
               </div>
             </div>

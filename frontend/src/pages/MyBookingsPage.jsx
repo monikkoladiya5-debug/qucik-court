@@ -6,7 +6,7 @@ import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import Card from '../components/ui/Card';
 import SportIcon from '../components/ui/SportIcon';
-import { fetchMyBookings, cancelBooking } from '../services/api';
+import { fetchMyBookings, cancelBooking, payBooking } from '../services/api';
 import { getLocalDateString } from '../utils/date';
 import {
   Calendar,
@@ -28,7 +28,11 @@ import {
   CalendarDays,
   ExternalLink,
   History,
-  XCircle
+  XCircle,
+  CreditCard,
+  Wallet,
+  Coins,
+  Info
 } from 'lucide-react';
 
 function parseTimeTo24(timeStr) {
@@ -94,14 +98,21 @@ export default function MyBookingsPage() {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('UPCOMING'); // 'UPCOMING' | 'PAST' | 'CANCELLED' | 'ALL'
+  const [activeTab, setActiveTab] = useState('UPCOMING'); // 'UPCOMING' | 'NEEDS_PAYMENT' | 'PAST' | 'CANCELLED' | 'ALL'
   const [searchQuery, setSearchQuery] = useState('');
 
   // Cancellation state
   const [cancellingBooking, setCancellingBooking] = useState(null);
   const [cancelLoading, setCancelLoading] = useState(false);
   const [cancelError, setCancelError] = useState(null);
-  const [cancelSuccessMsg, setCancelSuccessMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+
+  // Payment Modal state
+  const [payingBooking, setPayingBooking] = useState(null);
+  const [paymentMethod, setPaymentMethod] = useState('UPI'); // 'UPI' | 'Card' | 'Pay at Venue'
+  const [payLoading, setPayLoading] = useState(false);
+  const [payError, setPayError] = useState(null);
+
 
   // Selected Booking Details Pass Modal
   const [selectedPass, setSelectedPass] = useState(null);
@@ -128,6 +139,7 @@ export default function MyBookingsPage() {
     function handleKeyDown(e) {
       if (e.key === 'Escape') {
         if (selectedPass) setSelectedPass(null);
+        if (payingBooking && !payLoading) setPayingBooking(null);
         if (cancellingBooking && !cancelLoading) {
           setCancellingBooking(null);
           setCancelError(null);
@@ -136,24 +148,24 @@ export default function MyBookingsPage() {
     }
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedPass, cancellingBooking, cancelLoading]);
+  }, [selectedPass, payingBooking, payLoading, cancellingBooking, cancelLoading]);
 
+  // Cancel Handler
   const handleCancelConfirm = async () => {
     if (!cancellingBooking) return;
     try {
       setCancelLoading(true);
       setCancelError(null);
       const res = await cancelBooking(cancellingBooking.id);
-      // Update local state
       setBookings((prev) =>
-        prev.map((b) => (b.id === cancellingBooking.id ? { ...b, status: 'CANCELLED' } : b))
+        prev.map((b) => (b.id === cancellingBooking.id ? { ...b, status: 'CANCELLED', paymentStatus: b.paymentStatus === 'PAID' ? 'REFUNDED' : b.paymentStatus } : b))
       );
       if (selectedPass?.id === cancellingBooking.id) {
         setSelectedPass((prev) => (prev ? { ...prev, status: 'CANCELLED' } : null));
       }
       setCancellingBooking(null);
-      setCancelSuccessMsg(`Reservation #${res.booking?.id || cancellingBooking.id} has been cancelled.`);
-      setTimeout(() => setCancelSuccessMsg(''), 5000);
+      setSuccessMsg(`Reservation #${res.booking?.id || cancellingBooking.id} has been cancelled.`);
+      setTimeout(() => setSuccessMsg(''), 5000);
     } catch (err) {
       setCancelError(err.message || 'Failed to cancel booking. Please try again.');
     } finally {
@@ -161,36 +173,66 @@ export default function MyBookingsPage() {
     }
   };
 
+  // Payment Handler
+  const handlePaymentSubmit = async (e) => {
+    e.preventDefault();
+    if (!payingBooking) return;
+    try {
+      setPayLoading(true);
+      setPayError(null);
+      const res = await payBooking(payingBooking.id, { paymentMethod });
+      const updated = res.booking;
+      setBookings((prev) =>
+        prev.map((b) => (b.id === payingBooking.id ? { ...b, ...updated } : b))
+      );
+      if (selectedPass?.id === payingBooking.id) {
+        setSelectedPass({ ...selectedPass, ...updated });
+      }
+      setPayingBooking(null);
+      setSuccessMsg(
+        paymentMethod === 'Pay at Venue'
+          ? `Booking #${updated.id} confirmed! Payment is scheduled at venue reception.`
+          : `Payment successful! Booking #${updated.id} is confirmed.`
+      );
+      setTimeout(() => setSuccessMsg(''), 5000);
+    } catch (err) {
+      setPayError(err.message || 'Failed to process demo payment.');
+    } finally {
+      setPayLoading(false);
+    }
+  };
+
+
   // Categorize bookings
   const categorized = useMemo(() => {
     const upcoming = [];
+    const needsPayment = [];
     const past = [];
     const cancelled = [];
 
     bookings.forEach((b) => {
-      if (b.status === 'CANCELLED') {
+      if (b.status === 'CANCELLED' || b.status === 'REJECTED') {
         cancelled.push(b);
-      } else if (isBookingPast(b)) {
+      } else if (isBookingPast(b) || b.status === 'COMPLETED') {
         past.push(b);
       } else {
         upcoming.push(b);
+        if (b.status === 'APPROVED' || b.status === 'PAYMENT_PENDING') {
+          needsPayment.push(b);
+        }
       }
     });
 
-    // Sort upcoming closest-date first
     upcoming.sort((a, b) => getBookingTimestamp(a) - getBookingTimestamp(b));
-
-    // Sort past most-recent first
+    needsPayment.sort((a, b) => getBookingTimestamp(a) - getBookingTimestamp(b));
     past.sort((a, b) => getBookingTimestamp(b) - getBookingTimestamp(a));
-
-    // Sort cancelled most-recent first
     cancelled.sort((a, b) => getBookingTimestamp(b) - getBookingTimestamp(a));
 
-    return { upcoming, past, cancelled };
+    return { upcoming, needsPayment, past, cancelled };
   }, [bookings]);
 
-  // Derived metrics
   const upcomingCount = categorized.upcoming.length;
+  const needsPaymentCount = categorized.needsPayment.length;
   const pastCount = categorized.past.length;
   const cancelledCount = categorized.cancelled.length;
   const totalCount = bookings.length;
@@ -199,6 +241,7 @@ export default function MyBookingsPage() {
   const filteredBookings = useMemo(() => {
     let list = [];
     if (activeTab === 'UPCOMING') list = categorized.upcoming;
+    else if (activeTab === 'NEEDS_PAYMENT') list = categorized.needsPayment;
     else if (activeTab === 'PAST') list = categorized.past;
     else if (activeTab === 'CANCELLED') list = categorized.cancelled;
     else list = bookings;
@@ -218,18 +261,16 @@ export default function MyBookingsPage() {
   }, [activeTab, categorized, bookings, searchQuery]);
 
   // Earliest upcoming booking spotlight
-  const nextMatch = categorized.upcoming.length > 0 ? categorized.upcoming[0] : null;
+  const nextMatch = categorized.upcoming.find((b) => b.status === 'CONFIRMED' || b.status === 'PAID') || categorized.upcoming[0];
 
   return (
     <div className="min-h-screen flex flex-col bg-[#0B0F17] text-slate-100 relative">
-      {/* Background athletic pattern overlay */}
       <div className="fixed inset-0 bg-court-pattern opacity-10 pointer-events-none" />
 
       <Header />
 
       <main className="relative z-10 flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
-
-        {/* Page Top Header */}
+        {/* Page Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-6 border-b border-[#28303F]">
           <div>
             <div className="flex items-center gap-2 text-xs font-bold text-lime-400 uppercase tracking-wider mb-2">
@@ -240,10 +281,10 @@ export default function MyBookingsPage() {
             </div>
 
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight">
-              Court Bookings & Passes
+              Court Bookings & Match Passes
             </h1>
             <p className="mt-1.5 text-sm text-slate-400 max-w-2xl">
-              Manage your reserved court schedules, view match pass details, and track your game history.
+              Track your reservation requests, complete pending payments, and manage your match schedule.
             </p>
           </div>
 
@@ -257,18 +298,18 @@ export default function MyBookingsPage() {
         </div>
 
         {/* Global Feedback Banner */}
-        {cancelSuccessMsg && (
+        {successMsg && (
           <div
             role="status"
-            className="mt-6 p-4 rounded-xl bg-emerald-950/80 border border-emerald-500/80 text-emerald-300 text-xs font-semibold flex items-center justify-between shadow-qc-mint animate-in fade-in slide-in-from-top-2"
+            className="mt-6 p-4 rounded-xl bg-emerald-950/80 border border-emerald-500/80 text-emerald-300 text-xs font-semibold flex items-center justify-between shadow-qc-mint"
           >
             <div className="flex items-center gap-2.5">
               <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-              <span>{cancelSuccessMsg}</span>
+              <span>{successMsg}</span>
             </div>
             <button
               type="button"
-              onClick={() => setCancelSuccessMsg('')}
+              onClick={() => setSuccessMsg('')}
               className="p-1 text-emerald-400 hover:text-emerald-200 rounded-lg"
               aria-label="Dismiss notification"
             >
@@ -281,13 +322,24 @@ export default function MyBookingsPage() {
         <section aria-label="Bookings overview summary" className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
           <Card variant="default" className="p-4 sm:p-5">
             <div className="flex items-center justify-between text-slate-400 mb-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider">Upcoming</span>
+              <span className="text-[11px] font-bold uppercase tracking-wider">Active Bookings</span>
               <div className="w-7 h-7 rounded-lg bg-lime-400/10 text-lime-400 flex items-center justify-center">
                 <CalendarDays className="w-3.5 h-3.5" />
               </div>
             </div>
             <p className="text-2xl sm:text-3xl font-black text-white font-mono">{upcomingCount}</p>
-            <p className="text-[11px] text-slate-400 mt-1">Confirmed future games</p>
+            <p className="text-[11px] text-slate-400 mt-1">Scheduled reservations</p>
+          </Card>
+
+          <Card variant="default" className={`p-4 sm:p-5 ${needsPaymentCount > 0 ? 'border-amber-400/60 bg-amber-950/20' : ''}`}>
+            <div className="flex items-center justify-between text-slate-400 mb-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400">Payment Due</span>
+              <div className="w-7 h-7 rounded-lg bg-amber-400/10 text-amber-400 flex items-center justify-center">
+                <CreditCard className="w-3.5 h-3.5" />
+              </div>
+            </div>
+            <p className="text-2xl sm:text-3xl font-black text-amber-400 font-mono">{needsPaymentCount}</p>
+            <p className="text-[11px] text-slate-400 mt-1">Approved, awaiting payment</p>
           </Card>
 
           <Card variant="default" className="p-4 sm:p-5">
@@ -303,24 +355,13 @@ export default function MyBookingsPage() {
 
           <Card variant="default" className="p-4 sm:p-5">
             <div className="flex items-center justify-between text-slate-400 mb-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider">Cancelled</span>
-              <div className="w-7 h-7 rounded-lg bg-rose-500/10 text-rose-400 flex items-center justify-center">
-                <XCircle className="w-3.5 h-3.5" />
-              </div>
-            </div>
-            <p className="text-2xl sm:text-3xl font-black text-rose-400 font-mono">{cancelledCount}</p>
-            <p className="text-[11px] text-slate-400 mt-1">Cancelled bookings</p>
-          </Card>
-
-          <Card variant="default" className="p-4 sm:p-5">
-            <div className="flex items-center justify-between text-slate-400 mb-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider">Total Bookings</span>
+              <span className="text-[11px] font-bold uppercase tracking-wider">Total Lifetime</span>
               <div className="w-7 h-7 rounded-lg bg-sky-500/10 text-sky-400 flex items-center justify-center">
                 <History className="w-3.5 h-3.5" />
               </div>
             </div>
             <p className="text-2xl sm:text-3xl font-black text-white font-mono">{totalCount}</p>
-            <p className="text-[11px] text-slate-400 mt-1">Lifetime court holds</p>
+            <p className="text-[11px] text-slate-400 mt-1">All booking requests</p>
           </Card>
         </section>
 
@@ -345,6 +386,7 @@ export default function MyBookingsPage() {
                     <span className="text-xs text-slate-400 font-mono px-2 py-0.5 rounded bg-[#0B0F17] border border-[#28303F]">
                       #{nextMatch.id}
                     </span>
+                    <Badge status={nextMatch.status} />
                   </div>
 
                   <div>
@@ -384,6 +426,20 @@ export default function MyBookingsPage() {
                     <span className="text-2xl font-black text-lime-400 font-mono">₹{nextMatch.totalPrice}</span>
                   </div>
 
+                  {(nextMatch.status === 'APPROVED' || nextMatch.status === 'PAYMENT_PENDING') && (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      icon={CreditCard}
+                      onClick={() => {
+                        setPayingBooking(nextMatch);
+                        setPayError(null);
+                      }}
+                    >
+                      Pay Now
+                    </Button>
+                  )}
+
                   <Button
                     variant="outline"
                     size="sm"
@@ -394,7 +450,7 @@ export default function MyBookingsPage() {
 
                   {nextMatch.venueId && (
                     <Link to={`/venues/${nextMatch.venueId}`}>
-                      <Button variant="primary" size="sm" icon={ChevronRight}>
+                      <Button variant="secondary" size="sm" icon={ChevronRight}>
                         Venue Info
                       </Button>
                     </Link>
@@ -408,7 +464,6 @@ export default function MyBookingsPage() {
         {/* Filter Navigation & Search Bar */}
         <section aria-label="Bookings filters" className="mt-8 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-
             {/* Segmented Filter Tabs */}
             <div className="inline-flex p-1 bg-[#0F131C] border border-[#28303F] rounded-xl max-w-full overflow-x-auto no-scrollbar">
               <button
@@ -428,6 +483,27 @@ export default function MyBookingsPage() {
                   {upcomingCount}
                 </span>
               </button>
+
+              {needsPaymentCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('NEEDS_PAYMENT')}
+                  aria-pressed={activeTab === 'NEEDS_PAYMENT'}
+                  className={`px-3.5 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                    activeTab === 'NEEDS_PAYMENT'
+                      ? 'bg-amber-400 text-slate-950 shadow-qc-amber'
+                      : 'text-amber-400 hover:bg-amber-400/10'
+                  }`}
+                >
+                  <CreditCard className="w-3.5 h-3.5" />
+                  <span>Needs Payment</span>
+                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
+                    activeTab === 'NEEDS_PAYMENT' ? 'bg-slate-950 text-amber-400' : 'bg-amber-400/20 text-amber-300'
+                  }`}>
+                    {needsPaymentCount}
+                  </span>
+                </button>
+              )}
 
               <button
                 type="button"
@@ -484,7 +560,7 @@ export default function MyBookingsPage() {
               </button>
             </div>
 
-            {/* In-page Filter Search Input */}
+            {/* In-page Search */}
             <div className="relative min-w-[240px]">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" aria-hidden="true" />
               <input
@@ -509,7 +585,7 @@ export default function MyBookingsPage() {
           </div>
         </section>
 
-        {/* Content Section: List, Loading, Empty, or Error */}
+        {/* Bookings List */}
         <section aria-label="Bookings list" className="mt-6">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-24 space-y-3">
@@ -523,11 +599,7 @@ export default function MyBookingsPage() {
               <AlertCircle className="w-10 h-10 text-rose-400 mx-auto mb-3" />
               <h3 className="text-base font-bold text-white mb-1">Unable to Load Bookings</h3>
               <p className="text-xs text-slate-400 mb-5 leading-relaxed">{error}</p>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={loadBookings}
-              >
+              <Button variant="primary" size="sm" onClick={loadBookings}>
                 Retry Request
               </Button>
             </div>
@@ -540,33 +612,33 @@ export default function MyBookingsPage() {
               <h3 className="text-lg font-bold text-white mb-1.5">
                 {searchQuery
                   ? 'No Matching Bookings'
-                  : activeTab === 'UPCOMING'
-                    ? 'No Upcoming Games Scheduled'
-                    : activeTab === 'PAST'
-                      ? 'No Past Match Records'
-                      : activeTab === 'CANCELLED'
-                        ? 'No Cancelled Reservations'
-                        : 'No Bookings Found'}
+                  : activeTab === 'NEEDS_PAYMENT'
+                    ? 'No Payments Due'
+                    : activeTab === 'UPCOMING'
+                      ? 'No Upcoming Games Scheduled'
+                      : activeTab === 'PAST'
+                        ? 'No Past Match Records'
+                        : activeTab === 'CANCELLED'
+                          ? 'No Cancelled Reservations'
+                          : 'No Bookings Found'}
               </h3>
 
               <p className="text-xs text-slate-400 mb-6 leading-relaxed max-w-sm mx-auto">
                 {searchQuery
                   ? `No reservations match "${searchQuery}". Try clearing your search.`
-                  : activeTab === 'UPCOMING'
-                    ? 'You currently have zero active court holds. Find an open slot and get ready to play.'
-                    : activeTab === 'PAST'
-                      ? 'Completed court sessions and match archives will appear here after playtime ends.'
-                      : activeTab === 'CANCELLED'
-                        ? 'All your current bookings remain active and confirmed.'
-                        : "You haven't reserved any sports courts yet. Explore verified facilities in your area."}
+                  : activeTab === 'NEEDS_PAYMENT'
+                    ? 'All your approved bookings have been paid and confirmed.'
+                    : activeTab === 'UPCOMING'
+                      ? 'You currently have zero active court holds. Find an open slot and get ready to play.'
+                      : activeTab === 'PAST'
+                        ? 'Completed court sessions and match archives will appear here after playtime ends.'
+                        : activeTab === 'CANCELLED'
+                          ? 'All your current bookings remain active and confirmed.'
+                          : "You haven't reserved any sports courts yet. Explore verified facilities in your area."}
               </p>
 
               {searchQuery ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSearchQuery('')}
-                >
+                <Button variant="outline" size="sm" onClick={() => setSearchQuery('')}>
                   Clear Search Filter
                 </Button>
               ) : (
@@ -580,37 +652,50 @@ export default function MyBookingsPage() {
           ) : (
             <div className="space-y-4">
               {filteredBookings.map((b) => {
-                const isConfirmed = b.status === 'CONFIRMED';
-                const isPast = isBookingPast(b);
-                const isUpcoming = isConfirmed && !isPast;
-                const isCancelled = b.status === 'CANCELLED';
+                const isConfirmed = b.status === 'CONFIRMED' || b.status === 'PAID';
+                const isRequested = b.status === 'REQUESTED';
+                const isApproved = b.status === 'APPROVED' || b.status === 'PAYMENT_PENDING';
+                const isPast = isBookingPast(b) || b.status === 'COMPLETED';
+                const isCancelled = b.status === 'CANCELLED' || b.status === 'REJECTED';
+                const isUpcoming = !isPast && !isCancelled;
                 const dayLabel = getRelativeDayLabel(b.date);
-                const displayStatus = isCancelled ? 'CANCELLED' : isPast ? 'COMPLETED' : b.status;
+
+                // Lifecycle descriptive label
+                let statusLabel = b.status;
+                if (isRequested) statusLabel = 'Waiting for Approval';
+                else if (isApproved) statusLabel = 'Payment Required';
+                else if (isConfirmed) statusLabel = 'Booking Confirmed';
+                else if (b.status === 'REJECTED') statusLabel = 'Request Rejected';
+                else if (b.status === 'CANCELLED') statusLabel = 'Cancelled';
+                else if (isPast) statusLabel = 'Completed';
 
                 return (
                   <article
                     key={b.id}
                     className={`rounded-xl border transition-all relative overflow-hidden backdrop-blur-md ${
-                      isUpcoming
-                        ? 'bg-[#181C24] border-[#28303F] hover:border-lime-400/50 hover:shadow-qc-card'
-                        : isConfirmed
-                          ? 'bg-[#0F131C] border-[#28303F] hover:border-slate-700'
-                          : 'bg-[#0B0F17]/80 border-[#28303F]/60 opacity-80'
+                      isApproved
+                        ? 'bg-[#181C24] border-amber-400/50 hover:shadow-qc-amber'
+                        : isUpcoming
+                          ? 'bg-[#181C24] border-[#28303F] hover:border-lime-400/50 hover:shadow-qc-card'
+                          : 'bg-[#0F131C] border-[#28303F]'
                     }`}
                   >
                     {/* Top status accent bar */}
                     <div className={`h-1 w-full ${
-                      isUpcoming
-                        ? 'bg-lime-400'
+                      isApproved
+                        ? 'bg-amber-400'
                         : isConfirmed
-                          ? 'bg-emerald-600'
-                          : 'bg-rose-500/50'
+                          ? 'bg-emerald-500'
+                          : isRequested
+                            ? 'bg-yellow-500/70'
+                            : isCancelled
+                              ? 'bg-rose-500/50'
+                              : 'bg-slate-700'
                     }`} />
 
                     <div className="p-5 sm:p-6">
                       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-
-                        {/* Left Info Column */}
+                        {/* Left Column */}
                         <div className="space-y-2.5 min-w-0">
                           {/* Badges strip */}
                           <div className="flex items-center gap-2 flex-wrap">
@@ -619,7 +704,25 @@ export default function MyBookingsPage() {
                             </span>
 
                             {/* Status badge */}
-                            <Badge status={displayStatus} />
+                            <Badge status={b.status} label={statusLabel} />
+
+                            {/* Payment Status Pill */}
+                            {b.paymentStatus === 'PAID' ? (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-950/80 text-emerald-300 border border-emerald-500/50">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                                <span>PAID ({b.paymentMethod || 'UPI'})</span>
+                              </span>
+                            ) : b.paymentMethod === 'Pay at Venue' ? (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-sky-950/80 text-sky-300 border border-sky-500/50">
+                                <Building2 className="w-3 h-3 text-sky-400" />
+                                <span>Pay at Venue</span>
+                              </span>
+                            ) : isApproved ? (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-950/80 text-amber-300 border border-amber-500/50">
+                                <CreditCard className="w-3 h-3 text-amber-400" />
+                                <span>Payment Due</span>
+                              </span>
+                            ) : null}
 
                             {/* Relative Day Indicator */}
                             {dayLabel && isUpcoming && (
@@ -679,52 +782,54 @@ export default function MyBookingsPage() {
                         </div>
 
                         {/* Right Financial & Action Controls */}
-                        <div className="flex items-center justify-between lg:justify-end gap-4 pt-4 lg:pt-0 border-t lg:border-t-0 border-[#28303F]">
-                          <div className="text-left lg:text-right">
+                        <div className="flex items-center justify-between lg:justify-end gap-3 pt-4 lg:pt-0 border-t lg:border-t-0 border-[#28303F] flex-wrap">
+                          <div className="text-left lg:text-right mr-2">
                             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                              Total Rate
+                              Rate
                             </span>
                             <span className="text-xl sm:text-2xl font-black text-lime-400 font-mono">
                               ₹{b.totalPrice}
                             </span>
                           </div>
 
-                          <div className="flex items-center gap-2">
-                            {/* View Pass / Details Modal */}
+                          {/* Action 1: Pay & Confirm if APPROVED */}
+                          {isApproved && (
                             <Button
-                              variant="outline"
+                              variant="primary"
                               size="sm"
-                              onClick={() => setSelectedPass(b)}
+                              icon={CreditCard}
+                              onClick={() => {
+                                setPayingBooking(b);
+                                setPayError(null);
+                              }}
                             >
-                              Match Pass
+                              Pay Now
                             </Button>
+                          )}
 
-                            {/* Venue Facility Link */}
-                            {b.venueId && (
-                              <Link
-                                to={`/venues/${b.venueId}`}
-                                className="p-2 text-slate-400 hover:text-lime-400 hover:bg-white/5 rounded-xl border border-[#28303F] transition-colors"
-                                title="View venue facility specifications"
-                                aria-label={`View venue details for ${b.venueName}`}
-                              >
-                                <Building2 className="w-4 h-4" />
-                              </Link>
-                            )}
 
-                            {/* Cancellation Button */}
-                            {isConfirmed && !isCancelled && !isPast && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setCancellingBooking(b);
-                                  setCancelError(null);
-                                }}
-                                className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-rose-400 hover:text-rose-300 bg-rose-950/40 hover:bg-rose-950/60 border border-rose-800/60 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-rose-500"
-                              >
-                                <span>Cancel</span>
-                              </button>
-                            )}
-                          </div>
+                          {/* Action 3: View Match Pass */}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setSelectedPass(b)}
+                          >
+                            Match Pass
+                          </Button>
+
+                          {/* Action 4: Cancel (if uncompleted and not already cancelled) */}
+                          {isUpcoming && !isCancelled && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCancellingBooking(b);
+                                setCancelError(null);
+                              }}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-rose-400 hover:text-rose-300 bg-rose-950/40 hover:bg-rose-950/60 border border-rose-800/60 rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-rose-500"
+                            >
+                              <span>Cancel</span>
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -738,7 +843,7 @@ export default function MyBookingsPage() {
 
       <Footer />
 
-      {/* ─── Match Pass / Booking Details Modal ────────────────────────────────────── */}
+      {/* ─── Match Pass Modal ────────────────────────────────────── */}
       {selectedPass && (
         <div
           className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm overflow-y-auto animate-in fade-in"
@@ -751,8 +856,6 @@ export default function MyBookingsPage() {
         >
           <div className="flex min-h-full items-center justify-center p-4">
             <div className="bg-[#0F131C] border border-[#28303F] rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-2xl space-y-5 relative my-4 sm:my-8">
-
-              {/* Modal Header */}
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-lime-400/10 text-lime-400 flex items-center justify-center border border-lime-400/20 shrink-0">
@@ -830,7 +933,7 @@ export default function MyBookingsPage() {
 
                 <div className="flex items-center justify-between pt-2.5 border-t border-[#28303F]">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                    Rate Paid
+                    Total Booking Rate
                   </span>
                   <span className="text-sm font-black text-lime-400 font-mono">
                     ₹{selectedPass.totalPrice}
@@ -838,33 +941,58 @@ export default function MyBookingsPage() {
                 </div>
               </div>
 
-              {/* Status & Check-in instructions */}
-              <div className="flex items-center justify-between p-3 rounded-xl bg-[#181C24] border border-[#28303F]">
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                  <span className="text-xs text-slate-300">Status</span>
+              {/* Status breakdown */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between p-3 rounded-xl bg-[#181C24] border border-[#28303F]">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                    <span className="text-xs text-slate-300">Booking Status</span>
+                  </div>
+                  <Badge status={selectedPass.status} />
                 </div>
-                <Badge status={selectedPass.status === 'CONFIRMED' && isBookingPast(selectedPass) ? 'COMPLETED' : selectedPass.status} />
-              </div>
 
-              <div className="p-3 rounded-xl bg-[#0B0F17]/60 border border-[#28303F] text-[11px] text-slate-400 leading-relaxed">
-                Present this digital pass or your booking reference at venue reception upon arrival.
+                <div className="flex items-center justify-between p-3 rounded-xl bg-[#181C24] border border-[#28303F]">
+                  <div className="flex items-center gap-2">
+                    <CreditCard className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                    <span className="text-xs text-slate-300">Payment Status</span>
+                  </div>
+                  <span className="text-xs font-bold text-white font-mono">
+                    {selectedPass.paymentStatus === 'PAID'
+                      ? `PAID (${selectedPass.paymentMethod || 'UPI'})`
+                      : selectedPass.paymentMethod === 'Pay at Venue'
+                        ? 'PENDING — Pay at Venue'
+                        : 'PENDING'}
+                  </span>
+                </div>
               </div>
 
               {/* Modal Actions */}
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-2">
-                {selectedPass.venueId && (
-                  <Link
-                    to={`/venues/${selectedPass.venueId}`}
-                    className="w-full sm:w-auto"
+                {(selectedPass.status === 'APPROVED' || selectedPass.status === 'PAYMENT_PENDING') && (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    icon={CreditCard}
+                    onClick={() => {
+                      setPayingBooking(selectedPass);
+                      setPayError(null);
+                      setSelectedPass(null);
+                    }}
                   >
+                    Pay Now
+                  </Button>
+                )}
+
+                {selectedPass.venueId && (
+                  <Link to={`/venues/${selectedPass.venueId}`} className="w-full sm:w-auto">
                     <Button variant="outline" size="sm" className="w-full">
-                      View Venue Page
+                      Venue Details
                     </Button>
                   </Link>
                 )}
+
                 <Button
-                  variant="primary"
+                  variant="secondary"
                   size="sm"
                   onClick={() => setSelectedPass(null)}
                   className="w-full sm:w-auto"
@@ -877,7 +1005,168 @@ export default function MyBookingsPage() {
         </div>
       )}
 
-      {/* ─── Cancellation Confirmation Dialog ────────────────────────────────────────── */}
+      {/* ─── Demo Payment Dialog ────────────────────────────────────────── */}
+      {payingBooking && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm overflow-y-auto animate-in fade-in"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="pay-dialog-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !payLoading) setPayingBooking(null);
+          }}
+        >
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="bg-[#0F131C] border border-[#28303F] rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-2xl space-y-4 my-4 sm:my-8">
+              <div className="flex items-center justify-between pb-3 border-b border-[#28303F]">
+                <div className="flex items-center gap-2">
+                  <CreditCard className="w-5 h-5 text-lime-400" />
+                  <h3 id="pay-dialog-title" className="text-base font-black text-white">
+                    Complete Booking Payment
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => !payLoading && setPayingBooking(null)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-[#181C24]"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {payError && (
+                <div className="p-3 rounded-xl bg-rose-950/50 border border-rose-800/80 text-rose-300 text-xs font-medium" role="alert">
+                  {payError}
+                </div>
+              )}
+
+              {/* Booking Summary */}
+              <div className="p-3.5 rounded-xl bg-[#0B0F17] border border-[#28303F] text-xs space-y-1.5">
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Venue & Court:</span>
+                  <span className="font-bold text-white text-right">{payingBooking.venueName} • {payingBooking.courtName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Date & Time:</span>
+                  <span className="font-mono text-slate-200">{formatBookingDate(payingBooking.date)} ({payingBooking.startTime} - {payingBooking.endTime})</span>
+                </div>
+                <div className="flex justify-between pt-2 border-t border-[#28303F] items-baseline">
+                  <span className="text-slate-400 font-bold">Total Due:</span>
+                  <span className="text-lg font-black text-lime-400 font-mono">₹{payingBooking.totalPrice}</span>
+                </div>
+              </div>
+
+              {/* Payment Method Selector */}
+              <div className="space-y-2 pt-1">
+                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
+                  Select Payment Method
+                </label>
+
+                {/* Option 1: UPI */}
+                <label className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
+                  paymentMethod === 'UPI'
+                    ? 'bg-lime-400/10 border-lime-400 text-white'
+                    : 'bg-[#0B0F17] border-[#28303F] text-slate-300 hover:border-slate-600'
+                }`}>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="radio"
+                      name="payMethod"
+                      value="UPI"
+                      checked={paymentMethod === 'UPI'}
+                      onChange={() => setPaymentMethod('UPI')}
+                      className="accent-lime-400"
+                    />
+                    <div>
+                      <span className="text-xs font-bold block">UPI (Instant Demo)</span>
+                      <span className="text-[10px] text-slate-400">Google Pay, PhonePe, Paytm, BHIM</span>
+                    </div>
+                  </div>
+                  <Wallet className="w-4 h-4 text-lime-400" />
+                </label>
+
+                {/* Option 2: Card */}
+                <label className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
+                  paymentMethod === 'Card'
+                    ? 'bg-lime-400/10 border-lime-400 text-white'
+                    : 'bg-[#0B0F17] border-[#28303F] text-slate-300 hover:border-slate-600'
+                }`}>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="radio"
+                      name="payMethod"
+                      value="Card"
+                      checked={paymentMethod === 'Card'}
+                      onChange={() => setPaymentMethod('Card')}
+                      className="accent-lime-400"
+                    />
+                    <div>
+                      <span className="text-xs font-bold block">Credit / Debit Card (Demo)</span>
+                      <span className="text-[10px] text-slate-400">Visa, Mastercard, RuPay</span>
+                    </div>
+                  </div>
+                  <CreditCard className="w-4 h-4 text-sky-400" />
+                </label>
+
+                {/* Option 3: Pay at Venue */}
+                <label className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
+                  paymentMethod === 'Pay at Venue'
+                    ? 'bg-lime-400/10 border-lime-400 text-white'
+                    : 'bg-[#0B0F17] border-[#28303F] text-slate-300 hover:border-slate-600'
+                }`}>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="radio"
+                      name="payMethod"
+                      value="Pay at Venue"
+                      checked={paymentMethod === 'Pay at Venue'}
+                      onChange={() => setPaymentMethod('Pay at Venue')}
+                      className="accent-lime-400"
+                    />
+                    <div>
+                      <span className="text-xs font-bold block">Pay at Venue</span>
+                      <span className="text-[10px] text-slate-400">Settled at facility reception upon arrival</span>
+                    </div>
+                  </div>
+                  <Building2 className="w-4 h-4 text-amber-400" />
+                </label>
+              </div>
+
+              <div className="p-3 rounded-xl bg-[#0B0F17] border border-[#28303F] text-[11px] text-slate-400 flex items-start gap-2">
+                <Info className="w-3.5 h-3.5 text-lime-400 shrink-0 mt-0.5" />
+                <span>
+                  {paymentMethod === 'Pay at Venue'
+                    ? 'Slot will be confirmed immediately. Payment status remains PENDING until settled at check-in.'
+                    : 'Instant demo confirmation. Payment status will be marked as PAID and booking CONFIRMED.'}
+                </span>
+              </div>
+
+              {/* Actions */}
+              <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={payLoading}
+                  onClick={() => setPayingBooking(null)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  loading={payLoading}
+                  onClick={handlePaymentSubmit}
+                  icon={ArrowRight}
+                >
+                  {paymentMethod === 'Pay at Venue' ? 'Confirm Reservation' : `Pay ₹${payingBooking.totalPrice}`}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Cancellation Dialog ────────────────────────────────────────── */}
       {cancellingBooking && (
         <div
           className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm overflow-y-auto animate-in fade-in"
@@ -946,4 +1235,3 @@ export default function MyBookingsPage() {
     </div>
   );
 }
-

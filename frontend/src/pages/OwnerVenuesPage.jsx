@@ -1169,21 +1169,54 @@ function VenueEditForm({ initial, onSubmit, onCancel, loading, error }) {
 
 function CourtFormModal({ venue, court, onSave, onClose, loading, error }) {
   const isEdit = Boolean(court);
+
+  // Safely extract available sports from venue with multiple fallbacks
+  const availableSports = (Array.isArray(venue?.sportTypes) && venue.sportTypes.length > 0)
+    ? venue.sportTypes
+    : (typeof venue?.sportTypes === 'string'
+        ? venue.sportTypes.split(',').map((s) => s.trim()).filter(Boolean)
+        : (venue?.sport ? [venue.sport] : ALL_SPORTS));
+
   const [form, setForm] = useState({
     name: court?.name || '',
-    sport: court?.sport || venue.sportTypes[0] || 'Badminton',
+    sport: court?.sport || (availableSports[0] || 'Badminton'),
     courtType: court?.courtType || 'Synthetic Mat',
-    pricePerHour: court ? String(court.pricePerHour) : String(venue.pricePerHour || 400),
-    operatingHours: court?.operatingHours || venue.openingHours || '06:00 AM - 10:00 PM',
-    indoor: court !== undefined ? Boolean(court.indoor) : Boolean(venue.indoor),
-    isActive: court !== undefined ? Boolean(court.isActive) : true,
+    pricePerHour: court?.pricePerHour !== undefined ? String(court.pricePerHour) : String(venue?.pricePerHour || 400),
+    operatingHours: court?.operatingHours || venue?.openingHours || '06:00 AM - 10:00 PM',
+    indoor: court?.indoor !== undefined ? Boolean(court.indoor) : (venue?.indoor !== undefined ? Boolean(venue.indoor) : true),
+    isActive: court?.isActive !== undefined ? Boolean(court.isActive) : true,
   });
+
+  const [validationError, setValidationError] = useState('');
 
   function handleSubmit(e) {
     e.preventDefault();
+    setValidationError('');
+
+    if (!form.name.trim()) {
+      setValidationError('Court name is required.');
+      return;
+    }
+    if (form.name.trim().length > 100) {
+      setValidationError('Court name cannot exceed 100 characters.');
+      return;
+    }
+    if (!form.sport || !form.sport.trim()) {
+      setValidationError('Sport type is required.');
+      return;
+    }
+    const price = Number(form.pricePerHour);
+    if (isNaN(price) || price <= 0) {
+      setValidationError('Price per hour must be a valid positive number (₹).');
+      return;
+    }
+
     onSave({
-      ...form,
-      pricePerHour: Number(form.pricePerHour) || 0,
+      name: form.name.trim(),
+      sport: form.sport.trim(),
+      courtType: form.courtType.trim() || 'Standard',
+      pricePerHour: price,
+      operatingHours: form.operatingHours.trim() || venue?.openingHours || '06:00 AM - 10:00 PM',
       indoor: Boolean(form.indoor),
       isActive: Boolean(form.isActive),
     });
@@ -1191,16 +1224,16 @@ function CourtFormModal({ venue, court, onSave, onClose, loading, error }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[#0B0F17]/85 backdrop-blur-md p-4 animate-in fade-in"
       role="dialog"
       aria-modal="true"
       aria-labelledby="court-modal-title"
     >
-      <div className="bg-slate-900 rounded-3xl shadow-2xl border border-slate-800 p-6 sm:p-7 max-w-lg w-full max-h-[90vh] overflow-y-auto text-slate-100">
-        <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-800">
+      <div className="bg-[#0F131C] rounded-3xl shadow-2xl border border-[#28303F] p-6 sm:p-7 max-w-lg w-full max-h-[90vh] overflow-y-auto text-slate-100">
+        <div className="flex items-center justify-between pb-3 mb-4 border-b border-[#28303F]">
           <div>
             <h2 id="court-modal-title" className="text-lg font-black text-white">
-              {isEdit ? `Edit — ${court.name}` : `Add Court to ${venue.name}`}
+              {isEdit ? `Edit — ${court?.name || 'Court'}` : `Add Court to ${venue?.name || 'Facility'}`}
             </h2>
             <p className="text-xs text-slate-400 mt-0.5">
               Configure court surface specifications, operating hours, and hourly rate.
@@ -1209,17 +1242,17 @@ function CourtFormModal({ venue, court, onSave, onClose, loading, error }) {
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors"
+            className="p-1.5 text-slate-400 hover:text-white rounded-xl hover:bg-[#181C24] transition-colors"
             aria-label="Close modal"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {error && (
-          <div role="alert" className="flex items-start gap-2.5 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs mb-4">
+        {(validationError || error) && (
+          <div role="alert" className="flex items-start gap-2.5 p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs mb-4 animate-in fade-in">
             <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-rose-400" />
-            <span>{error}</span>
+            <span>{validationError || error}</span>
           </div>
         )}
 
@@ -1228,7 +1261,10 @@ function CourtFormModal({ venue, court, onSave, onClose, loading, error }) {
             id="cf-name"
             label="Court / Pitch Name"
             value={form.name}
-            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+            onChange={(e) => {
+              setForm((f) => ({ ...f, name: e.target.value }));
+              if (validationError) setValidationError('');
+            }}
             required
             placeholder="e.g. Badminton Court 1"
           />
@@ -1236,15 +1272,18 @@ function CourtFormModal({ venue, court, onSave, onClose, loading, error }) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label htmlFor="cf-sport" className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
-                Sport <span className="text-emerald-400">*</span>
+                Sport <span className="text-lime-400">*</span>
               </label>
               <select
                 id="cf-sport"
                 value={form.sport}
-                onChange={(e) => setForm((f) => ({ ...f, sport: e.target.value }))}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-700/90 text-sm text-white bg-slate-950 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                onChange={(e) => {
+                  setForm((f) => ({ ...f, sport: e.target.value }));
+                  if (validationError) setValidationError('');
+                }}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-[#28303F] text-sm text-white bg-[#0B0F17] focus:outline-none focus:border-lime-400 focus:ring-2 focus:ring-lime-400/20 transition-all"
               >
-                {venue.sportTypes.map((s) => (
+                {availableSports.map((s) => (
                   <option key={s} value={s}>{s}</option>
                 ))}
               </select>
@@ -1265,7 +1304,10 @@ function CourtFormModal({ venue, court, onSave, onClose, loading, error }) {
               label="Rate (₹ / hr)"
               type="number"
               value={form.pricePerHour}
-              onChange={(e) => setForm((f) => ({ ...f, pricePerHour: e.target.value }))}
+              onChange={(e) => {
+                setForm((f) => ({ ...f, pricePerHour: e.target.value }));
+                if (validationError) setValidationError('');
+              }}
               required
               placeholder="400"
             />
@@ -1285,7 +1327,7 @@ function CourtFormModal({ venue, court, onSave, onClose, loading, error }) {
                 type="checkbox"
                 checked={form.indoor}
                 onChange={(e) => setForm((f) => ({ ...f, indoor: e.target.checked }))}
-                className="w-4 h-4 text-emerald-500 rounded border-slate-700 bg-slate-950 focus:ring-emerald-500"
+                className="w-4 h-4 text-lime-400 rounded border-[#28303F] bg-[#0B0F17] focus:ring-lime-400"
               />
               <span>Indoor Court</span>
             </label>
@@ -1295,17 +1337,17 @@ function CourtFormModal({ venue, court, onSave, onClose, loading, error }) {
                 type="checkbox"
                 checked={form.isActive}
                 onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.checked }))}
-                className="w-4 h-4 text-emerald-500 rounded border-slate-700 bg-slate-950 focus:ring-emerald-500"
+                className="w-4 h-4 text-lime-400 rounded border-[#28303F] bg-[#0B0F17] focus:ring-lime-400"
               />
               <span>Active for Public Bookings</span>
             </label>
           </div>
 
-          <div className="flex gap-3 pt-4 border-t border-slate-800">
+          <div className="flex gap-3 pt-4 border-t border-[#28303F]">
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-slate-950 text-xs font-black rounded-xl shadow-md shadow-emerald-500/20 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-400 disabled:opacity-60"
+              className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 bg-lime-400 hover:bg-lime-300 active:bg-lime-500 text-slate-950 text-xs font-black rounded-xl shadow-qc-lime transition-all focus:outline-none focus:ring-2 focus:ring-lime-400 disabled:opacity-60"
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               <span>{isEdit ? 'Save Court Changes' : 'Create Court'}</span>
@@ -1314,7 +1356,7 @@ function CourtFormModal({ venue, court, onSave, onClose, loading, error }) {
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl transition-colors"
+              className="px-5 py-2.5 bg-[#181C24] hover:bg-slate-800 text-slate-300 text-xs font-bold rounded-xl transition-colors border border-[#28303F]"
             >
               Cancel
             </button>
@@ -1328,9 +1370,11 @@ function CourtFormModal({ venue, court, onSave, onClose, loading, error }) {
 // ─── Court Deletion Confirmation Modal ────────────────────────────────────────
 
 function CourtDeleteModal({ court, onConfirm, onCancel, loading }) {
+  if (!court) return null;
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[#0B0F17]/85 backdrop-blur-md p-4 animate-in fade-in"
       role="dialog"
       aria-modal="true"
       aria-labelledby="delete-court-title"
