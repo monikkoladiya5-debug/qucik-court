@@ -7,7 +7,7 @@ import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import Card from '../components/ui/Card';
 import SportIcon from '../components/ui/SportIcon';
-import { fetchMyBookings, cancelBooking, payBooking } from '../services/api';
+import { fetchMyBookings, cancelBooking, payBooking, rescheduleBooking } from '../services/api';
 import { getLocalDateString } from '../utils/date';
 import {
   Calendar,
@@ -36,8 +36,23 @@ import {
   Info,
   QrCode,
   KeyRound,
-  Copy
+  Copy,
+  RefreshCw,
 } from 'lucide-react';
+
+const CANCELLATION_REASONS = [
+  'Plans changed',
+  'Schedule conflict',
+  'Found another time',
+  'Venue issue',
+  'Other',
+];
+
+const STANDARD_SLOTS_12H = [
+  '06:00 AM', '07:00 AM', '08:00 AM', '09:00 AM', '10:00 AM', '11:00 AM',
+  '12:00 PM', '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM', '05:00 PM',
+  '06:00 PM', '07:00 PM', '08:00 PM', '09:00 PM', '10:00 PM', '11:00 PM'
+];
 
 function parseTimeTo24(timeStr) {
   if (!timeStr) return { hours: 23, minutes: 59 };
@@ -107,16 +122,25 @@ export default function MyBookingsPage() {
 
   // Cancellation state
   const [cancellingBooking, setCancellingBooking] = useState(null);
+  const [cancelReason, setCancelReason] = useState('Plans changed');
+  const [cancelNote, setCancelNote] = useState('');
   const [cancelLoading, setCancelLoading] = useState(false);
   const [cancelError, setCancelError] = useState(null);
   const [successMsg, setSuccessMsg] = useState('');
+
+  // Rescheduling state
+  const [reschedulingBooking, setReschedulingBooking] = useState(null);
+  const [rescheduleDate, setRescheduleDate] = useState('');
+  const [rescheduleStart, setRescheduleStart] = useState('08:00 AM');
+  const [rescheduleEnd, setRescheduleEnd] = useState('09:00 AM');
+  const [rescheduleLoading, setRescheduleLoading] = useState(false);
+  const [rescheduleError, setRescheduleError] = useState(null);
 
   // Payment Modal state
   const [payingBooking, setPayingBooking] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState('UPI'); // 'UPI' | 'Card' | 'Pay at Venue'
   const [payLoading, setPayLoading] = useState(false);
   const [payError, setPayError] = useState(null);
-
 
   // Selected Booking Details Pass Modal
   const [selectedPass, setSelectedPass] = useState(null);
@@ -148,11 +172,15 @@ export default function MyBookingsPage() {
           setCancellingBooking(null);
           setCancelError(null);
         }
+        if (reschedulingBooking && !rescheduleLoading) {
+          setReschedulingBooking(null);
+          setRescheduleError(null);
+        }
       }
     }
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedPass, payingBooking, payLoading, cancellingBooking, cancelLoading]);
+  }, [selectedPass, payingBooking, payLoading, cancellingBooking, cancelLoading, reschedulingBooking, rescheduleLoading]);
 
   // Cancel Handler
   const handleCancelConfirm = async () => {
@@ -160,20 +188,69 @@ export default function MyBookingsPage() {
     try {
       setCancelLoading(true);
       setCancelError(null);
-      const res = await cancelBooking(cancellingBooking.id);
+      const res = await cancelBooking(cancellingBooking.id, {
+        reason: cancelReason,
+        note: cancelNote,
+      });
+      const updated = res.booking || {
+        ...cancellingBooking,
+        status: 'CANCELLED',
+        paymentStatus: cancellingBooking.paymentStatus === 'PAID' ? 'REFUNDED' : cancellingBooking.paymentStatus,
+      };
       setBookings((prev) =>
-        prev.map((b) => (b.id === cancellingBooking.id ? { ...b, status: 'CANCELLED', paymentStatus: b.paymentStatus === 'PAID' ? 'REFUNDED' : b.paymentStatus } : b))
+        prev.map((b) => (b.id === cancellingBooking.id ? { ...b, ...updated } : b))
       );
       if (selectedPass?.id === cancellingBooking.id) {
-        setSelectedPass((prev) => (prev ? { ...prev, status: 'CANCELLED' } : null));
+        setSelectedPass((prev) => (prev ? { ...prev, ...updated } : null));
       }
       setCancellingBooking(null);
-      setSuccessMsg(`Reservation #${res.booking?.id || cancellingBooking.id} has been cancelled.`);
+      setSuccessMsg(`Reservation #${updated.id} has been cancelled (${cancelReason}).`);
       setTimeout(() => setSuccessMsg(''), 5000);
     } catch (err) {
       setCancelError(err.message || 'Failed to cancel booking. Please try again.');
     } finally {
       setCancelLoading(false);
+    }
+  };
+
+  // Open Reschedule Modal Helper
+  const openRescheduleModal = (booking) => {
+    setReschedulingBooking(booking);
+    setRescheduleDate(booking.date || getLocalDateString());
+    setRescheduleStart(booking.startTime || '08:00 AM');
+    setRescheduleEnd(booking.endTime || '09:00 AM');
+    setRescheduleError(null);
+  };
+
+  // Reschedule Handler
+  const handleRescheduleSubmit = async (e) => {
+    e.preventDefault();
+    if (!reschedulingBooking) return;
+
+    try {
+      setRescheduleLoading(true);
+      setRescheduleError(null);
+
+      const res = await rescheduleBooking(reschedulingBooking.id, {
+        date: rescheduleDate,
+        startTime: rescheduleStart,
+        endTime: rescheduleEnd,
+      });
+
+      const updated = res.booking;
+      setBookings((prev) =>
+        prev.map((b) => (b.id === reschedulingBooking.id ? { ...b, ...updated } : b))
+      );
+      if (selectedPass?.id === reschedulingBooking.id) {
+        setSelectedPass({ ...selectedPass, ...updated });
+      }
+      setReschedulingBooking(null);
+      setSuccessMsg(`Reservation #${updated.id} rescheduled to ${formatBookingDate(updated.date)} (${updated.startTime} - ${updated.endTime}).`);
+      setTimeout(() => setSuccessMsg(''), 5000);
+    } catch (err) {
+      setRescheduleError(err.message || 'Failed to reschedule booking. Please check for scheduling conflicts.');
+    } finally {
+      setRescheduleLoading(false);
     }
   };
 
@@ -812,6 +889,18 @@ export default function MyBookingsPage() {
                           )}
 
 
+                          {/* Action 2: Reschedule (if upcoming and cancellable/reschedulable) */}
+                          {isUpcoming && !isCancelled && b.status !== 'CHECKED_IN' && b.status !== 'COMPLETED' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              icon={RefreshCw}
+                              onClick={() => openRescheduleModal(b)}
+                            >
+                              Reschedule
+                            </Button>
+                          )}
+
                           {/* Action 3: View Match Pass */}
                           <Button
                             variant="outline"
@@ -827,6 +916,8 @@ export default function MyBookingsPage() {
                               type="button"
                               onClick={() => {
                                 setCancellingBooking(b);
+                                setCancelReason('Plans changed');
+                                setCancelNote('');
                                 setCancelError(null);
                               }}
                               className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-rose-400 hover:text-rose-300 bg-rose-950/40 hover:bg-rose-950/60 border border-rose-800/60 rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-rose-500"
@@ -1243,7 +1334,160 @@ export default function MyBookingsPage() {
         </div>
       )}
 
-      {/* ─── Cancellation Dialog ────────────────────────────────────────── */}
+      {/* ─── Reschedule Dialog (Phase 14) ───────────────────────────────── */}
+      {reschedulingBooking && (() => {
+        const startH = parseTimeTo24(rescheduleStart).hours;
+        const endH = parseTimeTo24(rescheduleEnd).hours;
+        const dur = (endH > startH) ? (endH - startH) : 1;
+        const courtRate = reschedulingBooking.pricePerHour || 400;
+        const estTotal = courtRate * dur;
+
+        return (
+          <div
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm overflow-y-auto animate-in fade-in"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="reschedule-dialog-title"
+            onClick={(e) => {
+              if (e.target === e.currentTarget && !rescheduleLoading) {
+                setReschedulingBooking(null);
+                setRescheduleError(null);
+              }
+            }}
+          >
+            <div className="flex min-h-full items-center justify-center p-4">
+              <div className="bg-[#0F131C] border border-[#28303F] rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-2xl space-y-4 my-4 sm:my-8 text-slate-100">
+                <div className="flex items-center justify-between pb-3 border-b border-[#28303F]">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-lime-400/10 text-lime-400 flex items-center justify-center border border-lime-400/20">
+                      <RefreshCw className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 id="reschedule-dialog-title" className="text-base font-black text-white">
+                        Reschedule Reservation
+                      </h3>
+                      <p className="text-[11px] text-slate-400 font-mono">
+                        Booking ID: <span className="text-lime-400 font-bold">#{reschedulingBooking.id}</span>
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => !rescheduleLoading && setReschedulingBooking(null)}
+                    className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-[#181C24]"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {rescheduleError && (
+                  <div className="p-3 rounded-xl bg-rose-950/50 border border-rose-800/80 text-rose-300 text-xs font-medium" role="alert">
+                    {rescheduleError}
+                  </div>
+                )}
+
+                <div className="p-3 rounded-xl bg-[#0B0F17] border border-[#28303F] text-xs space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Venue & Court:</span>
+                    <span className="font-bold text-white text-right">{reschedulingBooking.venueName} • {reschedulingBooking.courtName}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Current Slot:</span>
+                    <span className="font-mono text-slate-200">{formatBookingDate(reschedulingBooking.date)} ({reschedulingBooking.startTime} - {reschedulingBooking.endTime})</span>
+                  </div>
+                </div>
+
+                <form onSubmit={handleRescheduleSubmit} className="space-y-4 pt-1">
+                  <div>
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
+                      New Booking Date
+                    </label>
+                    <input
+                      type="date"
+                      min={getLocalDateString()}
+                      value={rescheduleDate}
+                      onChange={(e) => setRescheduleDate(e.target.value)}
+                      required
+                      className="w-full px-3 py-2 rounded-xl bg-[#0B0F17] border border-[#28303F] text-xs text-white focus:outline-none focus:border-lime-400 font-mono"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
+                        Start Time
+                      </label>
+                      <select
+                        value={rescheduleStart}
+                        onChange={(e) => {
+                          const newStart = e.target.value;
+                          setRescheduleStart(newStart);
+                          const sIdx = STANDARD_SLOTS_12H.indexOf(newStart);
+                          if (sIdx !== -1 && sIdx < STANDARD_SLOTS_12H.length - 1) {
+                            setRescheduleEnd(STANDARD_SLOTS_12H[sIdx + 1]);
+                          }
+                        }}
+                        className="w-full px-3 py-2 rounded-xl bg-[#0B0F17] border border-[#28303F] text-xs text-white focus:outline-none focus:border-lime-400 font-mono"
+                      >
+                        {STANDARD_SLOTS_12H.slice(0, -1).map((s) => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
+                        End Time
+                      </label>
+                      <select
+                        value={rescheduleEnd}
+                        onChange={(e) => setRescheduleEnd(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl bg-[#0B0F17] border border-[#28303F] text-xs text-white focus:outline-none focus:border-lime-400 font-mono"
+                      >
+                        {STANDARD_SLOTS_12H.filter((s) => {
+                          const sIdx = STANDARD_SLOTS_12H.indexOf(rescheduleStart);
+                          const eIdx = STANDARD_SLOTS_12H.indexOf(s);
+                          return eIdx > sIdx;
+                        }).map((s) => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-lime-400/5 border border-lime-400/20 text-xs flex items-center justify-between font-mono">
+                    <span className="text-slate-300">Continuous Duration: <strong className="text-lime-400">{dur} hr{dur > 1 ? 's' : ''}</strong></span>
+                    <span className="text-slate-300">New Authoritative Price: <strong className="text-lime-400 font-black text-sm">₹{estTotal}</strong></span>
+                  </div>
+
+                  <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={rescheduleLoading}
+                      onClick={() => setReschedulingBooking(null)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      size="sm"
+                      loading={rescheduleLoading}
+                      icon={RefreshCw}
+                    >
+                      Confirm Reschedule
+                    </Button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ─── Cancellation Dialog (Phase 14) ─────────────────────────────── */}
       {cancellingBooking && (
         <div
           className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm overflow-y-auto animate-in fade-in"
@@ -1258,7 +1502,7 @@ export default function MyBookingsPage() {
           }}
         >
           <div className="flex min-h-full items-center justify-center p-4">
-            <div className="bg-[#0F131C] border border-[#28303F] rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-2xl space-y-4 my-4 sm:my-8">
+            <div className="bg-[#0F131C] border border-[#28303F] rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-2xl space-y-4 my-4 sm:my-8 text-slate-100">
               <div className="w-12 h-12 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center">
                 <AlertTriangle className="w-6 h-6" />
               </div>
@@ -1274,6 +1518,50 @@ export default function MyBookingsPage() {
                   <strong className="text-lime-400 font-mono">{formatBookingDate(cancellingBooking.date)}</strong> from{' '}
                   <strong className="text-white font-mono">{cancellingBooking.startTime} to {cancellingBooking.endTime}</strong>?
                 </p>
+              </div>
+
+              {/* Cancellation Reason Selector */}
+              <div className="space-y-2 pt-1">
+                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
+                  Reason for Cancellation
+                </label>
+                <select
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-[#0B0F17] border border-[#28303F] text-xs text-white focus:outline-none focus:border-lime-400"
+                >
+                  {CANCELLATION_REASONS.map((r) => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Optional Note */}
+              <div className="space-y-1">
+                <div className="flex justify-between items-center">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                    Optional Note
+                  </label>
+                  <span className="text-[10px] text-slate-500 font-mono">{cancelNote.length}/200</span>
+                </div>
+                <textarea
+                  rows={2}
+                  maxLength={200}
+                  value={cancelNote}
+                  onChange={(e) => setCancelNote(e.target.value)}
+                  placeholder="Additional context (optional)..."
+                  className="w-full px-3 py-2 rounded-xl bg-[#0B0F17] border border-[#28303F] text-xs text-white placeholder-slate-500 focus:outline-none focus:border-lime-400 resize-none"
+                />
+              </div>
+
+              {/* Refund Policy Note */}
+              <div className="p-3 rounded-xl bg-[#0B0F17] border border-[#28303F] text-[11px] text-slate-400 flex items-start gap-2">
+                <Info className="w-3.5 h-3.5 text-lime-400 shrink-0 mt-0.5" />
+                <span>
+                  {cancellingBooking.paymentStatus === 'PAID'
+                    ? 'Paid online: Full booking amount will be marked as REFUNDED and complete interval released to court availability.'
+                    : 'Pay at Venue: Slot hold will be cancelled and complete interval released to facility availability.'}
+                </span>
               </div>
 
               {cancelError && (

@@ -420,6 +420,7 @@ export const store = {
       name: 'Smeet Badminton Fan',
       sport: 'Badminton',
       skillLevel: 'Intermediate',
+      city: 'Ahmedabad',
       distance: '5 km away',
       preferredDays: 'Weekdays',
       preferredTime: 'Evenings',
@@ -435,6 +436,7 @@ export const store = {
       name: 'Karan Tennis Pro',
       sport: 'Tennis',
       skillLevel: 'Advanced',
+      city: 'Ahmedabad',
       distance: '8 km away',
       preferredDays: 'Weekends',
       preferredTime: 'Mornings',
@@ -450,6 +452,7 @@ export const store = {
       name: 'Rahul Sharma',
       sport: 'Badminton',
       skillLevel: 'Intermediate',
+      city: 'Ahmedabad',
       distance: '2 km away',
       preferredDays: 'Weekdays',
       preferredTime: 'Evenings',
@@ -459,7 +462,93 @@ export const store = {
       createdAt: '2026-09-01T10:00:00.000Z',
       updatedAt: '2026-09-01T10:00:00.000Z',
     },
+    {
+      id: 'p-4',
+      userId: null,
+      name: 'Anita Desai',
+      sport: 'Pickleball',
+      skillLevel: 'Beginner',
+      city: 'Ahmedabad',
+      distance: '3 km away',
+      preferredDays: 'Weekends',
+      preferredTime: 'Mornings',
+      availabilityStatus: 'AVAILABLE',
+      bio: 'New to pickleball and looking for casual doubles games and practice.',
+      imageUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=80',
+      createdAt: '2026-09-05T10:00:00.000Z',
+      updatedAt: '2026-09-05T10:00:00.000Z',
+    },
+    {
+      id: 'p-5',
+      userId: null,
+      name: 'Rohan Joshi',
+      sport: 'Football',
+      skillLevel: 'Advanced',
+      city: 'Mumbai',
+      distance: '6 km away',
+      preferredDays: 'Weekends',
+      preferredTime: 'Evenings',
+      availabilityStatus: 'AVAILABLE',
+      bio: 'Weekend football player looking for 5-a-side competitive matches.',
+      imageUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=200&q=80',
+      createdAt: '2026-09-06T10:00:00.000Z',
+      updatedAt: '2026-09-06T10:00:00.000Z',
+    },
+    {
+      id: 'p-6',
+      userId: null,
+      name: 'Pooja Verma',
+      sport: 'Squash',
+      skillLevel: 'Intermediate',
+      city: 'Pune',
+      distance: '4 km away',
+      preferredDays: 'Weekdays',
+      preferredTime: 'Mornings',
+      availabilityStatus: 'AVAILABLE',
+      bio: 'Regular squash player looking for morning practice partners.',
+      imageUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=200&q=80',
+      createdAt: '2026-09-07T10:00:00.000Z',
+      updatedAt: '2026-09-07T10:00:00.000Z',
+    },
+    {
+      id: 'p-7',
+      userId: null,
+      name: 'Vikram Shah',
+      sport: 'Tennis',
+      skillLevel: 'Intermediate',
+      city: 'Ahmedabad',
+      distance: '7 km away',
+      preferredDays: 'Weekdays',
+      preferredTime: 'Afternoons',
+      availabilityStatus: 'AVAILABLE',
+      bio: 'Looking for weekday afternoon singles rallying sessions.',
+      imageUrl: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?auto=format&fit=crop&w=200&q=80',
+      createdAt: '2026-09-08T10:00:00.000Z',
+      updatedAt: '2026-09-08T10:00:00.000Z',
+    },
   ],
+
+  matchInvites: [
+    {
+      id: 'inv-1',
+      senderId: 'u-101',
+      senderName: 'Rahul Sharma',
+      receiverPlayerId: 'p-1',
+      receiverName: 'Smeet Badminton Fan',
+      sport: 'Badminton',
+      date: '2026-09-28',
+      startTime: '07:00 PM',
+      endTime: '08:00 PM',
+      venueName: 'Game Arena',
+      message: 'Hey Smeet, up for a doubles match next Monday?',
+      status: 'PENDING',
+      createdAt: '2026-09-14T12:00:00.000Z',
+    },
+  ],
+
+  playerReports: [],
+
+  playerBlocks: [],
 
   staff: [
     { id: 's-1', name: 'James Hall', role: 'Manager', shift: 'Morning', task: 'Court maintenance check', available: true },
@@ -562,6 +651,9 @@ export function safeBooking(booking) {
     status: booking.status,
     paymentStatus: booking.paymentStatus || 'PENDING',
     ...(booking.paymentMethod ? { paymentMethod: booking.paymentMethod } : {}),
+    ...(booking.cancellationReason ? { cancellationReason: booking.cancellationReason } : {}),
+    ...(booking.cancellationNote ? { cancellationNote: booking.cancellationNote } : {}),
+    ...(booking.cancelledAt ? { cancelledAt: booking.cancelledAt } : {}),
     ...(isConfirmed && booking.checkInToken ? { checkInToken: booking.checkInToken } : {}),
     ...(booking.checkedInAt ? { checkedInAt: booking.checkedInAt } : {}),
     createdAt: booking.createdAt,
@@ -570,22 +662,99 @@ export function safeBooking(booking) {
 }
 
 /**
+ * Computes deterministic player trust and activity statistics from real booking & check-in records.
+ */
+export function calculatePlayerTrust(player) {
+  if (!player) return null;
+
+  const bookings = player.userId && store.bookings
+    ? store.bookings.filter((b) => b.userId === player.userId)
+    : [];
+
+  const completedGames = bookings.filter((b) => b.status === 'COMPLETED' || b.status === 'CHECKED_IN').length;
+  const checkIns = bookings.filter((b) => b.status === 'CHECKED_IN' || Boolean(b.checkedInAt) || b.status === 'COMPLETED').length;
+  const cancellations = bookings.filter((b) => b.status === 'CANCELLED').length;
+  const totalBookings = bookings.length;
+
+  // No-shows: confirmed bookings that passed scheduled end time without check-in
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0];
+  const currentHour = now.getHours();
+
+  const noShows = bookings.filter((b) => {
+    if (b.status !== 'CONFIRMED' && b.status !== 'PAID') return false;
+    if (b.checkedInAt || b.status === 'CHECKED_IN' || b.status === 'COMPLETED') return false;
+    if (!b.date || !b.endTime) return false;
+
+    if (b.date < todayStr) return true;
+    if (b.date === todayStr) {
+      const matchEnd = b.endTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+      if (matchEnd) {
+        let eH = parseInt(matchEnd[1], 10);
+        if (matchEnd[3]?.toUpperCase() === 'PM' && eH !== 12) eH += 12;
+        if (matchEnd[3]?.toUpperCase() === 'AM' && eH === 12) eH = 0;
+        if (eH <= currentHour) return true;
+      }
+    }
+    return false;
+  }).length;
+
+  let trustLabel = 'Limited History';
+  if (completedGames >= 5 || checkIns >= 5) {
+    trustLabel = 'Reliable Player';
+  } else if (completedGames >= 1 || checkIns >= 1) {
+    trustLabel = 'Active Player';
+  } else if (totalBookings > 0) {
+    trustLabel = 'New Player';
+  } else {
+    trustLabel = 'Limited History';
+  }
+
+  return {
+    trustLabel,
+    totalBookings,
+    completedGames,
+    checkIns,
+    cancellations,
+    noShows,
+    memberSince: player.createdAt || null,
+  };
+}
+
+/**
  * Returns a safe customer-facing player object.
  * Strips passwordHash, email, phone, age, and internal IDs per data minimization rules.
  */
-export function safePlayer(player) {
+export function safePlayer(player, currentUserId = null) {
   if (!player) return null;
+
+  const trustSummary = calculatePlayerTrust(player);
+
+  let isBlocked = false;
+  if (currentUserId && store.playerBlocks) {
+    isBlocked = store.playerBlocks.some(
+      (b) =>
+        b.blockerId === currentUserId &&
+        (b.targetPlayerId === player.id || (player.userId && b.targetUserId === player.userId))
+    );
+  }
+
   return {
     id: player.id,
     name: player.name,
     sport: player.sport,
     skillLevel: player.skillLevel,
+    city: player.city || 'Ahmedabad',
     preferredDays: player.preferredDays || 'Flexible',
     preferredTime: player.preferredTime || 'Flexible',
     availabilityStatus: player.availabilityStatus || 'AVAILABLE',
     bio: player.bio || '',
     distance: player.distance || '',
     imageUrl: player.imageUrl || null,
+    trustSummary,
+    isBlocked,
+    ...(player.matchScore !== undefined ? { matchScore: player.matchScore } : {}),
+    ...(player.matchReasons ? { matchReasons: player.matchReasons } : {}),
     createdAt: player.createdAt,
     updatedAt: player.updatedAt,
   };

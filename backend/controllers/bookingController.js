@@ -260,9 +260,18 @@ export function getBooking(req, res) {
   });
 }
 
+export const ALLOWED_CANCELLATION_REASONS = [
+  'Plans changed',
+  'Schedule conflict',
+  'Found another time',
+  'Venue issue',
+  'Other',
+];
+
 // ─── CANCEL: Cancel Booking ───────────────────────────────────────────────────
 
 /**
+ * POST /api/bookings/:id/cancel
  * DELETE /api/bookings/:id
  * Requires: authenticate
  * Object-level ownership check: Customer can cancel own booking, Owner can cancel venue's booking, Admin can cancel any.
@@ -292,6 +301,13 @@ export function cancelBooking(req, res) {
     });
   }
 
+  if ([BOOKING_STATUS.REJECTED, BOOKING_STATUS.COMPLETED, BOOKING_STATUS.CHECKED_IN].includes(booking.status)) {
+    return res.status(400).json({
+      status: 'error',
+      message: `Cannot cancel a booking that is ${booking.status}.`,
+    });
+  }
+
   if (!isValidBookingTransition(booking.status, BOOKING_STATUS.CANCELLED)) {
     return res.status(400).json({
       status: 'error',
@@ -299,9 +315,45 @@ export function cancelBooking(req, res) {
     });
   }
 
-  booking.status = BOOKING_STATUS.CANCELLED;
+  // Validate cancellation reason if provided
+  const { reason, note } = req.body || {};
+  let validatedReason = 'Plans changed';
+  if (reason !== undefined && reason !== null && reason !== '') {
+    if (typeof reason !== 'string' || !ALLOWED_CANCELLATION_REASONS.includes(reason.trim())) {
+      return res.status(400).json({
+        status: 'error',
+        message: `Invalid cancellation reason. Allowed reasons: ${ALLOWED_CANCELLATION_REASONS.join(', ')}`,
+      });
+    }
+    validatedReason = reason.trim();
+  }
 
-  // If already paid, mark as refunded
+  // Validate optional note
+  let validatedNote = null;
+  if (note !== undefined && note !== null && note !== '') {
+    if (typeof note !== 'string') {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Cancellation note must be a string.',
+      });
+    }
+    if (note.trim().length > 200) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Cancellation note must be 200 characters or fewer.',
+      });
+    }
+    validatedNote = note.trim();
+  }
+
+  booking.status = BOOKING_STATUS.CANCELLED;
+  booking.cancellationReason = validatedReason;
+  if (validatedNote) {
+    booking.cancellationNote = validatedNote;
+  }
+  booking.cancelledAt = new Date().toISOString();
+
+  // If already paid online, mark as REFUNDED. If Pay at Venue / PENDING, remain PENDING.
   if (booking.paymentStatus === PAYMENT_STATUS.PAID) {
     booking.paymentStatus = PAYMENT_STATUS.REFUNDED;
   }
@@ -311,6 +363,168 @@ export function cancelBooking(req, res) {
   return res.status(200).json({
     status: 'ok',
     message: 'Booking cancelled successfully.',
+    booking: safeBooking(booking),
+  });
+}
+
+// ─── RESCHEDULE: Reschedule Booking ───────────────────────────────────────────
+
+/**
+ * POST /api/bookings/:id/reschedule
+ * PATCH /api/bookings/:id/reschedule
+ * Requires: authenticate (CUSTOMER who owns the booking or ADMIN)
+ * Input: { date, startTime, endTime, courtId? }
+ */
+export function rescheduleBooking(req, res) {
+  const booking = store.bookings.find((b) => b.id === req.params.id);
+  if (!booking) {
+    return res.status(404).json({ status: 'error', message: 'Booking not found.' });
+  }
+
+  // Ownership verification
+  const isCustomer = req.user.role === 'CUSTOMER' && booking.userId === req.user.id;
+  const isAdmin = req.user.role === 'ADMIN';
+
+  if (!isCustomer && !isAdmin) {
+    return res.status(403).json({
+      status: 'error',
+      message: 'You are not authorized to reschedule this booking.',
+    });
+  }
+
+  // Non-reschedulable states
+  if ([BOOKING_STATUS.CANCELLED, BOOKING_STATUS.REJECTED, BOOKING_STATUS.COMPLETED, BOOKING_STATUS.CHECKED_IN].includes(booking.status)) {
+    return res.status(400).json({
+      status: 'error',
+      message: `Cannot reschedule a booking that is ${booking.status}.`,
+    });
+  }
+
+  const { courtId, date, startTime, endTime } = req.body || {};
+
+  // Target court
+  const targetCourtId = (courtId && typeof courtId === 'string' && courtId.trim()) ? courtId.trim() : booking.courtId;
+  const court = store.courts.find((c) => c.id === targetCourtId);
+  if (!court) {
+    return res.status(404).json({ status: 'error', message: 'Target court not found.' });
+  }
+
+  if (!court.isActive) {
+    return res.status(400).json({
+      status: 'error',
+      message: 'This court is currently inactive and cannot be booked.',
+    });
+  }
+
+  // Date validation
+  if (!date || typeof date !== 'string') {
+    return res.status(400).json({ status: 'error', message: 'Date is required in YYYY-MM-DD format.' });
+  }
+
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+  if (!dateRegex.test(date)) {
+    return res.status(400).json({ status: 'error', message: 'Invalid date format. Use YYYY-MM-DD.' });
+  }
+
+  const parsedDate = new Date(`${date}T00:00:00.000Z`);
+  if (isNaN(parsedDate.getTime()) || parsedDate.toISOString().slice(0, 10) !== date) {
+    return res.status(400).json({ status: 'error', message: 'Invalid calendar date.' });
+  }
+
+  // Past date protection
+  const now = new Date();
+  const todayStr = now.toISOString().slice(0, 10);
+  const localDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  if (date < todayStr) {
+    return res.status(400).json({
+      status: 'error',
+      message: 'Bookings cannot be rescheduled to past dates.',
+    });
+  }
+
+  // Time format & multi-hour continuous duration
+  const startHour = parse12HourTime(startTime);
+  const endHour = parse12HourTime(endTime);
+
+  if (startHour === null || endHour === null) {
+    return res.status(400).json({
+      status: 'error',
+      message: 'Invalid time format. Time must be in "HH:00 AM/PM" format.',
+    });
+  }
+
+  const durationHours = endHour - startHour;
+  if (durationHours < 1) {
+    return res.status(400).json({
+      status: 'error',
+      message: 'End time must be after start time.',
+    });
+  }
+
+  const currentHour = now.getHours();
+  if ((date === todayStr || date === localDateStr) && startHour <= currentHour) {
+    return res.status(400).json({
+      status: 'error',
+      message: 'Cannot reschedule to a time slot that has already passed.',
+    });
+  }
+
+  // Operating hours validation
+  const { startHour: courtStart, endHour: courtEnd } = parseOperatingHours(court.operatingHours);
+  if (startHour < courtStart || endHour > courtEnd) {
+    return res.status(400).json({
+      status: 'error',
+      message: `Requested slot is outside operating hours (${court.operatingHours}).`,
+    });
+  }
+
+  // Deterministic schedule check for every hourly segment
+  for (let h = startHour; h < endHour; h++) {
+    const baseStatus = getDeterministicStatus(court, date, h);
+    if (baseStatus === 'UNAVAILABLE') {
+      return res.status(400).json({
+        status: 'error',
+        message: `The time slot ${format12Hour(h)} - ${format12Hour(h + 1)} is unavailable on the facility schedule.`,
+      });
+    }
+  }
+
+  // Conflict check: exclude the current booking being rescheduled from its own conflict check
+  const hasConflict = store.bookings.some((b) => {
+    if (b.id === booking.id) return false;
+    if (b.courtId !== court.id || b.date !== date || !isBookingActive(b.status)) {
+      return false;
+    }
+    const bStart = parse12HourTime(b.startTime);
+    const bEnd = parse12HourTime(b.endTime);
+    if (bStart === null || bEnd === null) return false;
+    return startHour < bEnd && endHour > bStart;
+  });
+
+  if (hasConflict) {
+    return res.status(409).json({
+      status: 'error',
+      message: 'The requested time slot has already been booked. Please choose another slot.',
+    });
+  }
+
+  // Recalculate authoritative price derived directly from court rate and duration
+  const pricePerHour = Number(court.pricePerHour);
+  const totalPrice = pricePerHour * durationHours;
+
+  // Update booking record while preserving immutable ID and token
+  booking.courtId = court.id;
+  booking.venueId = court.venueId;
+  booking.date = date;
+  booking.startTime = format12Hour(startHour);
+  booking.endTime = format12Hour(endHour);
+  booking.pricePerHour = pricePerHour;
+  booking.totalPrice = totalPrice;
+  booking.updatedAt = new Date().toISOString();
+
+  return res.status(200).json({
+    status: 'ok',
+    message: 'Booking rescheduled successfully.',
     booking: safeBooking(booking),
   });
 }

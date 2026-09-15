@@ -1,4 +1,4 @@
-import { describe, it, before } from 'node:test';
+import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { app } from '../server.js';
 import { store } from '../data/store.js';
@@ -63,6 +63,12 @@ before(async () => {
   });
   const aData = await aRes.json();
   adminToken = aData.token;
+});
+
+after(async () => {
+  if (server) {
+    await new Promise((resolve) => server.close(resolve));
+  }
 });
 
 // Helper to create and confirm a booking

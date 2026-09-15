@@ -273,11 +273,21 @@ export async function fetchBooking(id) {
 }
 
 /**
- * DELETE /api/bookings/:id  (CUSTOMER)
+ * POST /api/bookings/:id/cancel  (CUSTOMER)
+ * Body: { reason?: string, note?: string }
  * Returns { status, message, booking }
  */
-export async function cancelBooking(id) {
-  return apiRequest('DELETE', `/bookings/${id}`, null, true);
+export async function cancelBooking(id, data = {}) {
+  return apiRequest('POST', `/bookings/${id}/cancel`, data, true);
+}
+
+/**
+ * POST /api/bookings/:id/reschedule  (CUSTOMER)
+ * Body: { date, startTime, endTime, courtId? }
+ * Returns { status, message, booking }
+ */
+export async function rescheduleBooking(id, data) {
+  return apiRequest('POST', `/bookings/${id}/reschedule`, data, true);
 }
 
 /**
@@ -334,15 +344,20 @@ export async function updateBookingStatus(id, data) {
 // ─── Players (Task 5) ─────────────────────────────────────────────────────────
 
 /**
- * GET /api/players?sport=&skillLevel=&preferredTime=&availabilityStatus=&q= (CUSTOMER)
+ * GET /api/players?sport=&city=&date=&time=&skillLevel=&preferredTime=&availabilityStatus=&excludeSelf=&q= (CUSTOMER)
  * Returns { status, count, players }
  */
 export async function fetchPlayers(filters = {}) {
   const params = new URLSearchParams();
   if (filters.sport) params.set('sport', filters.sport);
+  if (filters.city) params.set('city', filters.city);
+  if (filters.date) params.set('date', filters.date);
+  if (filters.time) params.set('time', filters.time);
+  if (filters.timeSlot) params.set('timeSlot', filters.timeSlot);
   if (filters.skillLevel) params.set('skillLevel', filters.skillLevel);
   if (filters.preferredTime) params.set('preferredTime', filters.preferredTime);
   if (filters.availabilityStatus) params.set('availabilityStatus', filters.availabilityStatus);
+  if (filters.excludeSelf) params.set('excludeSelf', filters.excludeSelf);
   if (filters.q) params.set('q', filters.q);
   const qs = params.toString();
   return apiRequest('GET', `/players${qs ? `?${qs}` : ''}`, null, true);
@@ -366,11 +381,78 @@ export async function fetchMyPlayerProfile() {
 
 /**
  * PUT /api/players/me/profile (CUSTOMER)
- * Body: { sport, skillLevel, preferredDays, preferredTime, availabilityStatus, bio }
+ * Body: { sport, skillLevel, city, preferredDays, preferredTime, availabilityStatus, bio }
  * Returns { status, message, player }
  */
 export async function updateMyPlayerProfile(data) {
   return apiRequest('PUT', '/players/me/profile', data, true);
+}
+
+/**
+ * POST /api/players/:id/invite (CUSTOMER)
+ * Body: { sport, date, time, courtVenue, note }
+ * Returns { status, message, invite }
+ */
+export async function sendMatchInvite(playerId, data) {
+  return apiRequest('POST', `/players/${playerId}/invite`, data, true);
+}
+
+/**
+ * GET /api/players/me/invites (CUSTOMER)
+ * Returns { status, sent, received }
+ */
+export async function fetchMyMatchInvites() {
+  return apiRequest('GET', '/players/me/invites', null, true);
+}
+
+/**
+ * PATCH /api/players/invites/:id/status (CUSTOMER)
+ * Body: { status: 'ACCEPTED' | 'DECLINED' | 'CANCELLED' }
+ * Returns { status, message, invite }
+ */
+export async function respondToMatchInvite(inviteId, status) {
+  return apiRequest('PATCH', `/players/invites/${inviteId}/status`, { status }, true);
+}
+
+/**
+ * GET /api/players/:id/trust (CUSTOMER)
+ * Returns { status, trustSummary }
+ */
+export async function fetchPlayerTrust(playerId) {
+  return apiRequest('GET', `/players/${playerId}/trust`, null, true);
+}
+
+/**
+ * POST /api/players/:id/report (CUSTOMER)
+ * Body: { reason, details }
+ * Returns { status, message, reportId }
+ */
+export async function reportPlayer(playerId, data) {
+  return apiRequest('POST', `/players/${playerId}/report`, data, true);
+}
+
+/**
+ * POST /api/players/:id/block (CUSTOMER)
+ * Returns { status, message, block }
+ */
+export async function blockPlayer(playerId) {
+  return apiRequest('POST', `/players/${playerId}/block`, null, true);
+}
+
+/**
+ * DELETE /api/players/:id/block (CUSTOMER)
+ * Returns { status, message }
+ */
+export async function unblockPlayer(playerId) {
+  return apiRequest('DELETE', `/players/${playerId}/block`, null, true);
+}
+
+/**
+ * GET /api/players/me/blocks (CUSTOMER)
+ * Returns { status, count, blocks }
+ */
+export async function fetchMyBlocks() {
+  return apiRequest('GET', '/players/me/blocks', null, true);
 }
 
 // ─── Profile & Loyalty (Task 6) ───────────────────────────────────────────────

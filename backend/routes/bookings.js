@@ -4,6 +4,7 @@ import {
   getMyBookings,
   getBooking,
   cancelBooking,
+  rescheduleBooking,
   approveBooking,
   rejectBooking,
   payBooking,
@@ -35,7 +36,12 @@ router.post('/', requireRole('CUSTOMER'), createBooking);
 router.get('/:id', requireRole('CUSTOMER'), getBooking);
 
 // Customer: cancel booking (ownership checked)
+router.post('/:id/cancel', requireRole('CUSTOMER'), cancelBooking);
 router.delete('/:id', requireRole('CUSTOMER'), cancelBooking);
+
+// Customer: reschedule booking (ownership checked)
+router.post('/:id/reschedule', requireRole('CUSTOMER'), rescheduleBooking);
+router.patch('/:id/reschedule', requireRole('CUSTOMER'), rescheduleBooking);
 
 // Owner of venue or Admin: check-in player
 router.post('/:id/check-in', checkInBooking);
