@@ -389,6 +389,8 @@ export const store = {
       totalPrice: 400,
       status: 'CONFIRMED',
       paymentStatus: 'PAID',
+      paymentMethod: 'UPI',
+      checkInToken: 'CHK-8006-6572-91A2',
       createdAt: '2026-09-11T10:00:00.000Z',
       updatedAt: '2026-09-11T10:00:00.000Z',
     },
@@ -404,6 +406,8 @@ export const store = {
       totalPrice: 600,
       status: 'CONFIRMED',
       paymentStatus: 'PAID',
+      paymentMethod: 'Card',
+      checkInToken: 'CHK-8006-6573-44F1',
       createdAt: '2026-09-10T10:00:00.000Z',
       updatedAt: '2026-09-10T10:00:00.000Z',
     },
@@ -522,6 +526,23 @@ export function safeBooking(booking) {
   const court = store.courts.find((c) => c.id === booking.courtId);
   const venue = store.venues.find((v) => v.id === (booking.venueId || court?.venueId));
 
+  const isConfirmed = ['CONFIRMED', 'PAID', 'CHECKED_IN', 'COMPLETED'].includes(booking.status);
+
+  let durationHours = 1;
+  if (booking.startTime && booking.endTime) {
+    const matchStart = booking.startTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    const matchEnd = booking.endTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (matchStart && matchEnd) {
+      let sH = parseInt(matchStart[1], 10);
+      if (matchStart[3].toUpperCase() === 'PM' && sH !== 12) sH += 12;
+      if (matchStart[3].toUpperCase() === 'AM' && sH === 12) sH = 0;
+      let eH = parseInt(matchEnd[1], 10);
+      if (matchEnd[3].toUpperCase() === 'PM' && eH !== 12) eH += 12;
+      if (matchEnd[3].toUpperCase() === 'AM' && eH === 12) eH = 0;
+      if (eH > sH) durationHours = eH - sH;
+    }
+  }
+
   return {
     id: booking.id,
     userId: booking.userId,
@@ -535,11 +556,14 @@ export function safeBooking(booking) {
     date: booking.date,
     startTime: booking.startTime,
     endTime: booking.endTime,
+    durationHours,
     pricePerHour: Number(booking.pricePerHour || court?.pricePerHour || 0),
     totalPrice: Number(booking.totalPrice || 0),
     status: booking.status,
     paymentStatus: booking.paymentStatus || 'PENDING',
     ...(booking.paymentMethod ? { paymentMethod: booking.paymentMethod } : {}),
+    ...(isConfirmed && booking.checkInToken ? { checkInToken: booking.checkInToken } : {}),
+    ...(booking.checkedInAt ? { checkedInAt: booking.checkedInAt } : {}),
     createdAt: booking.createdAt,
     updatedAt: booking.updatedAt,
   };

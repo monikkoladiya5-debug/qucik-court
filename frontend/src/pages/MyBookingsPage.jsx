@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { QRCodeSVG } from 'qrcode.react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import Button from '../components/ui/Button';
@@ -32,7 +33,10 @@ import {
   CreditCard,
   Wallet,
   Coins,
-  Info
+  Info,
+  QrCode,
+  KeyRound,
+  Copy
 } from 'lucide-react';
 
 function parseTimeTo24(timeStr) {
@@ -844,166 +848,239 @@ export default function MyBookingsPage() {
       <Footer />
 
       {/* ─── Match Pass Modal ────────────────────────────────────── */}
-      {selectedPass && (
-        <div
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm overflow-y-auto animate-in fade-in"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="pass-modal-title"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setSelectedPass(null);
-          }}
-        >
-          <div className="flex min-h-full items-center justify-center p-4">
-            <div className="bg-[#0F131C] border border-[#28303F] rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-2xl space-y-5 relative my-4 sm:my-8">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-lime-400/10 text-lime-400 flex items-center justify-center border border-lime-400/20 shrink-0">
-                    <Ticket className="w-5 h-5" />
+      {selectedPass && (() => {
+        const isConfirmed = ['CONFIRMED', 'PAID', 'CHECKED_IN', 'COMPLETED'].includes(selectedPass.status);
+        const qrPayload = JSON.stringify({
+          bid: selectedPass.id,
+          token: selectedPass.checkInToken || '',
+          venue: selectedPass.venueName,
+          court: selectedPass.courtName,
+          date: selectedPass.date,
+          time: `${selectedPass.startTime} - ${selectedPass.endTime}`
+        });
+
+        return (
+          <div
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm overflow-y-auto animate-in fade-in"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="pass-modal-title"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setSelectedPass(null);
+            }}
+          >
+            <div className="flex min-h-full items-center justify-center p-4">
+              <div className="bg-[#0F131C] border border-[#28303F] rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-2xl space-y-4 relative my-4 sm:my-8 text-slate-100">
+                {/* Header */}
+                <div className="flex items-start justify-between pb-3 border-b border-[#28303F]">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-lime-400/10 text-lime-400 flex items-center justify-center border border-lime-400/20 shrink-0">
+                      <Ticket className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 id="pass-modal-title" className="text-base font-black text-white truncate">
+                        QuickCourt Match Pass
+                      </h3>
+                      <p className="text-[11px] text-slate-400 font-mono break-all">
+                        Booking ID: <span className="text-lime-400 font-bold">#{selectedPass.id}</span>
+                      </p>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <h3 id="pass-modal-title" className="text-base font-black text-white truncate">
-                      QuickCourt Match Pass
-                    </h3>
-                    <p className="text-[11px] text-slate-400 font-mono break-all">
-                      Ref: #{selectedPass.id}
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPass(null)}
+                    className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/5 transition-colors shrink-0 ml-2"
+                    aria-label="Close pass dialog"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* QR Code & Check-In Token Presentation for Confirmed Bookings */}
+                {isConfirmed ? (
+                  <div className="space-y-3">
+                    {/* QR Code Card */}
+                    <div className="flex flex-col items-center justify-center p-4 rounded-xl bg-[#0B0F17] border border-[#28303F] text-center">
+                      <div className="p-3 bg-white rounded-xl shadow-lg inline-block border-2 border-slate-700">
+                        <QRCodeSVG
+                          value={qrPayload}
+                          size={150}
+                          level="M"
+                          includeMargin={false}
+                          className="w-[140px] h-[140px] sm:w-[150px] sm:h-[150px]"
+                        />
+                      </div>
+                      <span className="text-[11px] font-bold text-slate-400 mt-2.5 flex items-center gap-1.5">
+                        <QrCode className="w-3.5 h-3.5 text-lime-400" />
+                        Scan at Facility Check-In
+                      </span>
+                    </div>
+
+                    {/* Check-In Token Banner */}
+                    <div className="p-3.5 rounded-xl bg-emerald-950/30 border border-emerald-500/40 text-center space-y-1">
+                      <div className="flex items-center justify-center gap-1.5 text-emerald-400 text-[11px] font-bold uppercase tracking-wider">
+                        <KeyRound className="w-3.5 h-3.5" />
+                        <span>Check-In Token</span>
+                      </div>
+                      <div className="text-lg font-black font-mono tracking-widest text-emerald-300 select-all">
+                        {selectedPass.checkInToken || 'CHK-AUTHORIZING'}
+                      </div>
+                      <p className="text-[10px] text-slate-400">
+                        Present this verification token or QR pass to the venue operator upon arrival
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  /* Notice when booking is not yet confirmed */
+                  <div className="p-4 rounded-xl bg-amber-950/25 border border-amber-800/50 text-center space-y-2">
+                    <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center border border-amber-500/20 mx-auto">
+                      <Clock className="w-5 h-5" />
+                    </div>
+                    <h4 className="text-xs font-bold text-white uppercase tracking-wider">
+                      Pass Pending Confirmation
+                    </h4>
+                    <p className="text-[11px] text-slate-300 leading-relaxed">
+                      {selectedPass.status === 'REQUESTED'
+                        ? 'Your reservation request is currently awaiting venue approval. An official check-in pass and QR code will be issued once approved and confirmed.'
+                        : selectedPass.status === 'APPROVED' || selectedPass.status === 'PAYMENT_PENDING'
+                          ? 'This reservation is approved! Please complete payment to issue your official digital check-in pass.'
+                          : 'This booking is currently inactive and does not have an active check-in pass.'}
                     </p>
+                  </div>
+                )}
+
+                {/* Pass Ticket Body */}
+                <div className="p-4 rounded-xl bg-[#0B0F17] border border-[#28303F] space-y-3 text-xs">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                      Venue & Location
+                    </span>
+                    <p className="text-sm font-black text-white mt-0.5 break-words">
+                      {selectedPass.venueName}
+                    </p>
+                    {selectedPass.venueLocation && (
+                      <p className="text-xs text-slate-400 flex items-start gap-1 mt-0.5 font-sans">
+                        <MapPin className="w-3.5 h-3.5 text-lime-400 shrink-0 mt-0.5" />
+                        <span className="break-words">{selectedPass.venueLocation}</span>
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2.5 border-t border-[#28303F]">
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                        Playing Court
+                      </span>
+                      <p className="text-xs font-bold text-white mt-0.5 break-words">{selectedPass.courtName}</p>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                        Sport Type
+                      </span>
+                      <p className="text-xs font-bold text-lime-400 mt-0.5 flex items-center gap-1">
+                        <SportIcon sport={selectedPass.sport} className="w-3.5 h-3.5 text-lime-400" />
+                        <span>{selectedPass.sport || 'Sports'}</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2.5 border-t border-[#28303F]">
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                        Date
+                      </span>
+                      <p className="text-xs font-bold text-white font-mono mt-0.5">{formatBookingDate(selectedPass.date)}</p>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                        Complete Time Interval
+                      </span>
+                      <p className="text-xs font-bold text-white font-mono mt-0.5">{selectedPass.startTime} - {selectedPass.endTime}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2.5 border-t border-[#28303F]">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      Total Booking Rate
+                    </span>
+                    <span className="text-sm font-black text-lime-400 font-mono">
+                      ₹{selectedPass.totalPrice}
+                    </span>
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setSelectedPass(null)}
-                  className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/5 transition-colors shrink-0 ml-2"
-                  aria-label="Close pass dialog"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
+                {/* Status breakdown */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-[#181C24] border border-[#28303F]">
+                    <div className="flex items-center gap-2">
+                      <ShieldCheck className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                      <span className="text-xs text-slate-300">Booking Status</span>
+                    </div>
+                    <Badge status={selectedPass.status} />
+                  </div>
 
-              {/* Pass Ticket Body */}
-              <div className="p-4 rounded-xl bg-[#0B0F17] border border-[#28303F] space-y-3.5 text-xs">
-                <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
-                    Venue & Location
-                  </span>
-                  <p className="text-sm font-black text-white mt-0.5 break-words">
-                    {selectedPass.venueName}
-                  </p>
-                  {selectedPass.venueLocation && (
-                    <p className="text-xs text-slate-400 flex items-start gap-1 mt-0.5">
-                      <MapPin className="w-3.5 h-3.5 text-lime-400 shrink-0 mt-0.5" />
-                      <span className="break-words">{selectedPass.venueLocation}</span>
-                    </p>
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-[#181C24] border border-[#28303F]">
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                      <span className="text-xs text-slate-300">Payment Details</span>
+                    </div>
+                    <span className="text-xs font-bold text-white font-mono text-right">
+                      {selectedPass.paymentStatus === 'PAID'
+                        ? `PAID (${selectedPass.paymentMethod || 'UPI'})`
+                        : selectedPass.paymentMethod === 'Pay at Venue'
+                          ? 'PENDING — Pay at Venue'
+                          : 'PENDING'}
+                    </span>
+                  </div>
+
+                  {selectedPass.paymentMethod === 'Pay at Venue' && selectedPass.paymentStatus === 'PENDING' && (
+                    <div className="p-2.5 rounded-xl bg-amber-950/30 border border-amber-800/40 text-[11px] text-amber-300 flex items-start gap-2">
+                      <Info className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+                      <span>Payment of ₹{selectedPass.totalPrice} is scheduled at facility reception upon arrival.</span>
+                    </div>
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2.5 border-t border-[#28303F]">
-                  <div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
-                      Playing Court
-                    </span>
-                    <p className="text-xs font-bold text-white mt-0.5 break-words">{selectedPass.courtName}</p>
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
-                      Sport Type
-                    </span>
-                    <p className="text-xs font-bold text-lime-400 mt-0.5 flex items-center gap-1">
-                      <SportIcon sport={selectedPass.sport} className="w-3.5 h-3.5 text-lime-400" />
-                      <span>{selectedPass.sport || 'Sports'}</span>
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2.5 border-t border-[#28303F]">
-                  <div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
-                      Date
-                    </span>
-                    <p className="text-xs font-bold text-white font-mono mt-0.5">{formatBookingDate(selectedPass.date)}</p>
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
-                      Slot Time
-                    </span>
-                    <p className="text-xs font-bold text-white font-mono mt-0.5">{selectedPass.startTime} - {selectedPass.endTime}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-2.5 border-t border-[#28303F]">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                    Total Booking Rate
-                  </span>
-                  <span className="text-sm font-black text-lime-400 font-mono">
-                    ₹{selectedPass.totalPrice}
-                  </span>
-                </div>
-              </div>
-
-              {/* Status breakdown */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between p-3 rounded-xl bg-[#181C24] border border-[#28303F]">
-                  <div className="flex items-center gap-2">
-                    <ShieldCheck className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                    <span className="text-xs text-slate-300">Booking Status</span>
-                  </div>
-                  <Badge status={selectedPass.status} />
-                </div>
-
-                <div className="flex items-center justify-between p-3 rounded-xl bg-[#181C24] border border-[#28303F]">
-                  <div className="flex items-center gap-2">
-                    <CreditCard className="w-4 h-4 text-amber-400 flex-shrink-0" />
-                    <span className="text-xs text-slate-300">Payment Status</span>
-                  </div>
-                  <span className="text-xs font-bold text-white font-mono">
-                    {selectedPass.paymentStatus === 'PAID'
-                      ? `PAID (${selectedPass.paymentMethod || 'UPI'})`
-                      : selectedPass.paymentMethod === 'Pay at Venue'
-                        ? 'PENDING — Pay at Venue'
-                        : 'PENDING'}
-                  </span>
-                </div>
-              </div>
-
-              {/* Modal Actions */}
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-2">
-                {(selectedPass.status === 'APPROVED' || selectedPass.status === 'PAYMENT_PENDING') && (
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    icon={CreditCard}
-                    onClick={() => {
-                      setPayingBooking(selectedPass);
-                      setPayError(null);
-                      setSelectedPass(null);
-                    }}
-                  >
-                    Pay Now
-                  </Button>
-                )}
-
-                {selectedPass.venueId && (
-                  <Link to={`/venues/${selectedPass.venueId}`} className="w-full sm:w-auto">
-                    <Button variant="outline" size="sm" className="w-full">
-                      Venue Details
+                {/* Modal Actions */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-2">
+                  {(selectedPass.status === 'APPROVED' || selectedPass.status === 'PAYMENT_PENDING') && (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      icon={CreditCard}
+                      onClick={() => {
+                        setPayingBooking(selectedPass);
+                        setPayError(null);
+                        setSelectedPass(null);
+                      }}
+                    >
+                      Pay Now
                     </Button>
-                  </Link>
-                )}
+                  )}
 
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setSelectedPass(null)}
-                  className="w-full sm:w-auto"
-                >
-                  Done
-                </Button>
+                  {selectedPass.venueId && (
+                    <Link to={`/venues/${selectedPass.venueId}`} className="w-full sm:w-auto">
+                      <Button variant="outline" size="sm" className="w-full">
+                        Venue Details
+                      </Button>
+                    </Link>
+                  )}
+
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setSelectedPass(null)}
+                    className="w-full sm:w-auto"
+                  >
+                    Close Pass
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ─── Demo Payment Dialog ────────────────────────────────────────── */}
       {payingBooking && (

@@ -66,7 +66,7 @@ function serializeDashboardBooking(booking, venue, court, now) {
 
   if (booking.status === 'CANCELLED' || booking.status === 'REJECTED') {
     operationalStatus = booking.status;
-  } else if (booking.status === 'REQUESTED' || booking.status === 'APPROVED' || booking.status === 'PAYMENT_PENDING') {
+  } else if (booking.status === 'REQUESTED' || booking.status === 'APPROVED' || booking.status === 'PAYMENT_PENDING' || booking.status === 'CHECKED_IN') {
     operationalStatus = booking.status;
   } else if (isElapsed || booking.status === 'COMPLETED') {
     operationalStatus = 'COMPLETED';

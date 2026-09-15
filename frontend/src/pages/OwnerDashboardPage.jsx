@@ -6,7 +6,7 @@ import {
   Layers, MapPin, Activity, Sparkles, ChevronRight,
   IndianRupee, Store, Trophy, Zap, Flame, Award,
   Check, X, Eye, Calendar, User, Filter, AlertTriangle,
-  ChevronLeft, Power, Plus, Pencil
+  ChevronLeft, Power, Plus, Pencil, QrCode, KeyRound, Search
 } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -18,7 +18,9 @@ import {
   approveBooking,
   rejectBooking,
   createCourt,
-  updateCourt
+  updateCourt,
+  verifyBookingPass,
+  checkInPlayerBooking
 } from '../services/api';
 import { formatBookingDate, getLocalDateString } from '../utils/date';
 
@@ -287,6 +289,14 @@ function OwnerDashboardInner() {
   // Selected booking for detail modal inspection
   const [selectedBooking, setSelectedBooking] = useState(null);
 
+  // Check-In Verification State
+  const [verifyInput, setVerifyInput] = useState('');
+  const [verifyLoading, setVerifyLoading] = useState(false);
+  const [verifyError, setVerifyError] = useState(null);
+  const [verifiedBooking, setVerifiedBooking] = useState(null);
+  const [checkInLoading, setCheckInLoading] = useState(false);
+  const [checkInSuccess, setCheckInSuccess] = useState(null);
+
   // Court Add / Edit Form Modal state
   const [courtModal, setCourtModal] = useState(null); // null | { mode: 'add' } | { mode: 'edit', court: object }
   const [courtModalLoading, setCourtModalLoading] = useState(false);
@@ -318,6 +328,59 @@ function OwnerDashboardInner() {
   useEffect(() => {
     loadDashboard();
   }, [loadDashboard]);
+
+  // Handle Verify Check-In Token or QR Payload
+  const handleVerifyPass = async (e) => {
+    if (e) e.preventDefault();
+    if (!verifyInput.trim()) {
+      setVerifyError('Please enter a Check-In Token or QR payload string.');
+      return;
+    }
+    try {
+      setVerifyLoading(true);
+      setVerifyError(null);
+      setVerifiedBooking(null);
+      setCheckInSuccess(null);
+      const res = await verifyBookingPass(verifyInput.trim());
+      if (res?.status === 'ok' && res?.booking) {
+        setVerifiedBooking(res.booking);
+      } else {
+        throw new Error(res?.message || 'Verification failed');
+      }
+    } catch (err) {
+      setVerifyError(err.message || 'Invalid or unknown check-in token.');
+    } finally {
+      setVerifyLoading(false);
+    }
+  };
+
+  // Handle Owner Check-In Action
+  const handleCheckIn = async (bookingId) => {
+    try {
+      setCheckInLoading(true);
+      setVerifyError(null);
+      const res = await checkInPlayerBooking(bookingId);
+      if (res?.status === 'ok' && res?.booking) {
+        setCheckInSuccess(`Player ${res.booking.playerName || res.booking.customerName || 'Player'} has been successfully checked in!`);
+        setVerifiedBooking(res.booking);
+        // Refresh live dashboard so schedule and stats update authoritatively
+        await loadDashboard();
+      } else {
+        throw new Error(res?.message || 'Check-in failed');
+      }
+    } catch (err) {
+      setVerifyError(err.message || 'Check-in request failed.');
+    } finally {
+      setCheckInLoading(false);
+    }
+  };
+
+  const handleClearVerify = () => {
+    setVerifyInput('');
+    setVerifiedBooking(null);
+    setVerifyError(null);
+    setCheckInSuccess(null);
+  };
 
   // Handle Approve Action (Authoritative backend call)
   const handleApprove = async (bookingId) => {
@@ -723,7 +786,167 @@ function OwnerDashboardInner() {
               </div>
             </section>
 
-            {/* ── 2. Pending Booking Requests Section ──────────────────────────── */}
+            {/* ── 2. Player Check-In & Token Verification Section ────────────── */}
+            <section aria-labelledby="checkin-verification-heading" className="bg-slate-900/90 rounded-3xl border border-slate-800 shadow-xl p-5 sm:p-7">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-5 border-b border-slate-800">
+                <div>
+                  <h2 id="checkin-verification-heading" className="text-lg sm:text-xl font-black text-white tracking-tight flex items-center gap-2.5">
+                    <QrCode className="w-5 h-5 text-emerald-400" />
+                    Player Check-In & Verification
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Enter the player's Check-In Token (e.g. <span className="font-mono text-slate-300">CHK-XXXX-YYYY-ZZZZ</span>) or paste QR payload to verify credentials and check in player upon arrival.
+                  </p>
+                </div>
+              </div>
+
+              {/* Input Form */}
+              <form onSubmit={handleVerifyPass} className="mt-5 flex flex-col sm:flex-row gap-3">
+                <div className="relative flex-1">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                    <KeyRound className="w-4 h-4 text-emerald-400" />
+                  </div>
+                  <input
+                    id="input-checkin-token"
+                    type="text"
+                    value={verifyInput}
+                    onChange={(e) => setVerifyInput(e.target.value)}
+                    placeholder="Enter Check-In Token or paste QR payload (e.g. CHK-17BA-1DCD-FD46)"
+                    className="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-2xl text-xs sm:text-sm text-white placeholder-slate-500 font-mono focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    id="btn-verify-token"
+                    type="submit"
+                    disabled={verifyLoading || !verifyInput.trim()}
+                    className="px-6 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black transition disabled:opacity-50 flex items-center gap-2 shadow-lg shadow-emerald-500/20"
+                  >
+                    <Search className={`w-4 h-4 stroke-[2.5] ${verifyLoading ? 'animate-spin' : ''}`} />
+                    <span>{verifyLoading ? 'Verifying...' : 'Verify Pass'}</span>
+                  </button>
+
+                  {(verifiedBooking || verifyInput || verifyError || checkInSuccess) && (
+                    <button
+                      type="button"
+                      onClick={handleClearVerify}
+                      className="px-4 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+              </form>
+
+              {/* Error Feedback */}
+              {verifyError && (
+                <div role="alert" className="mt-4 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-300 flex items-center gap-2.5 text-xs font-bold">
+                  <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                  <span>{verifyError}</span>
+                </div>
+              )}
+
+              {/* Check-In Success Toast */}
+              {checkInSuccess && (
+                <div role="status" className="mt-4 p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 flex items-center gap-2.5 text-xs font-bold">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>{checkInSuccess}</span>
+                </div>
+              )}
+
+              {/* Authoritative Verified Pass Card */}
+              {verifiedBooking && (
+                <div className="mt-5 p-5 sm:p-6 rounded-2xl bg-slate-950 border border-emerald-500/30 shadow-2xl relative overflow-hidden">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 border-b border-slate-800/80">
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-mono text-xs font-bold text-slate-300 bg-slate-900 px-2.5 py-1 rounded-md border border-slate-800">
+                          {verifiedBooking.id}
+                        </span>
+                        {verifiedBooking.checkInToken && (
+                          <span className="font-mono text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-md border border-emerald-500/20">
+                            {verifiedBooking.checkInToken}
+                          </span>
+                        )}
+                      </div>
+                      <h3 className="text-base font-black text-white mt-1.5 flex items-center gap-2">
+                        <User className="w-4 h-4 text-emerald-400" />
+                        <span>{verifiedBooking.playerName || verifiedBooking.customerName || 'Player'}</span>
+                      </h3>
+                    </div>
+
+                    <div>
+                      <BookingStatusBadge status={verifiedBooking.status} />
+                    </div>
+                  </div>
+
+                  {/* Booking Details Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 py-4 text-xs">
+                    <div className="p-3.5 bg-slate-900/70 rounded-xl border border-slate-800/80">
+                      <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block mb-1">Facility & Court</span>
+                      <div className="font-bold text-white text-sm">{verifiedBooking.courtName}</div>
+                      <div className="text-slate-400 text-[11px] mt-0.5">{verifiedBooking.venueName} • {verifiedBooking.sport}</div>
+                    </div>
+
+                    <div className="p-3.5 bg-slate-900/70 rounded-xl border border-slate-800/80">
+                      <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block mb-1">Date & Time</span>
+                      <div className="font-bold text-slate-200">{formatBookingDate(verifiedBooking.date)}</div>
+                      <div className="font-mono text-emerald-400 font-semibold mt-0.5">
+                        {verifiedBooking.startTime} - {verifiedBooking.endTime} ({verifiedBooking.durationHours || 1} hr{verifiedBooking.durationHours > 1 ? 's' : ''})
+                      </div>
+                    </div>
+
+                    <div className="p-3.5 bg-slate-900/70 rounded-xl border border-slate-800/80">
+                      <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block mb-1">Financial State</span>
+                      <div className="font-mono font-black text-white text-sm">₹{verifiedBooking.totalPrice}</div>
+                      <div className="text-[11px] text-slate-400 mt-0.5">
+                        Method: <strong className="text-slate-200">{verifiedBooking.paymentMethod || 'N/A'}</strong> ({verifiedBooking.paymentStatus || 'PENDING'})
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Payment Alert Banner */}
+                  {verifiedBooking.paymentMethod === 'Pay at Venue' && verifiedBooking.paymentStatus === 'PENDING' ? (
+                    <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center gap-2.5 text-xs text-amber-300 font-bold">
+                      <IndianRupee className="w-4 h-4 text-amber-400 shrink-0" />
+                      <span>PAYMENT DUE AT VENUE — Collect ₹{verifiedBooking.totalPrice} before or upon court admission.</span>
+                    </div>
+                  ) : verifiedBooking.paymentStatus === 'PAID' ? (
+                    <div className="mb-4 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center gap-2.5 text-xs text-emerald-300 font-bold">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <span>PAID ONLINE — Reservation paid in full via {verifiedBooking.paymentMethod || 'Online'}.</span>
+                    </div>
+                  ) : null}
+
+                  {/* Action Footer */}
+                  <div className="pt-4 border-t border-slate-800 flex items-center justify-between gap-4">
+                    <span className="text-[11px] text-slate-500 font-medium">
+                      Authoritative server verification complete.
+                    </span>
+
+                    {verifiedBooking.status === 'CONFIRMED' ? (
+                      <button
+                        id="btn-confirm-checkin"
+                        onClick={() => handleCheckIn(verifiedBooking.id)}
+                        disabled={checkInLoading}
+                        className="px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-slate-950 text-xs font-black transition disabled:opacity-50 flex items-center gap-2 shadow-lg shadow-emerald-500/20"
+                      >
+                        <Check className="w-4 h-4 stroke-[3]" />
+                        <span>{checkInLoading ? 'Checking In...' : 'CHECK IN PLAYER'}</span>
+                      </button>
+                    ) : verifiedBooking.status === 'CHECKED_IN' ? (
+                      <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/30 text-xs font-bold font-mono">
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>PLAYER CHECKED IN</span>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              )}
+            </section>
+
+            {/* ── 3. Pending Booking Requests Section ──────────────────────────── */}
             <section aria-labelledby="pending-requests-heading" className="bg-slate-900/90 rounded-3xl border border-slate-800 shadow-xl p-5 sm:p-7">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-5 border-b border-slate-800">
                 <div>

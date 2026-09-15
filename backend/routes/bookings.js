@@ -8,6 +8,8 @@ import {
   rejectBooking,
   payBooking,
   updateBookingStatus,
+  verifyBookingByToken,
+  checkInBooking,
 } from '../controllers/bookingController.js';
 import { authenticate } from '../middleware/authenticate.js';
 import { requireRole } from '../middleware/requireRole.js';
@@ -17,7 +19,11 @@ const router = Router();
 // All booking routes require authentication
 router.use(authenticate);
 
-// ── Static routes must precede dynamic /:id ───────────────────────────────────
+// ── Static / Special routes must precede dynamic /:id ──────────────────────────
+
+// Owner of venue or Admin: verify check-in token / QR
+router.get('/verify/:token', verifyBookingByToken);
+router.post('/verify', verifyBookingByToken);
 
 // Customer: list my bookings
 router.get('/my', requireRole('CUSTOMER'), getMyBookings);
@@ -30,6 +36,9 @@ router.get('/:id', requireRole('CUSTOMER'), getBooking);
 
 // Customer: cancel booking (ownership checked)
 router.delete('/:id', requireRole('CUSTOMER'), cancelBooking);
+
+// Owner of venue or Admin: check-in player
+router.post('/:id/check-in', checkInBooking);
 
 // Owner of venue or Admin: approve booking
 router.post('/:id/approve', approveBooking);
@@ -44,3 +53,4 @@ router.post('/:id/pay', payBooking);
 router.patch('/:id/status', updateBookingStatus);
 
 export default router;
+

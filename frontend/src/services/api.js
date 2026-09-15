@@ -306,6 +306,23 @@ export async function rejectBooking(id) {
 }
 
 /**
+ * POST /api/bookings/verify  (OWNER / ADMIN)
+ * Body: { token?: string, qrData?: string }
+ * Returns { status, message, booking }
+ */
+export async function verifyBookingPass(tokenOrQr) {
+  return apiRequest('POST', '/bookings/verify', { token: tokenOrQr, qrData: tokenOrQr }, true);
+}
+
+/**
+ * POST /api/bookings/:id/check-in  (OWNER / ADMIN)
+ * Returns { status, message, booking }
+ */
+export async function checkInPlayerBooking(id) {
+  return apiRequest('POST', `/bookings/${id}/check-in`, null, true);
+}
+
+/**
  * PATCH /api/bookings/:id/status
  * Body: { status?: string, paymentStatus?: string, paymentMethod?: string }
  * Returns { status, message, booking }

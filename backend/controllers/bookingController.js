@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { store, safeBooking } from '../data/store.js';
 import {
   BOOKING_STATUS,
@@ -19,6 +20,11 @@ import {
 function generateBookingId() {
   const rand = Math.floor(100000 + Math.random() * 900000);
   return `BK-${Date.now().toString(36).toUpperCase()}-${rand}`;
+}
+
+export function generateCheckInToken() {
+  const randHex = crypto.randomBytes(6).toString('hex').toUpperCase();
+  return `CHK-${randHex.slice(0, 4)}-${randHex.slice(4, 8)}-${randHex.slice(8, 12)}`;
 }
 
 /**
@@ -479,6 +485,9 @@ export function payBooking(req, res) {
   booking.status = BOOKING_STATUS.CONFIRMED;
   booking.paymentStatus = isPayAtVenue ? PAYMENT_STATUS.PENDING : PAYMENT_STATUS.PAID;
   booking.paymentMethod = normalizedMethod;
+  if (!booking.checkInToken) {
+    booking.checkInToken = generateCheckInToken();
+  }
   booking.updatedAt = new Date().toISOString();
 
   return res.status(200).json({
@@ -617,6 +626,10 @@ export function updateBookingStatus(req, res) {
     booking.paymentMethod = paymentMethod;
   }
 
+  if ([BOOKING_STATUS.CONFIRMED, BOOKING_STATUS.PAID, BOOKING_STATUS.CHECKED_IN, BOOKING_STATUS.COMPLETED].includes(booking.status) && !booking.checkInToken) {
+    booking.checkInToken = generateCheckInToken();
+  }
+
   booking.updatedAt = new Date().toISOString();
 
   return res.status(200).json({
@@ -625,3 +638,273 @@ export function updateBookingStatus(req, res) {
     booking: safeBooking(booking),
   });
 }
+
+// ─── OWNER / ADMIN: Verify Booking by Check-In Token or QR ───────────────────
+
+/**
+ * GET  /api/bookings/verify/:token
+ * POST /api/bookings/verify
+ * Requires: authenticate (OWNER of venue or ADMIN)
+ * Verifies a player's check-in pass server-side using token or QR payload.
+ */
+export function verifyBookingByToken(req, res) {
+  // Role check: Only OWNER or ADMIN allowed
+  if (req.user.role !== 'OWNER' && req.user.role !== 'ADMIN') {
+    return res.status(403).json({
+      status: 'error',
+      message: 'Access denied. Owner or Admin role required for verification.',
+    });
+  }
+
+  let rawToken = req.params?.token || req.query?.token || req.body?.token || req.body?.qrData || req.body?.qrPayload;
+
+  if (!rawToken || typeof rawToken !== 'string') {
+    return res.status(400).json({
+      status: 'error',
+      message: 'Check-in token or QR payload is required.',
+    });
+  }
+
+  rawToken = rawToken.trim();
+
+  // Handle JSON QR payload if provided
+  let lookupToken = rawToken;
+  let lookupBookingId = null;
+
+  if (rawToken.startsWith('{') && rawToken.endsWith('}')) {
+    try {
+      const parsed = JSON.parse(rawToken);
+      if (parsed.tok) lookupToken = String(parsed.tok).trim();
+      else if (parsed.token) lookupToken = String(parsed.token).trim();
+      if (parsed.bId) lookupBookingId = String(parsed.bId).trim();
+    } catch {
+      // treat as raw token string
+    }
+  }
+
+  if (!lookupToken) {
+    return res.status(400).json({
+      status: 'error',
+      message: 'Malformed or invalid check-in token.',
+    });
+  }
+
+  // 1. Locate booking in store
+  let booking = store.bookings.find((b) => b.checkInToken && b.checkInToken.toUpperCase() === lookupToken.toUpperCase());
+
+  // Fallback: If passed a booking ID directly or encoded in QR
+  if (!booking && (lookupBookingId || lookupToken.startsWith('BK-'))) {
+    const idToTry = lookupBookingId || lookupToken;
+    booking = store.bookings.find((b) => b.id === idToTry);
+  }
+
+  if (!booking) {
+    return res.status(404).json({
+      status: 'error',
+      message: 'Invalid or unknown check-in token. Booking not found.',
+    });
+  }
+
+  // 2. Ownership / Tenant Isolation check
+  const isOwner = isVenueOwnerForBooking(req.user, booking);
+  const isAdmin = req.user.role === 'ADMIN';
+
+  if (!isOwner && !isAdmin) {
+    return res.status(403).json({
+      status: 'error',
+      message: 'You are not authorized to verify bookings for this venue.',
+    });
+  }
+
+  // 3. State validations
+  if (booking.status === BOOKING_STATUS.CHECKED_IN) {
+    return res.status(400).json({
+      status: 'error',
+      message: 'This booking has already been checked in.',
+      booking: safeBooking(booking),
+    });
+  }
+
+  if (booking.status === BOOKING_STATUS.COMPLETED) {
+    return res.status(400).json({
+      status: 'error',
+      message: 'This booking is already completed.',
+      booking: safeBooking(booking),
+    });
+  }
+
+  if (booking.status === BOOKING_STATUS.CANCELLED) {
+    return res.status(400).json({
+      status: 'error',
+      message: 'This booking has been cancelled.',
+      booking: safeBooking(booking),
+    });
+  }
+
+  if (booking.status === BOOKING_STATUS.REJECTED) {
+    return res.status(400).json({
+      status: 'error',
+      message: 'This booking was rejected.',
+      booking: safeBooking(booking),
+    });
+  }
+
+  if (booking.status === BOOKING_STATUS.REQUESTED) {
+    return res.status(400).json({
+      status: 'error',
+      message: 'This booking is still pending approval and has not been confirmed.',
+      booking: safeBooking(booking),
+    });
+  }
+
+  if (booking.status === BOOKING_STATUS.APPROVED || booking.status === BOOKING_STATUS.PAYMENT_PENDING) {
+    return res.status(400).json({
+      status: 'error',
+      message: 'This booking is awaiting payment and has not been confirmed.',
+      booking: safeBooking(booking),
+    });
+  }
+
+  if (booking.status !== BOOKING_STATUS.CONFIRMED && booking.status !== BOOKING_STATUS.PAID) {
+    return res.status(400).json({
+      status: 'error',
+      message: `Booking in '${booking.status}' status is not eligible for check-in.`,
+      booking: safeBooking(booking),
+    });
+  }
+
+  // 4. Enrich authoritative response
+  const court = store.courts.find((c) => c.id === booking.courtId);
+  const venue = store.venues.find((v) => v.id === (booking.venueId || court?.venueId));
+  const customer = (store.users || []).find((u) => u.id === booking.userId);
+
+  const startH = parse12HourTime(booking.startTime);
+  const endH = parse12HourTime(booking.endTime);
+  const durationHours = (startH !== null && endH !== null && endH > startH) ? (endH - startH) : 1;
+
+  return res.status(200).json({
+    status: 'ok',
+    message: 'Booking verified successfully.',
+    booking: {
+      ...safeBooking(booking),
+      customerName: customer ? customer.name : (booking.userName || 'Player'),
+      playerName: customer ? customer.name : (booking.userName || 'Player'),
+      venueName: venue ? venue.name : (booking.venueName || 'Venue'),
+      courtName: court ? court.name : (booking.courtName || 'Court'),
+      sport: court ? court.sport : (booking.sport || 'Sports'),
+      durationHours,
+    },
+  });
+}
+
+// ─── OWNER / ADMIN: Check In Booking ──────────────────────────────────────────
+
+/**
+ * POST /api/bookings/:id/check-in
+ * Requires: authenticate (OWNER of venue or ADMIN)
+ * Transitions: CONFIRMED / PAID -> CHECKED_IN
+ */
+export function checkInBooking(req, res) {
+  // Role check: Only OWNER or ADMIN allowed
+  if (req.user.role !== 'OWNER' && req.user.role !== 'ADMIN') {
+    return res.status(403).json({
+      status: 'error',
+      message: 'Access denied. Owner or Admin role required to check in bookings.',
+    });
+  }
+
+  const booking = store.bookings.find((b) => b.id === req.params.id);
+  if (!booking) {
+    return res.status(404).json({ status: 'error', message: 'Booking not found.' });
+  }
+
+  // Ownership / Tenant Isolation check
+  const isOwner = isVenueOwnerForBooking(req.user, booking);
+  const isAdmin = req.user.role === 'ADMIN';
+
+  if (!isOwner && !isAdmin) {
+    return res.status(403).json({
+      status: 'error',
+      message: 'You are not authorized to check in bookings for this venue.',
+    });
+  }
+
+  // State checks
+  if (booking.status === BOOKING_STATUS.CHECKED_IN) {
+    return res.status(400).json({
+      status: 'error',
+      message: 'Booking is already checked in.',
+    });
+  }
+
+  if (booking.status === BOOKING_STATUS.COMPLETED) {
+    return res.status(400).json({
+      status: 'error',
+      message: 'Booking is already completed.',
+    });
+  }
+
+  if (booking.status === BOOKING_STATUS.CANCELLED) {
+    return res.status(400).json({
+      status: 'error',
+      message: 'Cannot check in a cancelled booking.',
+    });
+  }
+
+  if (booking.status === BOOKING_STATUS.REJECTED) {
+    return res.status(400).json({
+      status: 'error',
+      message: 'Cannot check in a rejected booking.',
+    });
+  }
+
+  if (booking.status === BOOKING_STATUS.REQUESTED) {
+    return res.status(400).json({
+      status: 'error',
+      message: 'Cannot check in a pending requested booking.',
+    });
+  }
+
+  if (booking.status === BOOKING_STATUS.APPROVED || booking.status === BOOKING_STATUS.PAYMENT_PENDING) {
+    return res.status(400).json({
+      status: 'error',
+      message: 'Cannot check in an unconfirmed booking.',
+    });
+  }
+
+  if (booking.status !== BOOKING_STATUS.CONFIRMED && booking.status !== BOOKING_STATUS.PAID) {
+    return res.status(400).json({
+      status: 'error',
+      message: `Cannot check in booking in '${booking.status}' status.`,
+    });
+  }
+
+  // State transition: CONFIRMED -> CHECKED_IN
+  booking.status = BOOKING_STATUS.CHECKED_IN;
+  booking.checkedInAt = new Date().toISOString();
+  booking.updatedAt = new Date().toISOString();
+
+  // Note: Pay at Venue bookings remain paymentStatus PENDING. Paid online remain PAID.
+  const court = store.courts.find((c) => c.id === booking.courtId);
+  const venue = store.venues.find((v) => v.id === (booking.venueId || court?.venueId));
+  const customer = (store.users || []).find((u) => u.id === booking.userId);
+
+  const startH = parse12HourTime(booking.startTime);
+  const endH = parse12HourTime(booking.endTime);
+  const durationHours = (startH !== null && endH !== null && endH > startH) ? (endH - startH) : 1;
+
+  return res.status(200).json({
+    status: 'ok',
+    message: 'Player successfully checked in.',
+    booking: {
+      ...safeBooking(booking),
+      customerName: customer ? customer.name : (booking.userName || 'Player'),
+      playerName: customer ? customer.name : (booking.userName || 'Player'),
+      venueName: venue ? venue.name : (booking.venueName || 'Venue'),
+      courtName: court ? court.name : (booking.courtName || 'Court'),
+      sport: court ? court.sport : (booking.sport || 'Sports'),
+      durationHours,
+    },
+  });
+}
+
