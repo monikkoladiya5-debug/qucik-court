@@ -12,6 +12,7 @@ import AdminDashboardPage from './pages/AdminDashboardPage';
 import MyBookingsPage from './pages/MyBookingsPage';
 import PlayersPage from './pages/PlayersPage';
 import ProfilePage from './pages/ProfilePage';
+import NotificationsPage from './pages/NotificationsPage';
 
 // ─── App Root with Router & Auth Provider ─────────────────────────────────────
 export default function App() {
@@ -68,6 +69,14 @@ export default function App() {
             element={
               <ProtectedRoute allowedRoles={['ADMIN']}>
                 <AdminDashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/notifications"
+            element={
+              <ProtectedRoute allowedRoles={['CUSTOMER', 'OWNER', 'ADMIN']}>
+                <NotificationsPage />
               </ProtectedRoute>
             }
           />

@@ -503,6 +503,19 @@ export async function fetchAdminDashboard() {
 }
 
 /**
+ * GET /api/admin/platform-intelligence?range=&dateFrom=&dateTo= (ADMIN) (Phase 18)
+ * Returns { status, filter, platformOverview, bookingOverview, paymentOverview, courtUtilization, sportsAnalytics, venueAndCityAnalytics, timeDemandAnalytics, operationalHealth }
+ */
+export async function fetchAdminPlatformIntelligence(params = {}) {
+  const qp = new URLSearchParams();
+  if (params.range) qp.set('range', params.range);
+  if (params.dateFrom) qp.set('dateFrom', params.dateFrom);
+  if (params.dateTo) qp.set('dateTo', params.dateTo);
+  const qs = qp.toString();
+  return apiRequest('GET', `/admin/platform-intelligence${qs ? `?${qs}` : ''}`, null, true);
+}
+
+/**
  * PATCH /api/admin/users/:id/status (ADMIN)
  * Body: { status: 'active' | 'suspended' }
  * Returns { status, message, user }
@@ -510,6 +523,106 @@ export async function fetchAdminDashboard() {
 export async function toggleUserStatusApi(userId, status) {
   return apiRequest('PATCH', `/admin/users/${userId}/status`, { status }, true);
 }
+
+/**
+ * GET /api/admin/venues/verification (ADMIN) (Phase 19)
+ * Query: { status, search }
+ * Returns { status, counts, venues }
+ */
+export async function fetchAdminVenueVerifications(params = {}) {
+  const qp = new URLSearchParams();
+  if (params.status && params.status !== 'ALL') qp.set('status', params.status);
+  if (params.search) qp.set('search', params.search);
+  const qs = qp.toString();
+  return apiRequest('GET', `/admin/venues/verification${qs ? `?${qs}` : ''}`, null, true);
+}
+
+/**
+ * PATCH /api/admin/venues/:venueId/verification (ADMIN) (Phase 19)
+ * Body: { status: 'VERIFIED' | 'REJECTED' | 'SUSPENDED', note?: string, reason?: string }
+ * Returns { status, message, venue }
+ */
+export async function updateVenueVerificationApi(venueId, data) {
+  return apiRequest('PATCH', `/admin/venues/${venueId}/verification`, data, true);
+}
+
+// ─── Notifications (Phase 15) ────────────────────────────────────────────────
+
+/**
+ * GET /api/notifications
+ * Returns { status, count, unreadCount, notifications }
+ */
+export async function fetchNotifications() {
+  return apiRequest('GET', '/notifications', null, true);
+}
+
+/**
+ * GET /api/notifications/unread-count
+ * Returns { status, unreadCount }
+ */
+export async function fetchUnreadCount() {
+  return apiRequest('GET', '/notifications/unread-count', null, true);
+}
+
+/**
+ * PATCH /api/notifications/:id/read
+ * Returns { status, message, notification }
+ */
+export async function markNotificationRead(notificationId) {
+  return apiRequest('PATCH', `/notifications/${notificationId}/read`, null, true);
+}
+
+/**
+ * POST /api/notifications/read-all
+ * Returns { status, message, updatedCount }
+ */
+export async function markAllNotificationsRead() {
+  return apiRequest('POST', '/notifications/read-all', null, true);
+}
+
+// ─── Price Comparison & Smart Pricing (Phase 16) ─────────────────────────────
+
+/**
+ * GET /api/pricing/compare
+ * Query: { sport, city, location, date, startTime, duration, indoor, sortBy }
+ * Returns { status, count, durationHours, date, startTime, endTime, pricingTier, summary, comparisons }
+ */
+export async function fetchPriceComparison(params = {}) {
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([key, val]) => {
+    if (val !== undefined && val !== null && val !== '') {
+      query.append(key, val);
+    }
+  });
+  const queryString = query.toString() ? `?${query.toString()}` : '';
+  return apiRequest('GET', `/pricing/compare${queryString}`);
+}
+
+/**
+ * GET /api/owner/pricing-intelligence (OWNER)
+ * Returns { status, count, pricingIntelligence }
+ */
+export async function fetchOwnerPricingIntelligence() {
+  return apiRequest('GET', '/owner/pricing-intelligence', null, true);
+}
+
+/**
+ * GET /api/pricing/best-times
+ * Query: { date, duration, venueId, courtId, sport, city, indoor }
+ * Returns { status, date, durationHours, totalAnalyzed, summary, recommendations }
+ */
+export async function fetchBestTimes(params = {}) {
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([key, val]) => {
+    if (val !== undefined && val !== null && val !== '') {
+      query.append(key, val);
+    }
+  });
+  const queryString = query.toString() ? `?${query.toString()}` : '';
+  return apiRequest('GET', `/pricing/best-times${queryString}`);
+}
+
+
 
 
 

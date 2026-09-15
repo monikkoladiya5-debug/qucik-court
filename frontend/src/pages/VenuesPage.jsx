@@ -3,14 +3,17 @@ import { Link, useSearchParams } from 'react-router-dom';
 import {
   Search, SlidersHorizontal, MapPin, Star, Clock,
   X, Loader2, AlertCircle, Building2, ChevronRight,
-  ShieldCheck, Compass, Check, Activity
+  ShieldCheck, Compass, Check, Activity, IndianRupee,
+  Sparkles, Tag, ArrowUpDown, Filter, Trophy, Zap, Layers
 } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import SportIcon from '../components/ui/SportIcon';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
-import { fetchVenues, fetchVenueMeta } from '../services/api';
+import CourtPriceComparison from '../components/CourtPriceComparison';
+import { fetchVenues, fetchVenueMeta, fetchPriceComparison } from '../services/api';
+import { getLocalDateString, formatBookingDate } from '../utils/date';
 
 // ─── Venue Marketplace Card ───────────────────────────────────────────────────
 
@@ -39,8 +42,8 @@ function VenueCard({ venue }) {
           </div>
         )}
 
-        {/* Facility Type Badge */}
-        <div className="absolute top-3 left-3 flex items-center gap-1.5">
+        {/* Facility Type Badge & Verified Badge */}
+        <div className="absolute top-3 left-3 flex items-center gap-1.5 flex-wrap">
           <span
             className={`px-2.5 py-1 rounded-lg text-xs font-bold shadow-sm backdrop-blur-md border ${
               venue.indoor
@@ -50,6 +53,15 @@ function VenueCard({ venue }) {
           >
             {venue.indoor ? 'Indoor Arena' : 'Outdoor Turf'}
           </span>
+          {(venue.isVerified || venue.verificationStatus === 'VERIFIED') && (
+            <span
+              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-black shadow-sm backdrop-blur-md bg-[#0B0F17]/90 text-emerald-400 border border-emerald-500/30"
+              title="QuickCourt Verified Facility"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Verified</span>
+            </span>
+          )}
         </div>
 
         {/* Rating & Court Badges */}
@@ -169,6 +181,7 @@ export default function VenuesPage() {
   const [sortBy, setSortBy]         = useState(() => searchParams.get('sortBy') || '');
   const [showFilters, setShowFilters] = useState(() => Boolean(searchParams.get('city') || searchParams.get('indoor') || searchParams.get('maxPrice')));
 
+  const [activeTab, setActiveTab]   = useState(() => (searchParams.get('tab') === 'compare' ? 'compare' : 'explore'));
   const [venues, setVenues]         = useState([]);
   const [meta, setMeta]             = useState({ cities: [], sports: [] });
   const [loading, setLoading]       = useState(true);
@@ -236,32 +249,69 @@ export default function VenuesPage() {
             <Compass className="w-3.5 h-3.5 text-lime-400" />
             <span>Court Marketplace</span>
             <span className="text-slate-600">/</span>
-            <span className="text-slate-400 font-medium">Explore Facilities</span>
+            <span className="text-slate-400 font-medium">
+              {activeTab === 'compare' ? 'Court Price Comparison' : 'Explore Facilities'}
+            </span>
           </div>
           
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
             <div>
               <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight">
-                Find & Compare Courts
+                {activeTab === 'compare' ? 'Court Price Comparison' : 'Find & Compare Courts'}
               </h1>
               <p className="mt-1.5 text-xs sm:text-sm text-slate-400 max-w-2xl">
-                Explore verified sports venues across India, compare hourly rates and court amenities, and reserve your playtime.
+                {activeTab === 'compare'
+                  ? 'Compare transparent hourly rates, peak vs off-peak slots, and multi-hour totals across all verified courts in your city.'
+                  : 'Explore verified sports venues across India, compare hourly rates and court amenities, and reserve your playtime.'}
               </p>
             </div>
             
-            {/* Trust / Verified Badge */}
-            <div className="hidden sm:inline-flex items-center gap-2 self-start md:self-auto py-2 px-3.5 rounded-xl bg-[#0F131C] border border-[#28303F] text-xs text-slate-300 shadow-sm">
-              <ShieldCheck className="w-4 h-4 text-lime-400" />
-              <span>100% Verified Facilities</span>
+            {/* View Switcher Tabs */}
+            <div className="flex items-center p-1 bg-[#0F131C] border border-[#28303F] rounded-xl self-start md:self-auto shadow-sm">
+              <button
+                type="button"
+                onClick={() => setActiveTab('explore')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                  activeTab === 'explore'
+                    ? 'bg-lime-400 text-slate-950 shadow-md'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <Building2 className="w-3.5 h-3.5" />
+                <span>Explore Venues</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('compare')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                  activeTab === 'compare'
+                    ? 'bg-lime-400 text-slate-950 shadow-md'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <ArrowUpDown className="w-3.5 h-3.5" />
+                <span>Price Comparison</span>
+                <span className="px-1.5 py-0.5 rounded text-[10px] uppercase font-black bg-lime-500/20 text-lime-400 border border-lime-500/30">
+                  New
+                </span>
+              </button>
             </div>
           </div>
         </div>
 
-        {/* Search & Filter Control Bar */}
-        <section
-          aria-label="Venue search and filter controls"
-          className="bg-[#0F131C] border border-[#28303F] rounded-2xl p-4 sm:p-5 shadow-xl mb-6 space-y-3.5"
-        >
+        {/* Render either Price Comparison Component OR Explore Marketplace */}
+        {activeTab === 'compare' ? (
+          <CourtPriceComparison
+            initialSport={sport || 'Badminton'}
+            initialCity={city || 'Bangalore'}
+          />
+        ) : (
+          <>
+            {/* Search & Filter Control Bar */}
+            <section
+              aria-label="Venue search and filter controls"
+              className="bg-[#0F131C] border border-[#28303F] rounded-2xl p-4 sm:p-5 shadow-xl mb-6 space-y-3.5"
+            >
           {/* Main Controls Row */}
           <div className="flex flex-col sm:flex-row gap-2.5">
             {/* Search Input */}
@@ -641,6 +691,8 @@ export default function VenuesPage() {
               <VenueCard key={v.id} venue={v} />
             ))}
           </div>
+        )}
+          </>
         )}
       </main>
 

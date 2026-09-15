@@ -13,6 +13,7 @@ import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import SportIcon from '../components/ui/SportIcon';
 import Card, { CardHeader, CardTitle, CardContent } from '../components/ui/Card';
+import BestTimeToPlayAdvisor from '../components/BestTimeToPlayAdvisor';
 import { fetchVenue, fetchCourts, fetchCourtAvailability, createBooking } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { formatBookingDate, getLocalDateString } from '../utils/date';
@@ -28,6 +29,19 @@ function getAmenityIcon(amenity) {
   if (a.includes('gym') || a.includes('fitness') || a.includes('equip')) return Dumbbell;
   if (a.includes('lock') || a.includes('changing') || a.includes('shower')) return Lock;
   return CheckCircle2;
+}
+
+// Peak slot classifier helper
+function isPeakSlot(dateStr, startTimeStr) {
+  if (!dateStr || !startTimeStr) return false;
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  const day = d.getUTCDay();
+  const isWeekend = (day === 0 || day === 6);
+  const hour = parseInt(startTimeStr.split(':')[0], 10);
+  if (isWeekend) {
+    return (hour >= 7 && hour < 11) || (hour >= 16 && hour < 22);
+  }
+  return (hour >= 17 && hour < 22);
 }
 
 // ─── Booking Request Dialog ──────────────────────────────────────────────
@@ -408,6 +422,28 @@ export default function VenueDetailPage() {
     }
   };
 
+  // Handle slot range selection from BestTimeToPlayAdvisor
+  const handleSelectAdvisorSlotRange = (rec) => {
+    if (!availability?.slots?.length || !rec) return;
+    const startH = rec.startHour;
+    const endH = rec.endHour;
+
+    // Find all slots in availability that fall into [startH, endH)
+    const matchingSlots = availability.slots.filter((s) => {
+      const match = s.startTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+      if (!match) return false;
+      let h = parseInt(match[1], 10);
+      const period = match[3].toUpperCase();
+      if (period === 'PM' && h !== 12) h += 12;
+      if (period === 'AM' && h === 12) h = 0;
+      return h >= startH && h < endH;
+    });
+
+    if (matchingSlots.length > 0 && matchingSlots.every((s) => s.status === 'AVAILABLE')) {
+      setSelectedSlots(matchingSlots);
+    }
+  };
+
   const todayStr = getLocalDateString();
   const tomorrowDate = new Date();
   tomorrowDate.setDate(tomorrowDate.getDate() + 1);
@@ -507,10 +543,12 @@ export default function VenueDetailPage() {
                       <span className="px-3 py-1 rounded-full bg-[#0B0F17]/80 backdrop-blur-md text-slate-200 text-xs font-bold border border-[#28303F]">
                         {venue.city}
                       </span>
-                      <span className="px-3 py-1 rounded-full bg-lime-400/10 backdrop-blur-md text-lime-400 text-xs font-bold border border-lime-400/20 flex items-center gap-1">
-                        <ShieldCheck className="w-3.5 h-3.5" />
-                        Verified Facility
-                      </span>
+                      {(venue.isVerified || venue.verificationStatus === 'VERIFIED') && (
+                        <span className="px-3 py-1 rounded-full bg-emerald-500/10 backdrop-blur-md text-emerald-400 text-xs font-bold border border-emerald-500/20 flex items-center gap-1" title="QuickCourt Verified Facility">
+                          <ShieldCheck className="w-3.5 h-3.5" />
+                          Verified Facility
+                        </span>
+                      )}
                     </div>
 
                     <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight drop-shadow-sm">
@@ -708,6 +746,17 @@ export default function VenueDetailPage() {
                       </div>
                     </div>
 
+                    {/* Best Time to Play Advisory Console */}
+                    <BestTimeToPlayAdvisor
+                      venueId={venue.id}
+                      courtId={selectedCourt.id}
+                      courtName={selectedCourt.name}
+                      date={selectedDate}
+                      onSelectSlotRange={handleSelectAdvisorSlotRange}
+                      selectedStartTime={firstSelectedSlot?.startTime}
+                      selectedEndTime={lastSelectedSlot?.endTime}
+                    />
+
                     {/* STEP 3: Slot Grid */}
                     <div className="space-y-4 pt-2">
                       <div className="flex items-center justify-between flex-wrap gap-2">
@@ -755,13 +804,14 @@ export default function VenueDetailPage() {
                               const isFirst = firstSelectedSlot?.id === slot.id;
                               const isLast = lastSelectedSlot?.id === slot.id;
 
+                              const peak = isPeakSlot(selectedDate, slot.startTime);
                               return (
                                 <button
                                   key={slot.id}
                                   type="button"
                                   disabled={!isAvail}
                                   aria-pressed={isSelected}
-                                  aria-label={`${slot.startTime} to ${slot.endTime}, ${isAvail ? (isSelected ? 'Selected slot' : 'Available slot') : 'Slot booked or unavailable'}`}
+                                  aria-label={`${slot.startTime} to ${slot.endTime}, ${peak ? 'Peak hours' : 'Off-peak hours'}, ${isAvail ? (isSelected ? 'Selected slot' : 'Available slot') : 'Slot booked or unavailable'}`}
                                   onClick={() => handleSlotToggle(slot)}
                                   className={`p-3 rounded-xl border text-center transition-all min-w-0 ${
                                     isSelected
@@ -771,6 +821,17 @@ export default function VenueDetailPage() {
                                       : 'bg-[#0B0F17]/40 border-[#28303F]/60 text-slate-600 cursor-not-allowed opacity-60'
                                   }`}
                                 >
+                                  <div className="flex items-center justify-between gap-1 mb-1">
+                                    <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${
+                                      isSelected
+                                        ? 'bg-slate-950/20 text-slate-950 font-black'
+                                        : peak
+                                        ? 'bg-amber-400/15 text-amber-400 border border-amber-400/30'
+                                        : 'bg-[#181C24] text-slate-400 border border-[#28303F]'
+                                    }`}>
+                                      {peak ? 'Peak' : 'Off-Peak'}
+                                    </span>
+                                  </div>
                                   <p className={`text-xs font-bold font-mono ${isSelected ? 'text-slate-950' : isAvail ? 'text-white' : 'text-slate-500'}`}>
                                     {slot.startTime}
                                   </p>

@@ -80,6 +80,11 @@ export const store = {
       status: 'active',
       ownerId: 'u-102',
       createdAt: '2026-01-10',
+      verificationStatus: 'VERIFIED',
+      verifiedAt: '2026-01-10T00:00:00.000Z',
+      verifiedBy: 'u-103',
+      verificationNote: 'Verified partner facility',
+      verificationUpdatedAt: '2026-01-10T00:00:00.000Z',
     },
     {
       id: 'v-2',
@@ -100,6 +105,11 @@ export const store = {
       status: 'active',
       ownerId: 'u-102',
       createdAt: '2026-02-05',
+      verificationStatus: 'VERIFIED',
+      verifiedAt: '2026-02-05T00:00:00.000Z',
+      verifiedBy: 'u-103',
+      verificationNote: 'Verified partner facility',
+      verificationUpdatedAt: '2026-02-05T00:00:00.000Z',
     },
     {
       id: 'v-3',
@@ -120,6 +130,11 @@ export const store = {
       status: 'active',
       ownerId: 'u-102',
       createdAt: '2026-01-20',
+      verificationStatus: 'VERIFIED',
+      verifiedAt: '2026-01-20T00:00:00.000Z',
+      verifiedBy: 'u-103',
+      verificationNote: 'Verified partner facility',
+      verificationUpdatedAt: '2026-01-20T00:00:00.000Z',
     },
     {
       id: 'v-4',
@@ -140,6 +155,11 @@ export const store = {
       status: 'active',
       ownerId: 'u-102',
       createdAt: '2025-11-15',
+      verificationStatus: 'VERIFIED',
+      verifiedAt: '2025-11-15T00:00:00.000Z',
+      verifiedBy: 'u-103',
+      verificationNote: 'Verified partner facility',
+      verificationUpdatedAt: '2025-11-15T00:00:00.000Z',
     },
     {
       id: 'v-5',
@@ -160,6 +180,11 @@ export const store = {
       status: 'active',
       ownerId: 'u-104',
       createdAt: '2026-03-01',
+      verificationStatus: 'VERIFIED',
+      verifiedAt: '2026-03-01T00:00:00.000Z',
+      verifiedBy: 'u-103',
+      verificationNote: 'Verified partner facility',
+      verificationUpdatedAt: '2026-03-01T00:00:00.000Z',
     },
     {
       id: 'v-6',
@@ -180,6 +205,11 @@ export const store = {
       status: 'active',
       ownerId: 'u-104',
       createdAt: '2026-04-12',
+      verificationStatus: 'VERIFIED',
+      verifiedAt: '2026-04-12T00:00:00.000Z',
+      verifiedBy: 'u-103',
+      verificationNote: 'Verified partner facility',
+      verificationUpdatedAt: '2026-04-12T00:00:00.000Z',
     },
   ],
 
@@ -580,11 +610,27 @@ export function safeUser(user) {
 }
 
 /**
- * Returns a safe public venue object — strips internal-only fields if any.
- * Currently venues have no private fields, but this helper keeps the pattern consistent.
+ * Returns a safe public venue object — strips internal-only fields.
+ * Serializes verificationStatus and isVerified safely.
  */
-export function safeVenue(venue) {
-  return venue;
+export function safeVenue(venue, role = 'CUSTOMER') {
+  if (!venue) return null;
+  const verificationStatus = venue.verificationStatus || 'VERIFIED';
+  const isVerified = verificationStatus === 'VERIFIED';
+
+  const base = {
+    ...venue,
+    verificationStatus,
+    isVerified,
+  };
+
+  // For public / customer consumption, do not expose private admin IDs or internal moderation notes
+  if (role === 'CUSTOMER' || !role) {
+    const { verifiedBy, verificationNote, ...safeCustomerVenue } = base;
+    return safeCustomerVenue;
+  }
+
+  return base;
 }
 
 /**

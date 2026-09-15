@@ -450,7 +450,7 @@ export function listMyVenues(req, res) {
   return res.status(200).json({
     status: 'ok',
     count: myVenues.length,
-    venues: myVenues.map(safeVenue),
+    venues: myVenues.map((v) => safeVenue(v, 'OWNER')),
   });
 }
 
@@ -479,6 +479,7 @@ export function createVenue(req, res) {
     return res.status(400).json({ status: 'error', message: 'At least one sport type is required.' });
   }
 
+  const nowIso = new Date().toISOString();
   const newVenue = {
     id: generateId(),
     name: name.trim(),
@@ -497,12 +498,18 @@ export function createVenue(req, res) {
     reviewCount: 0,
     status: 'active',
     ownerId: req.user.id,
-    createdAt: new Date().toISOString().slice(0, 10),
+    createdAt: nowIso.slice(0, 10),
+    // Phase 19: New owner venues start as PENDING verification
+    verificationStatus: 'PENDING',
+    verifiedAt: null,
+    verifiedBy: null,
+    verificationNote: 'Pending administrator verification',
+    verificationUpdatedAt: nowIso,
   };
 
   store.venues.push(newVenue);
 
-  return res.status(201).json({ status: 'ok', venue: safeVenue(newVenue) });
+  return res.status(201).json({ status: 'ok', venue: safeVenue(newVenue, 'OWNER') });
 }
 
 // ─── OWNER: Update own venue ──────────────────────────────────────────────────
@@ -536,7 +543,7 @@ export function updateVenue(req, res) {
     }
   });
 
-  return res.status(200).json({ status: 'ok', venue: safeVenue(venue) });
+  return res.status(200).json({ status: 'ok', venue: safeVenue(venue, 'OWNER') });
 }
 
 // ─── OWNER: Delete own venue ──────────────────────────────────────────────────

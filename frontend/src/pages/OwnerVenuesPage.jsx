@@ -1502,14 +1502,39 @@ function VenuePortfolioCard({ venue, onEdit, onDelete, onOperateFacility }) {
         {/* Card Body */}
         <div className="p-5 sm:p-6 space-y-4">
           <div>
-            <h2 className="text-lg font-black text-white tracking-tight group-hover:text-emerald-400 transition-colors">
-              {venue.name}
-            </h2>
+            <div className="flex items-start justify-between gap-2">
+              <h2 className="text-lg font-black text-white tracking-tight group-hover:text-emerald-400 transition-colors">
+                {venue.name}
+              </h2>
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-black uppercase shrink-0 border ${
+                venue.verificationStatus === 'VERIFIED'
+                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                  : venue.verificationStatus === 'REJECTED'
+                  ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                  : venue.verificationStatus === 'SUSPENDED'
+                  ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                  : 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'
+              }`}>
+                <ShieldCheck className="w-3 h-3" />
+                <span>{venue.verificationStatus || 'PENDING'}</span>
+              </span>
+            </div>
             <p className="flex items-center gap-1.5 text-xs text-slate-400 mt-1">
               <MapPin className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
               <span className="truncate">{venue.location || venue.city}</span>
             </p>
           </div>
+
+          {/* Admin Moderation Note (if rejected/suspended) */}
+          {['REJECTED', 'SUSPENDED'].includes(venue.verificationStatus) && venue.verificationNote && (
+            <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs space-y-1">
+              <p className="font-bold text-[10px] uppercase text-rose-400 tracking-wider flex items-center gap-1">
+                <AlertCircle className="w-3.5 h-3.5" />
+                <span>Admin Notice ({venue.verificationStatus})</span>
+              </p>
+              <p className="text-[11px] leading-relaxed text-slate-300">{venue.verificationNote}</p>
+            </div>
+          )}
 
           {/* Key Metrics Strip */}
           <div className="grid grid-cols-2 gap-2.5 p-3 rounded-2xl bg-slate-950 border border-slate-800">

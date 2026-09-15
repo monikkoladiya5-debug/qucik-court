@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { Link, NavLink, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
   Activity, LogOut, User, Building2, ShieldCheck,
   Menu, X, ChevronRight, Sparkles, CalendarCheck, Users,
-  LayoutDashboard, Search
+  LayoutDashboard, Search, Bell
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { fetchUnreadCount } from '../services/api';
 
 const ROLE_META = {
   CUSTOMER: { label: 'Player', icon: User, color: 'text-lime-400', bg: 'bg-lime-400/10', border: 'border-lime-400/20' },
@@ -16,7 +17,30 @@ const ROLE_META = {
 export default function Header() {
   const { isAuthenticated, user, role, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
+
+  const loadUnreadCount = useCallback(async () => {
+    if (!isAuthenticated) {
+      setUnreadNotifCount(0);
+      return;
+    }
+    try {
+      const res = await fetchUnreadCount();
+      if (res && typeof res.unreadCount === 'number') {
+        setUnreadNotifCount(res.unreadCount);
+      }
+    } catch {
+      // ignore
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    loadUnreadCount();
+    const interval = setInterval(loadUnreadCount, 20000);
+    return () => clearInterval(interval);
+  }, [loadUnreadCount, location.pathname]);
 
   useEffect(() => {
     function handleKeyDown(e) {
@@ -202,6 +226,21 @@ export default function Header() {
           {/* User Status / Auth Controls */}
           {isAuthenticated && user ? (
             <div className="flex items-center gap-2.5">
+              {/* Notification Bell */}
+              <Link
+                to="/notifications"
+                className="relative p-2 rounded-full text-slate-300 hover:text-white bg-[#181C24] hover:bg-[#1E2430] border border-[#28303F] hover:border-lime-400/40 transition-colors focus:outline-none focus:ring-2 focus:ring-lime-400"
+                aria-label={`Notifications (${unreadNotifCount} unread)`}
+                title="Notifications"
+              >
+                <Bell className="w-4 h-4 text-slate-300" />
+                {unreadNotifCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-lime-400 text-slate-950 text-[10px] font-black rounded-full flex items-center justify-center shadow-qc-lime">
+                    {unreadNotifCount > 9 ? '9+' : unreadNotifCount}
+                  </span>
+                )}
+              </Link>
+
               {/* Role Badge */}
               {meta && (
                 <span className={`hidden lg:inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full ${meta.bg} ${meta.color} border ${meta.border}`}>
@@ -406,6 +445,31 @@ export default function Header() {
                 <span>Admin Dashboard</span>
               </div>
               <ChevronRight className="w-4 h-4 text-slate-500" />
+            </NavLink>
+          )}
+
+          {isAuthenticated && (
+            <NavLink
+              to="/notifications"
+              onClick={() => setMobileMenuOpen(false)}
+              className={({ isActive }) =>
+                `flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+                  isActive ? 'bg-lime-400/10 text-lime-400 border border-lime-400/30' : 'text-slate-300 hover:bg-[#181C24]'
+                }`
+              }
+            >
+              <div className="flex items-center gap-2">
+                <Bell className="w-4 h-4 text-lime-400" />
+                <span>Notifications</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                {unreadNotifCount > 0 && (
+                  <span className="px-2 py-0.5 rounded-full bg-lime-400 text-slate-950 font-black text-[10px]">
+                    {unreadNotifCount}
+                  </span>
+                )}
+                <ChevronRight className="w-4 h-4 text-slate-500" />
+              </div>
             </NavLink>
           )}
 

@@ -6,14 +6,59 @@ import {
   Search, Filter, MapPin, Layers, UserCheck, UserX,
   ExternalLink, ArrowRight, ShieldAlert, Sparkles, ChevronRight,
   Activity, Award, Store, Loader2, UserRound, IndianRupee,
-  Shield, Check, X, CircleDot, ArrowUpRight
+  Shield, Check, X, CircleDot, ArrowUpRight, BarChart3,
+  Flame, Zap, Trophy, Percent, Wallet, CreditCard,
+  QrCode, Calendar, AlertTriangle
 } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import ProtectedRoute from '../components/ProtectedRoute';
 import { useAuth } from '../context/AuthContext';
-import { fetchAdminDashboard, toggleUserStatusApi } from '../services/api';
+import {
+  fetchAdminDashboard,
+  fetchAdminPlatformIntelligence,
+  toggleUserStatusApi,
+  fetchAdminVenueVerifications,
+  updateVenueVerificationApi
+} from '../services/api';
 import { formatBookingDate } from '../utils/date';
+
+/**
+ * Verification Status Badge (Phase 19)
+ */
+function VerificationStatusBadge({ status }) {
+  switch (status) {
+    case 'VERIFIED':
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-black bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+          <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+          <span>VERIFIED</span>
+        </span>
+      );
+    case 'REJECTED':
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-black bg-rose-500/10 text-rose-400 border border-rose-500/20">
+          <XCircle className="w-3.5 h-3.5 text-rose-400" />
+          <span>REJECTED</span>
+        </span>
+      );
+    case 'SUSPENDED':
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-black bg-amber-500/10 text-amber-400 border border-amber-500/20">
+          <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+          <span>SUSPENDED</span>
+        </span>
+      );
+    case 'PENDING':
+    default:
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-black bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">
+          <Clock className="w-3.5 h-3.5 text-yellow-400" />
+          <span>PENDING</span>
+        </span>
+      );
+  }
+}
 
 /**
  * Platform Governance Metric Card
@@ -43,6 +88,12 @@ function MetricPanel({ title, value, subtitle, icon: Icon, accent = 'emerald', b
       bg: 'bg-amber-500/10',
       border: 'border-amber-500/20',
       badge: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+    },
+    lime: {
+      text: 'text-lime-400',
+      bg: 'bg-lime-400/10',
+      border: 'border-lime-400/20',
+      badge: 'bg-lime-400/10 text-lime-400 border-lime-400/20',
     },
   }[accent] || {
     text: 'text-emerald-400',
@@ -87,7 +138,7 @@ function BookingStatusBadge({ operationalStatus, status }) {
     );
   }
 
-  if (operationalStatus === 'COMPLETED') {
+  if (operationalStatus === 'COMPLETED' || status === 'COMPLETED') {
     return (
       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
         <CheckCircle2 className="w-3.5 h-3.5" />
@@ -96,10 +147,19 @@ function BookingStatusBadge({ operationalStatus, status }) {
     );
   }
 
+  if (status === 'PAID' || status === 'CONFIRMED' || status === 'CHECKED_IN') {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-lime-400/10 text-lime-400 border border-lime-400/20">
+        <CalendarCheck className="w-3.5 h-3.5" />
+        <span>{status}</span>
+      </span>
+    );
+  }
+
   return (
     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-sky-500/10 text-sky-400 border border-sky-500/20">
       <Clock className="w-3.5 h-3.5" />
-      <span>Upcoming</span>
+      <span>{status || 'Upcoming'}</span>
     </span>
   );
 }
@@ -140,7 +200,26 @@ function AdminDashboardInner() {
   const [error, setError] = useState(null);
   const [feedback, setFeedback] = useState(null);
 
-  // Active Main Navigation Tab: 'OVERVIEW' | 'USERS' | 'VENUES' | 'BOOKINGS'
+  // Phase 18 Platform Intelligence Telemetry
+  const [intelligence, setIntelligence] = useState(null);
+  const [intelLoading, setIntelLoading] = useState(true);
+  const [intelError, setIntelError] = useState(null);
+  const [timeRange, setTimeRange] = useState('all'); // 'today' | '7d' | '30d' | 'all'
+
+  // Phase 19 Venue Trust & Verification State
+  const [verificationData, setVerificationData] = useState(null);
+  const [verificationLoading, setVerificationLoading] = useState(false);
+  const [verificationError, setVerificationError] = useState(null);
+  const [verificationFilter, setVerificationFilter] = useState('ALL');
+  const [verificationSearch, setVerificationSearch] = useState('');
+
+  // Verification Action Modal: { venue, targetStatus: 'VERIFIED' | 'REJECTED' | 'SUSPENDED' }
+  const [verificationActionTarget, setVerificationActionTarget] = useState(null);
+  const [verificationReason, setVerificationReason] = useState('');
+  const [verificationModalError, setVerificationModalError] = useState(null);
+  const [verificationUpdating, setVerificationUpdating] = useState(false);
+
+  // Active Main Navigation Tab: 'OVERVIEW' | 'USERS' | 'VERIFICATION' | 'VENUES' | 'BOOKINGS'
   const [mainTab, setMainTab] = useState('OVERVIEW');
 
   // Bookings sub-filter: 'ALL' | 'UPCOMING' | 'COMPLETED' | 'CANCELLED'
@@ -155,6 +234,7 @@ function AdminDashboardInner() {
   const [userToToggle, setUserToToggle] = useState(null);
   const [statusModalError, setStatusModalError] = useState(null);
 
+  // Load Dashboard collections (users, venues, bookings)
   const loadDashboard = useCallback(async () => {
     try {
       setLoading(true);
@@ -168,22 +248,132 @@ function AdminDashboardInner() {
     }
   }, []);
 
+  // Load Platform Intelligence telemetry for the selected time range
+  const loadIntelligence = useCallback(async (range) => {
+    try {
+      setIntelLoading(true);
+      setIntelError(null);
+      const res = await fetchAdminPlatformIntelligence({ range });
+      setIntelligence(res);
+    } catch (err) {
+      setIntelError(err.message || 'Failed to load platform intelligence analytics.');
+    } finally {
+      setIntelLoading(false);
+    }
+  }, []);
+
+  // Load Venue Verification Queue (Phase 19)
+  const loadVerifications = useCallback(async (filter, search) => {
+    try {
+      setVerificationLoading(true);
+      setVerificationError(null);
+      const res = await fetchAdminVenueVerifications({ status: filter, search });
+      setVerificationData(res);
+    } catch (err) {
+      setVerificationError(err.message || 'Failed to load venue verification queue.');
+    } finally {
+      setVerificationLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadDashboard();
   }, [loadDashboard]);
 
-  // Keyboard Escape listener to dismiss status modal safely
   useEffect(() => {
-    if (!userToToggle) return;
+    loadIntelligence(timeRange);
+  }, [loadIntelligence, timeRange]);
+
+  useEffect(() => {
+    loadVerifications(verificationFilter, verificationSearch);
+  }, [loadVerifications, verificationFilter, verificationSearch]);
+
+  // Keyboard Escape listener to dismiss modals safely
+  useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && !statusUpdatingId) {
-        setUserToToggle(null);
-        setStatusModalError(null);
+      if (e.key === 'Escape') {
+        if (userToToggle && !statusUpdatingId) {
+          setUserToToggle(null);
+          setStatusModalError(null);
+        }
+        if (verificationActionTarget && !verificationUpdating) {
+          setVerificationActionTarget(null);
+          setVerificationReason('');
+          setVerificationModalError(null);
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [userToToggle, statusUpdatingId]);
+  }, [userToToggle, statusUpdatingId, verificationActionTarget, verificationUpdating]);
+
+  // Open verification modal
+  const handleOpenVerificationModal = (venue, targetStatus) => {
+    setVerificationActionTarget({ venue, targetStatus });
+    setVerificationReason('');
+    setVerificationModalError(null);
+  };
+
+  // Close verification modal
+  const handleCloseVerificationModal = () => {
+    if (verificationUpdating) return;
+    setVerificationActionTarget(null);
+    setVerificationReason('');
+    setVerificationModalError(null);
+  };
+
+  // Execute verification status update
+  const handleConfirmVerificationAction = async () => {
+    if (!verificationActionTarget) return;
+    const { venue, targetStatus } = verificationActionTarget;
+
+    if (['REJECTED', 'SUSPENDED'].includes(targetStatus) && !verificationReason.trim()) {
+      setVerificationModalError(`A clear reason/note is required to set status to ${targetStatus}.`);
+      return;
+    }
+
+    try {
+      setVerificationUpdating(true);
+      setVerificationModalError(null);
+      const res = await updateVenueVerificationApi(venue.id, {
+        status: targetStatus,
+        note: verificationReason.trim(),
+        reason: verificationReason.trim(),
+      });
+
+      // Update local verification state
+      setVerificationData((prev) => {
+        if (!prev) return prev;
+        const updatedVenues = prev.venues.map((v) => (v.id === venue.id ? res.venue : v));
+        const counts = {
+          total: updatedVenues.length,
+          pending: updatedVenues.filter((v) => (v.verificationStatus || 'PENDING') === 'PENDING').length,
+          verified: updatedVenues.filter((v) => v.verificationStatus === 'VERIFIED').length,
+          rejected: updatedVenues.filter((v) => v.verificationStatus === 'REJECTED').length,
+          suspended: updatedVenues.filter((v) => v.verificationStatus === 'SUSPENDED').length,
+        };
+        return { ...prev, counts, venues: updatedVenues };
+      });
+
+      // Update main dashboard venues list
+      setData((prev) => {
+        if (!prev) return prev;
+        const updatedVenues = (prev.venues || []).map((v) => (v.id === venue.id ? res.venue : v));
+        return { ...prev, venues: updatedVenues };
+      });
+
+      setFeedback({
+        type: 'success',
+        message: `Facility "${venue.name}" verification status updated to ${targetStatus}.`,
+      });
+      setVerificationActionTarget(null);
+      setVerificationReason('');
+    } catch (err) {
+      setVerificationModalError(err.message || 'Failed to update venue verification status.');
+    } finally {
+      setVerificationUpdating(false);
+    }
+  };
 
   // Open status modal for user
   const handleRequestToggleStatus = (user) => {
@@ -224,6 +414,9 @@ function AdminDashboardInner() {
         return { ...prev, users: updatedUsers };
       });
 
+      // Refresh intelligence to keep counters in sync
+      loadIntelligence(timeRange);
+
       setFeedback({
         type: 'success',
         message: `User "${user.name}" status successfully updated to ${newStatus.toUpperCase()}.`,
@@ -258,6 +451,15 @@ function AdminDashboardInner() {
   const venues = data?.venues || [];
   const bookings = data?.bookings || [];
   const pendingVenues = data?.pendingVenues || [];
+
+  const verificationVenues = verificationData?.venues || [];
+  const verificationCounts = verificationData?.counts || {
+    total: venues.length,
+    pending: venues.filter((v) => (v.verificationStatus || 'PENDING') === 'PENDING').length,
+    verified: venues.filter((v) => v.verificationStatus === 'VERIFIED').length,
+    rejected: venues.filter((v) => v.verificationStatus === 'REJECTED').length,
+    suspended: venues.filter((v) => v.verificationStatus === 'SUSPENDED').length,
+  };
 
   const suspendedUsersCount = users.filter((u) => u.status === 'suspended').length;
 
@@ -294,8 +496,18 @@ function AdminDashboardInner() {
     return true;
   });
 
+  // Extract intelligence subsections safely
+  const pOverview = intelligence?.platformOverview || summary;
+  const bOverview = intelligence?.bookingOverview || {};
+  const payOverview = intelligence?.paymentOverview || {};
+  const utilOverview = intelligence?.courtUtilization || {};
+  const sportsAnalytics = intelligence?.sportsAnalytics || [];
+  const geoAnalytics = intelligence?.venueAndCityAnalytics || { cities: [], topVenues: [] };
+  const timeDemand = intelligence?.timeDemandAnalytics || { hourlyDemand: [] };
+  const healthOverview = intelligence?.operationalHealth || { alerts: [] };
+
   return (
-    <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100 selection:bg-emerald-500 selection:text-slate-950">
+    <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100 selection:bg-emerald-500 selection:text-slate-950 font-sans">
       <Header />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-10">
@@ -307,7 +519,7 @@ function AdminDashboardInner() {
             <ChevronRight className="w-3.5 h-3.5 text-slate-700" />
             <span className="text-slate-400">System Oversight</span>
             <ChevronRight className="w-3.5 h-3.5 text-slate-700" />
-            <span className="text-emerald-400 font-bold">Platform Control Center</span>
+            <span className="text-emerald-400 font-bold">Platform Intelligence & Control Center</span>
           </nav>
 
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -315,46 +527,64 @@ function AdminDashboardInner() {
               <div className="flex items-center gap-2 mb-2 flex-wrap">
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-xs font-bold text-white shadow-sm">
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Platform Governance Control Center</span>
+                  <span>Platform Intelligence (Phase 18)</span>
                 </span>
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-xs font-bold text-emerald-400">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  System Operational
+                  System Telemetry Active
                 </span>
                 {currentAdmin && (
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-900 border border-slate-800 text-[11px] font-mono text-slate-400 min-w-0">
-                    <span className="truncate max-w-[160px] sm:max-w-[220px]">Overseer: {currentAdmin.email}</span>
+                    <span className="truncate max-w-[160px] sm:max-w-[220px]">Admin: {currentAdmin.email}</span>
                   </span>
                 )}
               </div>
 
               <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight">
-                Platform Control Center
+                Admin Command Center
               </h1>
-              <p className="text-sm text-slate-400 mt-1 max-w-2xl font-normal">
-                Monitor platform activity, user accounts, sports facilities, and authoritative operational metrics.
+              <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-2xl font-normal">
+                Real-time operational analytics, fleet utilization, financial velocity, and sports telemetry.
               </p>
             </div>
 
-            <div className="flex items-center gap-3 shrink-0 self-start md:self-auto">
+            <div className="flex items-center gap-3 shrink-0 self-start md:self-auto flex-wrap">
+              {/* Date Filter Bar */}
+              <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800 shadow-sm">
+                {[
+                  { id: 'today', label: 'Today' },
+                  { id: '7d', label: '7 Days' },
+                  { id: '30d', label: '30 Days' },
+                  { id: 'all', label: 'All Time' },
+                ].map((btn) => (
+                  <button
+                    key={btn.id}
+                    type="button"
+                    onClick={() => setTimeRange(btn.id)}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                      timeRange === btn.id
+                        ? 'bg-emerald-500 text-slate-950 font-black shadow-sm'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                    }`}
+                  >
+                    {btn.label}
+                  </button>
+                ))}
+              </div>
+
               <button
                 type="button"
-                onClick={loadDashboard}
-                disabled={loading}
-                className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-slate-300 hover:text-white bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-xl transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                onClick={() => {
+                  loadDashboard();
+                  loadIntelligence(timeRange);
+                }}
+                disabled={loading || intelLoading}
+                className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-bold text-slate-300 hover:text-white bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-xl transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 title="Refresh platform telemetry"
               >
-                <RefreshCw className={`w-3.5 h-3.5 text-slate-400 ${loading ? 'animate-spin' : ''}`} />
-                <span>Refresh Telemetry</span>
+                <RefreshCw className={`w-3.5 h-3.5 text-slate-400 ${loading || intelLoading ? 'animate-spin text-emerald-400' : ''}`} />
+                <span className="hidden sm:inline">Refresh</span>
               </button>
-
-              <Link
-                to="/venues"
-                className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-black text-slate-950 bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 rounded-xl shadow-md shadow-emerald-500/20 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-400"
-              >
-                <span>Public Marketplace</span>
-                <ExternalLink className="w-3.5 h-3.5" />
-              </Link>
             </div>
           </div>
         </div>
@@ -388,16 +618,48 @@ function AdminDashboardInner() {
           </div>
         )}
 
+        {/* ─── Operational Health & Urgent Alerts ───────────────────────────────── */}
+        {healthOverview.alerts && healthOverview.alerts.length > 0 && (
+          <section aria-label="Operational Health Alerts" className="mb-6 space-y-2">
+            {healthOverview.alerts.map((alert) => (
+              <div
+                key={alert.id}
+                className={`p-3.5 rounded-2xl border text-xs flex items-center justify-between gap-3 shadow-md ${
+                  alert.level === 'warning'
+                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+                    : alert.level === 'error'
+                    ? 'bg-rose-500/10 border-rose-500/30 text-rose-300'
+                    : 'bg-sky-500/10 border-sky-500/30 text-sky-300'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400" />
+                  <div>
+                    <strong className="text-white">{alert.title}: </strong>
+                    <span>{alert.message}</span>
+                  </div>
+                </div>
+                <span className="px-2 py-0.5 rounded font-mono font-bold text-[11px] bg-slate-950 border border-slate-800 text-white shrink-0">
+                  {alert.count} Pending
+                </span>
+              </div>
+            ))}
+          </section>
+        )}
+
         {/* ─── Error Alert with Retry ─────────────────────────────────────────── */}
-        {error && (
+        {(error || intelError) && (
           <div role="alert" className="mb-8 p-5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-300 flex items-start gap-3.5 shadow-md">
             <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
             <div className="flex-1">
               <h3 className="text-sm font-bold text-white">Failed to retrieve platform telemetry</h3>
-              <p className="text-xs text-rose-300 mt-0.5">{error}</p>
+              <p className="text-xs text-rose-300 mt-0.5">{error || intelError}</p>
               <button
                 type="button"
-                onClick={loadDashboard}
+                onClick={() => {
+                  loadDashboard();
+                  loadIntelligence(timeRange);
+                }}
                 className="mt-3 px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-black transition shadow-sm"
               >
                 Retry Telemetry Fetch
@@ -430,44 +692,74 @@ function AdminDashboardInner() {
               <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <MetricPanel
                   title="Platform Accounts"
-                  value={summary.totalUsers}
-                  subtitle={`${summary.totalCustomers} Customers • ${summary.totalOwners} Hosts • ${summary.totalAdmins} Admins`}
+                  value={pOverview.totalUsers || summary.totalUsers}
+                  subtitle={`${pOverview.totalCustomers ?? summary.totalCustomers} Players • ${pOverview.totalOwners ?? summary.totalOwners} Hosts • ${pOverview.totalAdmins ?? summary.totalAdmins} Admins`}
                   icon={Users}
                   accent="indigo"
                 />
 
                 <MetricPanel
                   title="Sports Facilities"
-                  value={summary.totalVenues}
-                  subtitle={`${summary.totalCourts} Total Courts (${summary.activeCourts} active)`}
+                  value={pOverview.totalVenues || summary.totalVenues}
+                  subtitle={`${pOverview.totalCourts ?? summary.totalCourts} Total Courts (${pOverview.activeCourts ?? summary.activeCourts} active)`}
                   icon={Building2}
                   accent="emerald"
                 />
 
                 <MetricPanel
                   title="Booking Volume"
-                  value={summary.totalBookings}
-                  subtitle={`${summary.confirmedBookings} confirmed (${summary.upcomingBookings} upcoming)`}
+                  value={bOverview.totalBookings ?? summary.totalBookings}
+                  subtitle={`${bOverview.confirmed ?? summary.confirmedBookings} Confirmed • ${bOverview.completed ?? summary.completedBookings} Completed`}
                   icon={CalendarCheck}
                   accent="sky"
                 />
 
                 <MetricPanel
-                  title="Confirmed Revenue"
-                  value={`₹${summary.bookingRevenue.toLocaleString('en-IN')}`}
-                  subtitle="Authoritative confirmed reservations"
+                  title="Booking Value (GMV)"
+                  value={`₹${(payOverview.totalBookingValue ?? summary.bookingRevenue).toLocaleString('en-IN')}`}
+                  subtitle={`₹${(payOverview.collectedBookingValue ?? summary.bookingRevenue).toLocaleString('en-IN')} Collected`}
                   icon={IndianRupee}
-                  accent="emerald"
+                  accent="lime"
                 />
               </div>
 
-              {/* Secondary Telemetry Strip */}
+              {/* Secondary Fleet Telemetry Strip */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
                 <div className="bg-slate-900/90 p-3.5 rounded-2xl border border-slate-800 shadow-md flex items-center justify-between">
                   <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Active Courts</p>
-                    <p className="text-xl font-black text-emerald-400 mt-0.5 font-mono">{summary.activeCourts}</p>
-                    <p className="text-[10px] text-slate-500 mt-0.5">{summary.inactiveCourts} offline</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Fleet Utilization</p>
+                    <p className="text-xl font-black text-lime-400 mt-0.5 font-mono">
+                      {utilOverview.utilizationRate !== undefined ? `${utilOverview.utilizationRate}%` : '0%'}
+                    </p>
+                    <p className="text-[10px] text-slate-500 mt-0.5 font-mono">
+                      {utilOverview.occupiedCourtHours || 0} / {utilOverview.totalCapacityHours || 0} hrs
+                    </p>
+                  </div>
+                  <div className="w-8 h-8 rounded-xl bg-lime-400/10 text-lime-400 border border-lime-400/20 flex items-center justify-center">
+                    <Activity className="w-4 h-4" />
+                  </div>
+                </div>
+
+                <div className="bg-slate-900/90 p-3.5 rounded-2xl border border-slate-800 shadow-md flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pending Settlement</p>
+                    <p className="text-xl font-black text-amber-400 mt-0.5 font-mono">
+                      ₹{(payOverview.pendingBookingValue || 0).toLocaleString('en-IN')}
+                    </p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">{bOverview.paymentPending || 0} slots awaiting payment</p>
+                  </div>
+                  <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center justify-center">
+                    <Wallet className="w-4 h-4" />
+                  </div>
+                </div>
+
+                <div className="bg-slate-900/90 p-3.5 rounded-2xl border border-slate-800 shadow-md flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Active Playing Courts</p>
+                    <p className="text-xl font-black text-emerald-400 mt-0.5 font-mono">
+                      {pOverview.activeCourts ?? summary.activeCourts}
+                    </p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">{pOverview.inactiveCourts ?? summary.inactiveCourts} maintenance</p>
                   </div>
                   <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center">
                     <CheckCircle2 className="w-4 h-4" />
@@ -476,31 +768,11 @@ function AdminDashboardInner() {
 
                 <div className="bg-slate-900/90 p-3.5 rounded-2xl border border-slate-800 shadow-md flex items-center justify-between">
                   <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Upcoming Schedule</p>
-                    <p className="text-xl font-black text-sky-400 mt-0.5 font-mono">{summary.upcomingBookings}</p>
-                    <p className="text-[10px] text-slate-500 mt-0.5">Slots scheduled</p>
-                  </div>
-                  <div className="w-8 h-8 rounded-xl bg-sky-500/10 text-sky-400 border border-sky-500/20 flex items-center justify-center">
-                    <Clock className="w-4 h-4" />
-                  </div>
-                </div>
-
-                <div className="bg-slate-900/90 p-3.5 rounded-2xl border border-slate-800 shadow-md flex items-center justify-between">
-                  <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Completed Sessions</p>
-                    <p className="text-xl font-black text-indigo-400 mt-0.5 font-mono">{summary.completedBookings}</p>
-                    <p className="text-[10px] text-slate-500 mt-0.5">Elapsed reservations</p>
-                  </div>
-                  <div className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 flex items-center justify-center">
-                    <Award className="w-4 h-4" />
-                  </div>
-                </div>
-
-                <div className="bg-slate-900/90 p-3.5 rounded-2xl border border-slate-800 shadow-md flex items-center justify-between">
-                  <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Cancelled Bookings</p>
-                    <p className="text-xl font-black text-rose-400 mt-0.5 font-mono">{summary.cancelledBookings}</p>
-                    <p className="text-[10px] text-slate-500 mt-0.5">₹0 revenue impact</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Cancelled / Refund</p>
+                    <p className="text-xl font-black text-rose-400 mt-0.5 font-mono">
+                      {bOverview.cancelled ?? summary.cancelledBookings}
+                    </p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">₹{(payOverview.refundedValue || 0).toLocaleString('en-IN')} refunded</p>
                   </div>
                   <div className="w-8 h-8 rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20 flex items-center justify-center">
                     <XCircle className="w-4 h-4" />
@@ -509,82 +781,21 @@ function AdminDashboardInner() {
               </div>
             </section>
 
-            {/* ─── 3. Governance Queue / Needs Attention ───────────────────────── */}
-            <section aria-labelledby="governance-heading">
-              <h2 id="governance-heading" className="sr-only">Governance Queue</h2>
-
-              {pendingVenues.length > 0 ? (
-                <div className="p-5 sm:p-6 rounded-3xl bg-amber-500/10 border border-amber-500/20 shadow-xl text-slate-100">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-amber-500/20">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center shrink-0">
-                        <Store className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-black text-white">
-                          Governance Priority: Pending Facility Submissions ({pendingVenues.length})
-                        </h3>
-                        <p className="text-xs text-amber-300/80 mt-0.5">
-                          Registered facilities awaiting administrative inspection prior to full marketplace activation.
-                        </p>
-                      </div>
-                    </div>
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold uppercase tracking-wider shrink-0 self-start sm:self-auto">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                      Awaiting Verification
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {pendingVenues.map((pv) => (
-                      <div key={pv.id} className="p-4 bg-slate-950/80 rounded-2xl border border-amber-500/20 text-xs flex justify-between items-center gap-3">
-                        <div>
-                          <p className="font-bold text-white text-sm">{pv.name}</p>
-                          <p className="text-slate-400 text-xs flex items-center gap-1.5 mt-1">
-                            <MapPin className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                            <span>{pv.location}</span>
-                            <span>•</span>
-                            <span>Host: {pv.ownerName}</span>
-                          </p>
-                        </div>
-                        <span className="font-mono text-[10px] font-bold text-amber-300 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20 shrink-0">
-                          SUBMITTED: {pv.submittedOn}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800/80 flex items-center justify-between gap-4 text-xs">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center shrink-0">
-                      <CheckCircle2 className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <p className="font-bold text-white">Platform Governance Queue Clear</p>
-                      <p className="text-slate-400 text-[11px] mt-0.5">
-                        All registered sports complexes and facility submissions are verified and operational.
-                      </p>
-                    </div>
-                  </div>
-                  {suspendedUsersCount > 0 && (
-                    <span className="text-[11px] font-bold text-rose-400 bg-rose-500/10 px-2.5 py-1 rounded-lg border border-rose-500/20 shrink-0">
-                      {suspendedUsersCount} Suspended Account{suspendedUsersCount > 1 ? 's' : ''}
-                    </span>
-                  )}
-                </div>
-              )}
-            </section>
-
-            {/* ─── 4. Main Section Control Panel ──────────────────────────────── */}
+            {/* ─── 3. Main Section Control Panel ──────────────────────────────── */}
             <div className="bg-slate-900/90 rounded-3xl border border-slate-800 shadow-xl p-5 sm:p-7">
               
               {/* Navigation Segmented Tab Bar */}
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-5 border-b border-slate-800">
                 <div className="flex items-center gap-2 overflow-x-auto no-scrollbar" role="tablist" aria-label="Admin Control Tabs">
                   {[
-                    { key: 'OVERVIEW', label: 'Platform Overview', count: null },
+                    { key: 'OVERVIEW', label: 'Platform Intelligence', count: null },
                     { key: 'USERS', label: 'User Directory', count: users.length },
+                    {
+                      key: 'VERIFICATION',
+                      label: 'Venue Verification',
+                      count: verificationData?.counts?.pending ?? 0,
+                      isAlert: (verificationData?.counts?.pending ?? 0) > 0,
+                    },
                     { key: 'VENUES', label: 'Venues & Courts', count: venues.length },
                     { key: 'BOOKINGS', label: 'Bookings Ledger', count: bookings.length },
                   ].map((tab) => (
@@ -603,7 +814,11 @@ function AdminDashboardInner() {
                       <span>{tab.label}</span>
                       {tab.count !== null && (
                         <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
-                          mainTab === tab.key ? 'bg-slate-950 text-emerald-400' : 'bg-slate-800 text-slate-400'
+                          mainTab === tab.key
+                            ? 'bg-slate-950 text-emerald-400'
+                            : tab.isAlert
+                            ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+                            : 'bg-slate-800 text-slate-400'
                         }`}>
                           {tab.count}
                         </span>
@@ -613,84 +828,256 @@ function AdminDashboardInner() {
                 </div>
               </div>
 
-              {/* ─── TAB 1: PLATFORM OVERVIEW ─────────────────────────────────── */}
+              {/* ─── TAB 1: PLATFORM INTELLIGENCE (PHASE 18) ──────────────────── */}
               {mainTab === 'OVERVIEW' && (
-                <div className="pt-6 space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Account Distribution Telemetry */}
-                    <div className="p-6 rounded-2xl border border-slate-800 bg-slate-950">
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-2">
-                        <Users className="w-4 h-4 text-indigo-400" />
-                        <span>Account Distribution by Role</span>
-                      </h3>
-                      <div className="space-y-4">
-                        <div>
-                          <div className="flex items-center justify-between text-xs mb-1.5">
-                            <span className="font-semibold text-slate-300">Customers / Players</span>
-                            <span className="font-mono font-bold text-white">{summary.totalCustomers}</span>
-                          </div>
-                          <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
-                            <div
-                              className="h-full bg-indigo-500 rounded-full transition-all duration-500"
-                              style={{ width: `${(summary.totalCustomers / (summary.totalUsers || 1)) * 100}%` }}
-                            />
-                          </div>
-                        </div>
+                <div className="pt-6 space-y-8">
+                  
+                  {/* Grid 1: Booking Status Matrix & Payment Methods */}
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    {/* Booking Lifecycle Breakdown */}
+                    <div className="lg:col-span-7 p-5 sm:p-6 rounded-2xl border border-slate-800 bg-slate-950 space-y-4">
+                      <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                        <h3 className="text-xs font-black uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                          <CalendarCheck className="w-4 h-4 text-sky-400" />
+                          <span>Booking Lifecycle State Distribution</span>
+                        </h3>
+                        <span className="text-[11px] font-mono text-slate-400">
+                          Range: {timeRange.toUpperCase()}
+                        </span>
+                      </div>
 
-                        <div>
-                          <div className="flex items-center justify-between text-xs mb-1.5">
-                            <span className="font-semibold text-slate-300">Venue Hosts / Owners</span>
-                            <span className="font-mono font-bold text-white">{summary.totalOwners}</span>
-                          </div>
-                          <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
-                            <div
-                              className="h-full bg-emerald-500 rounded-full transition-all duration-500"
-                              style={{ width: `${(summary.totalOwners / (summary.totalUsers || 1)) * 100}%` }}
-                            />
-                          </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        <div className="p-3 rounded-xl bg-slate-900 border border-slate-800">
+                          <span className="text-[10px] text-slate-400 font-semibold block uppercase">Requested</span>
+                          <span className="text-lg font-black text-amber-400 font-mono">{bOverview.requested || 0}</span>
                         </div>
-
-                        <div>
-                          <div className="flex items-center justify-between text-xs mb-1.5">
-                            <span className="font-semibold text-slate-300">Platform Administrators</span>
-                            <span className="font-mono font-bold text-white">{summary.totalAdmins}</span>
-                          </div>
-                          <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
-                            <div
-                              className="h-full bg-slate-400 rounded-full transition-all duration-500"
-                              style={{ width: `${(summary.totalAdmins / (summary.totalUsers || 1)) * 100}%` }}
-                            />
-                          </div>
+                        <div className="p-3 rounded-xl bg-slate-900 border border-slate-800">
+                          <span className="text-[10px] text-slate-400 font-semibold block uppercase">Approved</span>
+                          <span className="text-lg font-black text-sky-400 font-mono">{bOverview.approved || 0}</span>
+                        </div>
+                        <div className="p-3 rounded-xl bg-slate-900 border border-slate-800">
+                          <span className="text-[10px] text-slate-400 font-semibold block uppercase">Payment Pending</span>
+                          <span className="text-lg font-black text-yellow-400 font-mono">{bOverview.paymentPending || 0}</span>
+                        </div>
+                        <div className="p-3 rounded-xl bg-slate-900 border border-slate-800">
+                          <span className="text-[10px] text-slate-400 font-semibold block uppercase">Confirmed & Paid</span>
+                          <span className="text-lg font-black text-emerald-400 font-mono">{(bOverview.confirmed || 0) + (bOverview.paid || 0)}</span>
+                        </div>
+                        <div className="p-3 rounded-xl bg-slate-900 border border-slate-800">
+                          <span className="text-[10px] text-slate-400 font-semibold block uppercase">Checked In</span>
+                          <span className="text-lg font-black text-lime-400 font-mono">{bOverview.checkedIn || 0}</span>
+                        </div>
+                        <div className="p-3 rounded-xl bg-slate-900 border border-slate-800">
+                          <span className="text-[10px] text-slate-400 font-semibold block uppercase">Completed</span>
+                          <span className="text-lg font-black text-indigo-400 font-mono">{bOverview.completed || 0}</span>
                         </div>
                       </div>
                     </div>
 
-                    {/* Operational Telemetry Summary */}
-                    <div className="p-6 rounded-2xl border border-slate-800 bg-slate-950">
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-2">
-                        <Activity className="w-4 h-4 text-emerald-400" />
-                        <span>Platform Operational Metrics</span>
-                      </h3>
-                      <div className="space-y-3 text-xs">
-                        <div className="flex justify-between items-center p-3 rounded-xl bg-slate-900 border border-slate-800">
-                          <span className="text-slate-300 font-medium">Court Availability</span>
-                          <span className="font-mono font-bold text-emerald-400">
-                            {summary.activeCourts} Active / {summary.totalCourts} Total
-                          </span>
-                        </div>
+                    {/* Financial Settlement & Payment Methods */}
+                    <div className="lg:col-span-5 p-5 sm:p-6 rounded-2xl border border-slate-800 bg-slate-950 space-y-4">
+                      <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                        <h3 className="text-xs font-black uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                          <CreditCard className="w-4 h-4 text-emerald-400" />
+                          <span>Payment Settlement Channels</span>
+                        </h3>
+                        <span className="text-[11px] font-mono text-emerald-400 font-bold">
+                          100% Direct
+                        </span>
+                      </div>
 
-                        <div className="flex justify-between items-center p-3 rounded-xl bg-slate-900 border border-slate-800">
-                          <span className="text-slate-300 font-medium">Total Booking Reservations</span>
-                          <span className="font-mono font-bold text-white">{summary.totalBookings} Total Bookings</span>
-                        </div>
+                      <div className="space-y-3">
+                        {payOverview.paymentMethodsBreakdown && [
+                          { label: 'UPI / Instant Pay', key: 'UPI', color: 'bg-emerald-400' },
+                          { label: 'Card / NetBanking', key: 'CARD', color: 'bg-sky-400' },
+                          { label: 'Pay at Venue', key: 'PAY_AT_VENUE', color: 'bg-amber-400' },
+                        ].map((pm) => {
+                          const item = payOverview.paymentMethodsBreakdown[pm.key] || { count: 0, value: 0 };
+                          const totalVal = payOverview.collectedBookingValue || 1;
+                          const pct = Math.round((item.value / totalVal) * 100) || 0;
 
-                        <div className="flex justify-between items-center p-3 rounded-xl bg-slate-900 border border-slate-800">
-                          <span className="text-slate-300 font-medium">Confirmed Revenue Volume</span>
-                          <span className="font-mono font-bold text-emerald-400">₹{summary.bookingRevenue.toLocaleString('en-IN')}</span>
-                        </div>
+                          return (
+                            <div key={pm.key} className="p-3 rounded-xl bg-slate-900 border border-slate-800">
+                              <div className="flex items-center justify-between text-xs mb-1">
+                                <span className="font-semibold text-slate-300">{pm.label}</span>
+                                <span className="font-mono font-bold text-white">₹{item.value.toLocaleString('en-IN')} ({item.count})</span>
+                              </div>
+                              <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                                <div className={`h-full ${pm.color}`} style={{ width: `${pct}%` }} />
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   </div>
+
+                  {/* Grid 2: Court Fleet Utilization Leaderboard & Hourly Demand */}
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    {/* Busiest Courts Leaderboard */}
+                    <div className="lg:col-span-7 p-5 sm:p-6 rounded-2xl border border-slate-800 bg-slate-950 space-y-4">
+                      <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                        <h3 className="text-xs font-black uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                          <Trophy className="w-4 h-4 text-amber-400" />
+                          <span>Court Fleet Utilization Index</span>
+                        </h3>
+                        <span className="text-[11px] font-mono text-lime-400 font-bold">
+                          {utilOverview.utilizationRate || 0}% Overall
+                        </span>
+                      </div>
+
+                      {utilOverview.busiestCourts && utilOverview.busiestCourts.length > 0 ? (
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left text-xs border-collapse">
+                            <thead>
+                              <tr className="text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800/80">
+                                <th className="pb-2">Court / Facility</th>
+                                <th className="pb-2">Sport</th>
+                                <th className="pb-2 text-right">Occupied</th>
+                                <th className="pb-2 text-right">Utilization</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-800/50">
+                              {utilOverview.busiestCourts.map((c) => (
+                                <tr key={c.courtId} className="hover:bg-slate-900/50">
+                                  <td className="py-2.5">
+                                    <p className="font-bold text-white">{c.courtName}</p>
+                                    <p className="text-[11px] text-slate-400">{c.venueName} • {c.city}</p>
+                                  </td>
+                                  <td className="py-2.5">
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-900 text-slate-300 border border-slate-800">
+                                      {c.sport}
+                                    </span>
+                                  </td>
+                                  <td className="py-2.5 text-right font-mono font-bold text-white">
+                                    {c.occupiedHours} hrs
+                                  </td>
+                                  <td className="py-2.5 text-right font-mono font-bold text-lime-400">
+                                    {c.utilizationRate}%
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <div className="py-8 text-center text-xs text-slate-500">
+                          No court bookings recorded in this time range.
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Hourly Demand Histogram Bar Chart */}
+                    <div className="lg:col-span-5 p-5 sm:p-6 rounded-2xl border border-slate-800 bg-slate-950 space-y-4">
+                      <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                        <h3 className="text-xs font-black uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                          <BarChart3 className="w-4 h-4 text-emerald-400" />
+                          <span>Hourly Booking Demand (6 AM - 11 PM)</span>
+                        </h3>
+                      </div>
+
+                      {timeDemand.hourlyDemand && timeDemand.hourlyDemand.length > 0 ? (
+                        <div className="space-y-3">
+                          <div className="flex items-end gap-1 h-32 pt-4 px-1 bg-slate-900/60 rounded-xl border border-slate-800">
+                            {timeDemand.hourlyDemand.map((hd) => {
+                              const maxDemand = Math.max(...timeDemand.hourlyDemand.map((i) => i.bookingCount), 1);
+                              const heightPct = Math.max(8, (hd.bookingCount / maxDemand) * 100);
+
+                              return (
+                                <div key={hd.hour} className="flex-1 flex flex-col items-center justify-end h-full group relative">
+                                  <div
+                                    className={`w-full rounded-t transition-all ${
+                                      hd.bookingCount > 0
+                                        ? hd.isPeak
+                                          ? 'bg-amber-400 hover:bg-amber-300'
+                                          : 'bg-emerald-400 hover:bg-emerald-300'
+                                        : 'bg-slate-800/60'
+                                    }`}
+                                    style={{ height: `${heightPct}%` }}
+                                    title={`${hd.hourLabel}: ${hd.bookingCount} bookings (${hd.isPeak ? 'Peak' : 'Off-Peak'})`}
+                                  />
+                                  <span className="text-[8px] font-mono text-slate-500 mt-1 truncate">
+                                    {hd.hour % 3 === 0 ? `${hd.hour}` : ''}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          <div className="flex items-center justify-between text-[11px] text-slate-400 px-1">
+                            <div className="flex items-center gap-2">
+                              <span className="w-2.5 h-2.5 rounded-sm bg-amber-400 inline-block" />
+                              <span>Peak Demand: <strong className="text-white font-mono">{timeDemand.peakBookingsCount || 0}</strong></span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="w-2.5 h-2.5 rounded-sm bg-emerald-400 inline-block" />
+                              <span>Off-Peak: <strong className="text-white font-mono">{timeDemand.offPeakBookingsCount || 0}</strong></span>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="py-8 text-center text-xs text-slate-500">
+                          Demand telemetry available once reservations are placed.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Grid 3: Sports Telemetry & Geographic Distribution */}
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    {/* Sports Analytics */}
+                    <div className="lg:col-span-6 p-5 sm:p-6 rounded-2xl border border-slate-800 bg-slate-950 space-y-4">
+                      <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                        <h3 className="text-xs font-black uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                          <Zap className="w-4 h-4 text-lime-400" />
+                          <span>Sports Category Telemetry</span>
+                        </h3>
+                      </div>
+
+                      <div className="space-y-2.5">
+                        {sportsAnalytics.map((sp) => (
+                          <div key={sp.sport} className="p-3 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between text-xs">
+                            <div className="flex items-center gap-2.5">
+                              <span className="font-bold text-white text-sm">{sp.sport}</span>
+                              <span className="text-[10px] px-2 py-0.5 rounded bg-slate-950 text-slate-400 border border-slate-800">
+                                {sp.activeCourts} Courts
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-4 font-mono">
+                              <span className="text-slate-300">{sp.bookingCount} Bookings</span>
+                              <span className="font-bold text-emerald-400">₹{sp.bookingValue.toLocaleString('en-IN')}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Geographic & Top Venues */}
+                    <div className="lg:col-span-6 p-5 sm:p-6 rounded-2xl border border-slate-800 bg-slate-950 space-y-4">
+                      <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                        <h3 className="text-xs font-black uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                          <MapPin className="w-4 h-4 text-emerald-400" />
+                          <span>City & Facility Footprint</span>
+                        </h3>
+                      </div>
+
+                      <div className="space-y-2.5">
+                        {geoAnalytics.cities?.map((c) => (
+                          <div key={c.city} className="p-3 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between text-xs">
+                            <div>
+                              <span className="font-bold text-white text-sm">{c.city}</span>
+                              <p className="text-[11px] text-slate-400 mt-0.5">{c.venueCount} Venues • {c.courtCount} Courts</p>
+                            </div>
+                            <div className="text-right font-mono">
+                              <span className="font-bold text-white">{c.bookingCount} Bookings</span>
+                              <p className="text-emerald-400 font-bold">₹{c.bookingValue.toLocaleString('en-IN')}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
                 </div>
               )}
 
@@ -749,57 +1136,72 @@ function AdminDashboardInner() {
                                       </span>
                                     )}
                                   </div>
-                                  <div className="text-[11px] text-slate-400 font-mono mt-0.5">{u.email}</div>
+                                  <div className="text-slate-400 font-mono text-[11px]">{u.email}</div>
+                                  {u.phone && <div className="text-slate-500 font-mono text-[10px]">{u.phone}</div>}
                                 </td>
                                 <td className="py-3.5 px-4">
                                   <RoleBadge role={u.role} />
                                 </td>
                                 <td className="py-3.5 px-4">
                                   <span
-                                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase border ${
+                                    className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
                                       isActive
                                         ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
                                         : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
                                     }`}
                                   >
-                                    <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'}`} />
-                                    {(u.status || 'active').toUpperCase()}
+                                    <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-emerald-400' : 'bg-rose-400'}`} />
+                                    {u.status.toUpperCase()}
                                   </span>
                                 </td>
-                                <td className="py-3.5 px-4">
-                                  {u.role === 'CUSTOMER' && (
-                                    <span className="text-slate-300 font-medium">
-                                      {u.points || 0} Loyalty Points
-                                    </span>
-                                  )}
+                                <td className="py-3.5 px-4 text-slate-400">
                                   {u.role === 'OWNER' && (
-                                    <span className="text-slate-300 font-medium truncate max-w-[220px] block">
-                                      {u.businessName || u.venueLocation || 'Sports Facility Host'}
-                                    </span>
+                                    <div>
+                                      <p className="font-semibold text-slate-200">{u.businessName || 'Business Partner'}</p>
+                                      {u.venueLocation && <p className="text-[11px] text-slate-500">{u.venueLocation}</p>}
+                                    </div>
+                                  )}
+                                  {u.role === 'CUSTOMER' && (
+                                    <div>
+                                      <span className="font-mono text-emerald-400 font-bold">{u.points || 0} pts</span>
+                                      {u.preferredSports?.length > 0 && (
+                                        <p className="text-[11px] text-slate-500 truncate max-w-[200px]">
+                                          {u.preferredSports.join(', ')}
+                                        </p>
+                                      )}
+                                    </div>
                                   )}
                                   {u.role === 'ADMIN' && (
-                                    <span className="text-slate-500 italic">Platform System Overseer</span>
+                                    <span className="text-slate-500 italic">Full System Access</span>
                                   )}
                                 </td>
                                 <td className="py-3.5 px-4 text-right">
                                   {isSelf ? (
-                                    <span className="text-[11px] text-slate-500 italic">Self-Protected</span>
+                                    <span className="text-[11px] text-slate-500 italic">Protected</span>
                                   ) : (
                                     <button
                                       type="button"
                                       onClick={() => handleRequestToggleStatus(u)}
                                       disabled={statusUpdatingId === u.id}
-                                      className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition focus:outline-none focus:ring-2 ${
+                                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ml-auto ${
                                         isActive
-                                          ? 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border-rose-500/30 focus:ring-rose-400'
-                                          : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border-emerald-500/30 focus:ring-emerald-400'
+                                          ? 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                                          : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                                       }`}
                                     >
-                                      {statusUpdatingId === u.id
-                                        ? 'Updating…'
-                                        : isActive
-                                        ? 'Suspend Account'
-                                        : 'Reactivate Account'}
+                                      {statusUpdatingId === u.id ? (
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                      ) : isActive ? (
+                                        <>
+                                          <UserX className="w-3.5 h-3.5" />
+                                          <span>Suspend</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <UserCheck className="w-3.5 h-3.5" />
+                                          <span>Reactivate</span>
+                                        </>
+                                      )}
                                     </button>
                                   )}
                                 </td>
@@ -813,7 +1215,220 @@ function AdminDashboardInner() {
                 </div>
               )}
 
-              {/* ─── TAB 3: VENUES & COURTS ──────────────────────────────────── */}
+              {/* ─── TAB 2.5: VENUE TRUST & VERIFICATION (PHASE 19) ───────────── */}
+              {mainTab === 'VERIFICATION' && (
+                <div className="pt-5 space-y-6">
+                  {/* Status Metric Strip */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-yellow-400">Pending Review</span>
+                        <Clock className="w-4 h-4 text-yellow-400" />
+                      </div>
+                      <div className="text-2xl font-black text-white font-mono mt-1">
+                        {verificationCounts.pending}
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-0.5">Awaiting admin review</p>
+                    </div>
+
+                    <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Verified Venues</span>
+                        <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                      </div>
+                      <div className="text-2xl font-black text-white font-mono mt-1">
+                        {verificationCounts.verified}
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-0.5">Active & trusted</p>
+                    </div>
+
+                    <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-rose-400">Rejected Venues</span>
+                        <XCircle className="w-4 h-4 text-rose-400" />
+                      </div>
+                      <div className="text-2xl font-black text-white font-mono mt-1">
+                        {verificationCounts.rejected}
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-0.5">Application declined</p>
+                    </div>
+
+                    <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400">Suspended Venues</span>
+                        <AlertTriangle className="w-4 h-4 text-amber-400" />
+                      </div>
+                      <div className="text-2xl font-black text-white font-mono mt-1">
+                        {verificationCounts.suspended}
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-0.5">Operations paused</p>
+                    </div>
+                  </div>
+
+                  {/* Filter & Search Bar */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+                    <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+                      {['ALL', 'PENDING', 'VERIFIED', 'REJECTED', 'SUSPENDED'].map((f) => (
+                        <button
+                          key={f}
+                          type="button"
+                          onClick={() => setVerificationFilter(f)}
+                          className={`px-3 py-1.5 text-xs font-bold rounded-xl transition ${
+                            verificationFilter === f
+                              ? 'bg-slate-800 text-white border border-slate-700 font-black'
+                              : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
+                          }`}
+                        >
+                          {f === 'ALL' ? 'All Venues' : f}
+                          {f === 'PENDING' && verificationCounts.pending > 0 && (
+                            <span className="ml-1.5 px-1.5 py-0.2 rounded-full text-[10px] bg-yellow-500/20 text-yellow-400 font-mono">
+                              {verificationCounts.pending}
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="relative w-full sm:w-72">
+                      <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        placeholder="Search venue, owner, city..."
+                        value={verificationSearch}
+                        onChange={(e) => setVerificationSearch(e.target.value)}
+                        className="w-full pl-9 pr-3.5 py-2 text-xs rounded-xl border border-slate-700/80 bg-slate-950 text-white placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Verification Queue Table */}
+                  <div className="overflow-x-auto rounded-2xl border border-slate-800">
+                    <table className="w-full text-left border-collapse min-w-[850px]">
+                      <thead>
+                        <tr className="bg-slate-950 border-b border-slate-800 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                          <th scope="col" className="py-3 px-4">Venue & Facility</th>
+                          <th scope="col" className="py-3 px-4">Host / Owner</th>
+                          <th scope="col" className="py-3 px-4">City / Region</th>
+                          <th scope="col" className="py-3 px-4">Sports & Courts</th>
+                          <th scope="col" className="py-3 px-4">Verification Status</th>
+                          <th scope="col" className="py-3 px-4">Audit Note / Date</th>
+                          <th scope="col" className="py-3 px-4 text-right">Moderation Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/80 text-xs bg-slate-900/60">
+                        {verificationVenues.length === 0 ? (
+                          <tr>
+                            <td colSpan="7" className="py-12 text-center text-slate-500">
+                              <div className="w-12 h-12 rounded-2xl bg-slate-950 border border-slate-800 text-slate-600 flex items-center justify-center mx-auto mb-2">
+                                <ShieldCheck className="w-6 h-6" />
+                              </div>
+                              <p className="font-bold text-xs text-slate-300">No facilities found in this verification filter</p>
+                              <p className="text-[11px] text-slate-500 mt-0.5">Try selecting another filter tab or clearing the search box.</p>
+                            </td>
+                          </tr>
+                        ) : (
+                          verificationVenues.map((v) => {
+                            const vStatus = v.verificationStatus || 'PENDING';
+                            return (
+                              <tr key={v.id} className="hover:bg-slate-800/40 transition-colors">
+                                <td className="py-3.5 px-4">
+                                  <div className="font-bold text-white flex items-center gap-2">
+                                    <span>{v.name}</span>
+                                    <span className="text-[10px] text-slate-500 font-mono">({v.id})</span>
+                                  </div>
+                                  <div className="text-slate-400 text-[11px] truncate max-w-[200px]">
+                                    {v.location || v.address || 'Address not specified'}
+                                  </div>
+                                </td>
+                                <td className="py-3.5 px-4">
+                                  <div className="font-bold text-slate-200">{v.ownerName}</div>
+                                  <div className="text-slate-400 font-mono text-[11px]">{v.ownerEmail}</div>
+                                </td>
+                                <td className="py-3.5 px-4 text-slate-300 font-medium">
+                                  {v.city || 'N/A'}
+                                </td>
+                                <td className="py-3.5 px-4">
+                                  <div className="font-mono text-emerald-400 font-bold">{v.activeCourts} / {v.totalCourts} Courts</div>
+                                  <div className="text-[11px] text-slate-400 truncate max-w-[140px]">
+                                    {v.sportTypes?.join(', ') || 'Various'}
+                                  </div>
+                                </td>
+                                <td className="py-3.5 px-4">
+                                  <VerificationStatusBadge status={vStatus} />
+                                </td>
+                                <td className="py-3.5 px-4 text-slate-400 max-w-[180px]">
+                                  {v.verifiedAt && (
+                                    <div className="text-[10px] text-emerald-400/80 font-mono">
+                                      Verified: {new Date(v.verifiedAt).toLocaleDateString()}
+                                    </div>
+                                  )}
+                                  {v.verificationNote ? (
+                                    <div className="text-[11px] text-slate-300 truncate" title={v.verificationNote}>
+                                      {v.verificationNote}
+                                    </div>
+                                  ) : (
+                                    <span className="text-[10px] text-slate-500 italic">No notes</span>
+                                  )}
+                                </td>
+                                <td className="py-3.5 px-4 text-right">
+                                  <div className="flex items-center justify-end gap-1.5">
+                                    {vStatus === 'PENDING' && (
+                                      <>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleOpenVerificationModal(v, 'VERIFIED')}
+                                          className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 transition flex items-center gap-1"
+                                          title="Verify this venue"
+                                        >
+                                          <Check className="w-3.5 h-3.5" />
+                                          <span>Verify</span>
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleOpenVerificationModal(v, 'REJECTED')}
+                                          className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 transition flex items-center gap-1"
+                                          title="Reject this venue"
+                                        >
+                                          <X className="w-3.5 h-3.5" />
+                                          <span>Reject</span>
+                                        </button>
+                                      </>
+                                    )}
+                                    {vStatus === 'VERIFIED' && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleOpenVerificationModal(v, 'SUSPENDED')}
+                                        className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 transition flex items-center gap-1"
+                                        title="Suspend this venue"
+                                      >
+                                        <AlertTriangle className="w-3.5 h-3.5" />
+                                        <span>Suspend</span>
+                                      </button>
+                                    )}
+                                    {(vStatus === 'REJECTED' || vStatus === 'SUSPENDED') && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleOpenVerificationModal(v, 'VERIFIED')}
+                                        className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 transition flex items-center gap-1"
+                                        title="Restore and verify this venue"
+                                      >
+                                        <ShieldCheck className="w-3.5 h-3.5" />
+                                        <span>Restore</span>
+                                      </button>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* ─── TAB 3: VENUES & COURTS ───────────────────────────────────── */}
               {mainTab === 'VENUES' && (
                 <div className="pt-5 space-y-4">
                   {/* Search Bar */}
@@ -822,7 +1437,7 @@ function AdminDashboardInner() {
                       <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                       <input
                         type="text"
-                        placeholder="Search venues by name, city, owner, or sport..."
+                        placeholder="Filter by facility name, host, or city..."
                         value={venueSearch}
                         onChange={(e) => setVenueSearch(e.target.value)}
                         className="w-full pl-9 pr-3.5 py-2 text-xs rounded-xl border border-slate-700/80 bg-slate-950 text-white placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
@@ -830,76 +1445,57 @@ function AdminDashboardInner() {
                     </div>
                   </div>
 
-                  {/* Venues Table */}
-                  <div className="overflow-x-auto rounded-2xl border border-slate-800">
-                    <table className="w-full text-left border-collapse min-w-[750px]">
-                      <thead>
-                        <tr className="bg-slate-950 border-b border-slate-800 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                          <th scope="col" className="py-3 px-4">Facility & Locality</th>
-                          <th scope="col" className="py-3 px-4">Host / Owner</th>
-                          <th scope="col" className="py-3 px-4">Supported Sports</th>
-                          <th scope="col" className="py-3 px-4">Court Fleet</th>
-                          <th scope="col" className="py-3 px-4">Hourly Tariff</th>
-                          <th scope="col" className="py-3 px-4 text-right">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-800/80 text-xs bg-slate-900/60">
-                        {filteredVenues.length === 0 ? (
-                          <tr>
-                            <td colSpan="6" className="py-12 text-center text-slate-500">
-                              <div className="w-12 h-12 rounded-2xl bg-slate-950 border border-slate-800 text-slate-600 flex items-center justify-center mx-auto mb-2">
-                                <Building2 className="w-6 h-6" />
-                              </div>
-                              <p className="font-bold text-xs text-slate-300">No facilities found</p>
-                              <p className="text-[11px] text-slate-500 mt-0.5">No sports venues matched your filter parameters.</p>
-                            </td>
-                          </tr>
-                        ) : (
-                          filteredVenues.map((v) => (
-                            <tr key={v.id} className="hover:bg-slate-800/40 transition-colors">
-                              <td className="py-3.5 px-4">
-                                <div className="font-bold text-white text-sm">{v.name}</div>
-                                <div className="text-[11px] text-slate-400 flex items-center gap-1.5 mt-0.5">
-                                  <MapPin className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                                  <span>{v.location || v.city}</span>
-                                </div>
-                              </td>
-                              <td className="py-3.5 px-4">
-                                <div className="font-semibold text-slate-200">{v.ownerName}</div>
-                                <div className="text-[11px] text-slate-500 font-mono">{v.ownerEmail}</div>
-                              </td>
-                              <td className="py-3.5 px-4">
-                                <div className="flex flex-wrap gap-1.5">
-                                  {v.sportTypes?.map((s) => (
-                                    <span key={s} className="px-2 py-0.5 bg-slate-950 text-slate-300 border border-slate-800 rounded-md text-[10px] font-semibold">
-                                      {s}
-                                    </span>
-                                  ))}
-                                </div>
-                              </td>
-                              <td className="py-3.5 px-4">
-                                <span className="font-mono font-bold text-white">
-                                  {v.activeCourts} / {v.totalCourts} Active
-                                </span>
-                              </td>
-                              <td className="py-3.5 px-4">
-                                <span className="font-mono font-black text-emerald-400 text-sm">₹{v.pricePerHour}/hr</span>
-                              </td>
-                              <td className="py-3.5 px-4 text-right">
-                                <Link
-                                  to={`/venues/${v.id}`}
-                                  className="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-950 hover:bg-slate-800 text-slate-300 hover:text-white rounded-xl border border-slate-800 text-xs font-bold transition"
-                                  title="Inspect public venue page"
-                                >
-                                  <span>View</span>
-                                  <ArrowUpRight className="w-3.5 h-3.5" />
-                                </Link>
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
+                  {/* Venues Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {filteredVenues.length === 0 ? (
+                      <div className="col-span-2 py-12 text-center text-slate-500 bg-slate-950 rounded-2xl border border-slate-800">
+                        <Building2 className="w-10 h-10 mx-auto mb-2 text-slate-600" />
+                        <p className="font-bold text-xs text-slate-300">No matching sports facilities</p>
+                      </div>
+                    ) : (
+                      filteredVenues.map((v) => (
+                        <div key={v.id} className="p-5 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <h4 className="font-black text-white text-base">{v.name}</h4>
+                              <p className="text-xs text-slate-400 flex items-center gap-1.5 mt-0.5">
+                                <MapPin className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                                <span>{v.location || v.city}</span>
+                              </p>
+                            </div>
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                              {v.activeCourts} Active Courts
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-3 gap-2 py-2 border-y border-slate-800/80 text-center text-xs">
+                            <div className="p-2 rounded-xl bg-slate-900">
+                              <span className="text-[10px] text-slate-500 block uppercase">Total Courts</span>
+                              <span className="font-mono font-bold text-white">{v.totalCourts}</span>
+                            </div>
+                            <div className="p-2 rounded-xl bg-slate-900">
+                              <span className="text-[10px] text-slate-500 block uppercase">Base Rate</span>
+                              <span className="font-mono font-bold text-emerald-400">₹{v.pricePerHour}/hr</span>
+                            </div>
+                            <div className="p-2 rounded-xl bg-slate-900">
+                              <span className="text-[10px] text-slate-500 block uppercase">Rating</span>
+                              <span className="font-mono font-bold text-amber-400">{v.rating > 0 ? `${v.rating} ★` : 'New'}</span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between text-[11px] text-slate-400">
+                            <span>Host: <strong className="text-slate-200">{v.ownerName}</strong> ({v.ownerEmail})</span>
+                            <Link
+                              to={`/venues/${v.id}`}
+                              className="text-emerald-400 hover:text-emerald-300 font-bold flex items-center gap-1"
+                            >
+                              <span>View Public</span>
+                              <ExternalLink className="w-3 h-3" />
+                            </Link>
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               )}
@@ -907,86 +1503,67 @@ function AdminDashboardInner() {
               {/* ─── TAB 4: BOOKINGS LEDGER ───────────────────────────────────── */}
               {mainTab === 'BOOKINGS' && (
                 <div className="pt-5 space-y-4">
-                  {/* Status Sub-Filters */}
-                  <div className="flex items-center gap-1.5 p-1 bg-slate-950 rounded-xl border border-slate-800 overflow-x-auto self-start">
-                    {[
-                      { key: 'ALL', label: 'All Bookings', count: bookings.length },
-                      { key: 'UPCOMING', label: 'Upcoming', count: summary.upcomingBookings },
-                      { key: 'COMPLETED', label: 'Completed', count: summary.completedBookings },
-                      { key: 'CANCELLED', label: 'Cancelled', count: summary.cancelledBookings },
-                    ].map((tab) => (
+                  {/* Sub-filter Bar */}
+                  <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                    {['ALL', 'UPCOMING', 'COMPLETED', 'CANCELLED'].map((f) => (
                       <button
-                        key={tab.key}
+                        key={f}
                         type="button"
-                        onClick={() => setBookingFilter(tab.key)}
-                        className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
-                          bookingFilter === tab.key
-                            ? 'bg-emerald-500 text-slate-950 font-black shadow-xs'
-                            : 'text-slate-400 hover:text-white'
+                        onClick={() => setBookingFilter(f)}
+                        className={`px-3 py-1.5 text-xs font-bold rounded-xl transition ${
+                          bookingFilter === f
+                            ? 'bg-slate-800 text-white border border-slate-700 font-black'
+                            : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
                         }`}
                       >
-                        <span>{tab.label}</span>
-                        <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
-                          bookingFilter === tab.key ? 'bg-slate-950 text-emerald-400' : 'bg-slate-800 text-slate-400'
-                        }`}>
-                          {tab.count}
-                        </span>
+                        {f}
                       </button>
                     ))}
                   </div>
 
                   {/* Bookings Table */}
                   <div className="overflow-x-auto rounded-2xl border border-slate-800">
-                    <table className="w-full text-left border-collapse min-w-[700px]">
+                    <table className="w-full text-left border-collapse min-w-[750px]">
                       <thead>
                         <tr className="bg-slate-950 border-b border-slate-800 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                          <th scope="col" className="py-3 px-4">Booking Ref</th>
-                          <th scope="col" className="py-3 px-4">Customer</th>
-                          <th scope="col" className="py-3 px-4">Facility & Court</th>
-                          <th scope="col" className="py-3 px-4">Scheduled Slot</th>
-                          <th scope="col" className="py-3 px-4">Amount</th>
-                          <th scope="col" className="py-3 px-4 text-right">Lifecycle Status</th>
+                          <th className="py-3 px-4">Booking ID</th>
+                          <th className="py-3 px-4">Customer</th>
+                          <th className="py-3 px-4">Facility & Court</th>
+                          <th className="py-3 px-4">Schedule</th>
+                          <th className="py-3 px-4 text-right">Value</th>
+                          <th className="py-3 px-4 text-right">Status</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-800/80 text-xs bg-slate-900/60">
                         {filteredBookings.length === 0 ? (
                           <tr>
                             <td colSpan="6" className="py-12 text-center text-slate-500">
-                              <div className="w-12 h-12 rounded-2xl bg-slate-950 border border-slate-800 text-slate-600 flex items-center justify-center mx-auto mb-2">
-                                <CalendarCheck className="w-6 h-6" />
-                              </div>
-                              <p className="font-bold text-xs text-slate-300">No booking records found</p>
-                              <p className="text-[11px] text-slate-500 mt-0.5">
-                                No records match the {bookingFilter === 'ALL' ? 'current' : bookingFilter.toLowerCase()} criteria.
-                              </p>
+                              <CalendarCheck className="w-10 h-10 mx-auto mb-2 text-slate-600" />
+                              <p className="font-bold text-xs text-slate-300">No matching bookings</p>
                             </td>
                           </tr>
                         ) : (
                           filteredBookings.map((b) => (
                             <tr key={b.id} className="hover:bg-slate-800/40 transition-colors">
-                              <td className="py-3.5 px-4">
-                                <span className="font-mono text-[11px] font-bold text-slate-300 bg-slate-950 border border-slate-800 px-2 py-1 rounded-md">
-                                  {b.id}
-                                </span>
+                              <td className="py-3 px-4 font-mono font-bold text-emerald-400">
+                                #{b.id}
                               </td>
-                              <td className="py-3.5 px-4">
-                                <div className="font-bold text-white">{b.customerName}</div>
-                                <div className="text-[11px] text-slate-400 font-mono">{b.customerEmail}</div>
+                              <td className="py-3 px-4">
+                                <p className="font-bold text-white">{b.customerName}</p>
+                                <p className="text-[11px] text-slate-500 font-mono">{b.customerEmail}</p>
                               </td>
-                              <td className="py-3.5 px-4">
-                                <div className="font-bold text-white">{b.venueName}</div>
-                                <div className="text-[11px] text-slate-400">{b.courtName} ({b.sport})</div>
+                              <td className="py-3 px-4">
+                                <p className="font-bold text-slate-200">{b.venueName}</p>
+                                <p className="text-[11px] text-slate-400">{b.courtName} • {b.sport}</p>
                               </td>
-                              <td className="py-3.5 px-4">
-                                <div className="font-semibold text-slate-200">{formatBookingDate(b.date)}</div>
-                                <div className="text-[11px] text-slate-400">{b.startTime} - {b.endTime}</div>
+                              <td className="py-3 px-4">
+                                <p className="font-mono text-white">{formatBookingDate(b.date)}</p>
+                                <p className="text-[11px] text-slate-400 font-mono">{b.startTime} - {b.endTime}</p>
                               </td>
-                              <td className="py-3.5 px-4">
-                                <span className="font-mono font-black text-emerald-400 text-sm">
-                                  ₹{b.totalPrice}
-                                </span>
+                              <td className="py-3 px-4 text-right font-mono font-bold text-white">
+                                ₹{b.totalPrice}
                               </td>
-                              <td className="py-3.5 px-4 text-right">
+                              <td className="py-3 px-4 text-right">
                                 <BookingStatusBadge operationalStatus={b.operationalStatus} status={b.status} />
                               </td>
                             </tr>
@@ -997,6 +1574,7 @@ function AdminDashboardInner() {
                   </div>
                 </div>
               )}
+
             </div>
           </div>
         )}
@@ -1111,6 +1689,168 @@ function AdminDashboardInner() {
                   ) : (
                     <span>
                       {userToToggle.status === 'active' ? 'Confirm Suspension' : 'Confirm Reactivation'}
+                    </span>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ─── 6. Accessible Venue Verification Action Modal (Phase 19) ───────── */}
+        {verificationActionTarget && (
+          <div
+            className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="verification-modal-title"
+            aria-describedby="verification-modal-desc"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                handleCloseVerificationModal();
+              }
+            }}
+          >
+            <div className="bg-slate-900 rounded-3xl max-w-lg w-full p-6 sm:p-7 border border-slate-800 shadow-2xl space-y-4 text-slate-100">
+              <div className="flex items-center gap-3.5">
+                <div
+                  className={`w-12 h-12 rounded-2xl flex items-center justify-center border shrink-0 ${
+                    verificationActionTarget.targetStatus === 'VERIFIED'
+                      ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                      : verificationActionTarget.targetStatus === 'REJECTED'
+                      ? 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+                      : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                  }`}
+                >
+                  {verificationActionTarget.targetStatus === 'VERIFIED' ? (
+                    <ShieldCheck className="w-6 h-6" />
+                  ) : verificationActionTarget.targetStatus === 'REJECTED' ? (
+                    <XCircle className="w-6 h-6" />
+                  ) : (
+                    <AlertTriangle className="w-6 h-6" />
+                  )}
+                </div>
+                <div>
+                  <h3 id="verification-modal-title" className="text-base font-black text-white">
+                    {verificationActionTarget.targetStatus === 'VERIFIED'
+                      ? (['REJECTED', 'SUSPENDED'].includes(verificationActionTarget.venue.verificationStatus)
+                          ? 'Restore & Verify Facility?'
+                          : 'Verify Sports Facility?')
+                      : verificationActionTarget.targetStatus === 'REJECTED'
+                      ? 'Reject Venue Verification?'
+                      : 'Suspend Sports Facility?'}
+                  </h3>
+                  <p className="text-xs text-slate-400 font-medium mt-0.5">
+                    {verificationActionTarget.targetStatus === 'VERIFIED'
+                      ? 'Grant authoritative verified badge to this facility'
+                      : verificationActionTarget.targetStatus === 'REJECTED'
+                      ? 'Decline venue verification application'
+                      : 'Temporarily suspend venue operations and customer bookings'}
+                  </p>
+                </div>
+              </div>
+
+              <div id="verification-modal-desc" className="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-slate-400">Venue / Facility:</span>
+                  <span className="font-bold text-white">{verificationActionTarget.venue.name}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-slate-400">Location:</span>
+                  <span className="text-slate-300">{verificationActionTarget.venue.location || verificationActionTarget.venue.city}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-slate-400">Host / Owner:</span>
+                  <span className="text-slate-300">{verificationActionTarget.venue.ownerName} ({verificationActionTarget.venue.ownerEmail})</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-slate-400">Current Status:</span>
+                  <VerificationStatusBadge status={verificationActionTarget.venue.verificationStatus || 'PENDING'} />
+                </div>
+                <div className="flex items-center justify-between pt-2 border-t border-slate-800">
+                  <span className="font-semibold text-slate-400">Target State:</span>
+                  <VerificationStatusBadge status={verificationActionTarget.targetStatus} />
+                </div>
+              </div>
+
+              {/* Moderation Reason / Note Field */}
+              <div className="space-y-1.5">
+                <label htmlFor="verification-reason-input" className="block text-xs font-bold text-slate-300 uppercase tracking-wider">
+                  {['REJECTED', 'SUSPENDED'].includes(verificationActionTarget.targetStatus) ? (
+                    <>Reason / Note <span className="text-rose-400">*</span></>
+                  ) : (
+                    <>Audit Note <span className="text-slate-500 font-normal">(Optional)</span></>
+                  )}
+                </label>
+                <textarea
+                  id="verification-reason-input"
+                  rows={3}
+                  value={verificationReason}
+                  onChange={(e) => {
+                    setVerificationReason(e.target.value);
+                    if (verificationModalError) setVerificationModalError(null);
+                  }}
+                  maxLength={500}
+                  placeholder={
+                    verificationActionTarget.targetStatus === 'VERIFIED'
+                      ? 'Optional verification notes (e.g. Facility verified via physical inspection)...'
+                      : verificationActionTarget.targetStatus === 'REJECTED'
+                      ? 'Explain why this venue is rejected (e.g. Incomplete address, unverified contact)...'
+                      : 'Explain why this venue is suspended (e.g. Facility under maintenance / policy violation)...'
+                  }
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-700/80 bg-slate-950 text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all resize-none"
+                />
+                <div className="flex justify-between items-center text-[10px] text-slate-500">
+                  <span>
+                    {['REJECTED', 'SUSPENDED'].includes(verificationActionTarget.targetStatus)
+                      ? 'Note will be visible to the facility owner.'
+                      : 'Recorded in authoritative admin verification audit logs.'}
+                  </span>
+                  <span>{verificationReason.length}/500</span>
+                </div>
+              </div>
+
+              {verificationModalError && (
+                <div role="alert" className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs font-medium flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                  <span>{verificationModalError}</span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  disabled={verificationUpdating}
+                  onClick={handleCloseVerificationModal}
+                  className="px-4 py-2.5 text-xs font-bold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-slate-500 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  disabled={verificationUpdating}
+                  onClick={handleConfirmVerificationAction}
+                  className={`inline-flex items-center gap-2 px-5 py-2.5 text-xs font-black text-white rounded-xl shadow-md transition-all focus:outline-none focus:ring-2 disabled:opacity-60 ${
+                    verificationActionTarget.targetStatus === 'VERIFIED'
+                      ? 'bg-emerald-600 hover:bg-emerald-500 focus:ring-emerald-500'
+                      : verificationActionTarget.targetStatus === 'REJECTED'
+                      ? 'bg-rose-600 hover:bg-rose-500 focus:ring-rose-500'
+                      : 'bg-amber-600 hover:bg-amber-500 focus:ring-amber-500'
+                  }`}
+                >
+                  {verificationUpdating ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Updating Verification…</span>
+                    </>
+                  ) : (
+                    <span>
+                      {verificationActionTarget.targetStatus === 'VERIFIED'
+                        ? 'Confirm Verification'
+                        : verificationActionTarget.targetStatus === 'REJECTED'
+                        ? 'Confirm Rejection'
+                        : 'Confirm Suspension'}
                     </span>
                   )}
                 </button>

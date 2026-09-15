@@ -14,6 +14,10 @@ import {
   format12Hour,
   getDeterministicStatus,
 } from './courtController.js';
+import {
+  createNotification,
+  NOTIFICATION_TYPES,
+} from './notificationController.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -83,6 +87,14 @@ export function createBooking(req, res) {
     return res.status(400).json({
       status: 'error',
       message: 'This court is currently inactive and cannot be booked.',
+    });
+  }
+
+  const venue = store.venues.find((v) => v.id === court.venueId);
+  if (venue && ['REJECTED', 'SUSPENDED'].includes(venue.verificationStatus)) {
+    return res.status(400).json({
+      status: 'error',
+      message: `Bookings cannot be made at this facility because its verification status is ${venue.verificationStatus.toLowerCase()}.`,
     });
   }
 
@@ -203,6 +215,27 @@ export function createBooking(req, res) {
   };
 
   store.bookings.push(newBooking);
+
+  // Phase 15: Create transactional notifications for Customer and Venue Owner
+  createNotification({
+    recipientUserId: newBooking.userId,
+    type: NOTIFICATION_TYPES.BOOKING_REQUESTED,
+    title: 'Booking Request Submitted',
+    message: `Your booking request for ${court.name} on ${newBooking.date} (${newBooking.startTime} - ${newBooking.endTime}) is submitted.`,
+    bookingId: newBooking.id,
+    venueId: newBooking.venueId,
+  });
+
+  if (venue && venue.ownerId) {
+    createNotification({
+      recipientUserId: venue.ownerId,
+      type: NOTIFICATION_TYPES.NEW_BOOKING_REQUEST,
+      title: 'New Booking Request',
+      message: `New booking request #${newBooking.id} received for ${court.name} on ${newBooking.date} (${newBooking.startTime} - ${newBooking.endTime}).`,
+      bookingId: newBooking.id,
+      venueId: newBooking.venueId,
+    });
+  }
 
   return res.status(201).json({
     status: 'ok',
@@ -360,6 +393,41 @@ export function cancelBooking(req, res) {
 
   booking.updatedAt = new Date().toISOString();
 
+  // Phase 15: Cancellation Notifications
+  const court = store.courts.find((c) => c.id === booking.courtId);
+  const venue = store.venues.find((v) => v.id === (booking.venueId || court?.venueId));
+  const courtName = court?.name || 'court';
+
+  if (isCustomer) {
+    createNotification({
+      recipientUserId: booking.userId,
+      type: NOTIFICATION_TYPES.BOOKING_CANCELLED,
+      title: 'Booking Cancelled',
+      message: `Your booking #${booking.id} for ${courtName} on ${booking.date} (${booking.startTime} - ${booking.endTime}) was cancelled.`,
+      bookingId: booking.id,
+      venueId: booking.venueId,
+    });
+    if (venue && venue.ownerId) {
+      createNotification({
+        recipientUserId: venue.ownerId,
+        type: NOTIFICATION_TYPES.CUSTOMER_CANCELLED,
+        title: 'Booking Cancelled by Customer',
+        message: `Booking #${booking.id} for ${courtName} on ${booking.date} (${booking.startTime} - ${booking.endTime}) was cancelled by the customer.`,
+        bookingId: booking.id,
+        venueId: booking.venueId,
+      });
+    }
+  } else {
+    createNotification({
+      recipientUserId: booking.userId,
+      type: NOTIFICATION_TYPES.BOOKING_CANCELLED,
+      title: 'Booking Cancelled by Venue',
+      message: `Your booking #${booking.id} for ${courtName} on ${booking.date} (${booking.startTime} - ${booking.endTime}) was cancelled by the venue operator.`,
+      bookingId: booking.id,
+      venueId: booking.venueId,
+    });
+  }
+
   return res.status(200).json({
     status: 'ok',
     message: 'Booking cancelled successfully.',
@@ -413,6 +481,14 @@ export function rescheduleBooking(req, res) {
     return res.status(400).json({
       status: 'error',
       message: 'This court is currently inactive and cannot be booked.',
+    });
+  }
+
+  const targetVenue = store.venues.find((v) => v.id === court.venueId);
+  if (targetVenue && ['REJECTED', 'SUSPENDED'].includes(targetVenue.verificationStatus)) {
+    return res.status(400).json({
+      status: 'error',
+      message: `Cannot reschedule booking to this facility because its verification status is ${targetVenue.verificationStatus.toLowerCase()}.`,
     });
   }
 
@@ -522,6 +598,28 @@ export function rescheduleBooking(req, res) {
   booking.totalPrice = totalPrice;
   booking.updatedAt = new Date().toISOString();
 
+  // Phase 15: Reschedule Notifications
+  const venue = store.venues.find((v) => v.id === (booking.venueId || court.venueId));
+  createNotification({
+    recipientUserId: booking.userId,
+    type: NOTIFICATION_TYPES.BOOKING_RESCHEDULED,
+    title: 'Booking Rescheduled',
+    message: `Your booking #${booking.id} is now scheduled for ${court.name} on ${booking.date} (${booking.startTime} - ${booking.endTime}, ${durationHours} hr).`,
+    bookingId: booking.id,
+    venueId: booking.venueId,
+  });
+
+  if (venue && venue.ownerId) {
+    createNotification({
+      recipientUserId: venue.ownerId,
+      type: NOTIFICATION_TYPES.CUSTOMER_RESCHEDULED,
+      title: 'Booking Rescheduled',
+      message: `Booking #${booking.id} was rescheduled to ${court.name} on ${booking.date} (${booking.startTime} - ${booking.endTime}, ${durationHours} hr).`,
+      bookingId: booking.id,
+      venueId: booking.venueId,
+    });
+  }
+
   return res.status(200).json({
     status: 'ok',
     message: 'Booking rescheduled successfully.',
@@ -562,6 +660,28 @@ export function approveBooking(req, res) {
   booking.status = BOOKING_STATUS.APPROVED;
   booking.updatedAt = new Date().toISOString();
 
+  // Phase 15: Approval & Payment Required Notifications
+  const court = store.courts.find((c) => c.id === booking.courtId);
+  const courtName = court?.name || 'court';
+
+  createNotification({
+    recipientUserId: booking.userId,
+    type: NOTIFICATION_TYPES.BOOKING_APPROVED,
+    title: 'Booking Request Approved',
+    message: `Your booking request #${booking.id} for ${courtName} on ${booking.date} (${booking.startTime} - ${booking.endTime}) was approved.`,
+    bookingId: booking.id,
+    venueId: booking.venueId,
+  });
+
+  createNotification({
+    recipientUserId: booking.userId,
+    type: NOTIFICATION_TYPES.PAYMENT_REQUIRED,
+    title: 'Payment Required',
+    message: `Payment of $${booking.totalPrice} is required to confirm booking #${booking.id}.`,
+    bookingId: booking.id,
+    venueId: booking.venueId,
+  });
+
   return res.status(200).json({
     status: 'ok',
     message: 'Booking approved successfully. Awaiting payment.',
@@ -601,6 +721,19 @@ export function rejectBooking(req, res) {
 
   booking.status = BOOKING_STATUS.REJECTED;
   booking.updatedAt = new Date().toISOString();
+
+  // Phase 15: Rejection Notification
+  const court = store.courts.find((c) => c.id === booking.courtId);
+  const courtName = court?.name || 'court';
+
+  createNotification({
+    recipientUserId: booking.userId,
+    type: NOTIFICATION_TYPES.BOOKING_REJECTED,
+    title: 'Booking Request Rejected',
+    message: `Your booking request #${booking.id} for ${courtName} on ${booking.date} (${booking.startTime} - ${booking.endTime}) was rejected by the venue.`,
+    bookingId: booking.id,
+    venueId: booking.venueId,
+  });
 
   return res.status(200).json({
     status: 'ok',
@@ -703,6 +836,53 @@ export function payBooking(req, res) {
     booking.checkInToken = generateCheckInToken();
   }
   booking.updatedAt = new Date().toISOString();
+
+  // Phase 15: Payment & Confirmation Notifications
+  const court = store.courts.find((c) => c.id === booking.courtId);
+  const venue = store.venues.find((v) => v.id === (booking.venueId || court?.venueId));
+  const courtName = court?.name || 'court';
+
+  if (!isPayAtVenue) {
+    // Online Payment Success
+    createNotification({
+      recipientUserId: booking.userId,
+      type: NOTIFICATION_TYPES.PAYMENT_SUCCESS,
+      title: 'Payment Successful',
+      message: `Payment of $${booking.totalPrice} for booking #${booking.id} (${courtName}) was successful.`,
+      bookingId: booking.id,
+      venueId: booking.venueId,
+    });
+
+    createNotification({
+      recipientUserId: booking.userId,
+      type: NOTIFICATION_TYPES.BOOKING_CONFIRMED,
+      title: 'Booking Confirmed',
+      message: `Your booking #${booking.id} for ${courtName} on ${booking.date} (${booking.startTime} - ${booking.endTime}) is confirmed.`,
+      bookingId: booking.id,
+      venueId: booking.venueId,
+    });
+
+    if (venue && venue.ownerId) {
+      createNotification({
+        recipientUserId: venue.ownerId,
+        type: NOTIFICATION_TYPES.PAYMENT_RECEIVED,
+        title: 'Payment Received',
+        message: `Payment of $${booking.totalPrice} received for booking #${booking.id} (${courtName}).`,
+        bookingId: booking.id,
+        venueId: booking.venueId,
+      });
+    }
+  } else {
+    // Pay at Venue: Confirmed without false payment success notification
+    createNotification({
+      recipientUserId: booking.userId,
+      type: NOTIFICATION_TYPES.BOOKING_CONFIRMED,
+      title: 'Booking Confirmed (Pay at Venue)',
+      message: `Your booking #${booking.id} for ${courtName} on ${booking.date} (${booking.startTime} - ${booking.endTime}) is confirmed. Payment is due at the venue.`,
+      bookingId: booking.id,
+      venueId: booking.venueId,
+    });
+  }
 
   return res.status(200).json({
     status: 'ok',
@@ -1106,6 +1286,16 @@ export function checkInBooking(req, res) {
   const startH = parse12HourTime(booking.startTime);
   const endH = parse12HourTime(booking.endTime);
   const durationHours = (startH !== null && endH !== null && endH > startH) ? (endH - startH) : 1;
+
+  // Phase 15: Check-in Notification
+  createNotification({
+    recipientUserId: booking.userId,
+    type: NOTIFICATION_TYPES.CHECK_IN_COMPLETED,
+    title: 'Check-In Completed',
+    message: `Your check-in for booking #${booking.id} at ${venue?.name || 'Venue'} (${court?.name || 'Court'}) has been recorded. Enjoy your game!`,
+    bookingId: booking.id,
+    venueId: booking.venueId,
+  });
 
   return res.status(200).json({
     status: 'ok',
