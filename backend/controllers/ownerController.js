@@ -1,4 +1,4 @@
-import { store } from '../data/store.js';
+import { store, safeCourt } from '../data/store.js';
 import { parse12HourTime } from './bookingController.js';
 
 /**
@@ -64,14 +64,25 @@ function serializeDashboardBooking(booking, venue, court, now) {
   const isElapsed = isBookingElapsed(booking, now);
   let operationalStatus = 'UPCOMING';
 
-  if (booking.status === 'CANCELLED') {
-    operationalStatus = 'CANCELLED';
-  } else if (isElapsed) {
+  if (booking.status === 'CANCELLED' || booking.status === 'REJECTED') {
+    operationalStatus = booking.status;
+  } else if (booking.status === 'REQUESTED' || booking.status === 'APPROVED' || booking.status === 'PAYMENT_PENDING') {
+    operationalStatus = booking.status;
+  } else if (isElapsed || booking.status === 'COMPLETED') {
     operationalStatus = 'COMPLETED';
   }
 
+  const startH = parse12HourTime(booking.startTime);
+  const endH = parse12HourTime(booking.endTime);
+  const durationHours = (startH !== null && endH !== null && endH > startH) ? (endH - startH) : 1;
+
+  const customer = (store.users || []).find((u) => u.id === booking.userId);
+
   return {
     id: booking.id,
+    userId: booking.userId,
+    customerName: customer ? customer.name : (booking.userName || 'Player'),
+    playerName: customer ? customer.name : (booking.userName || 'Player'),
     venueId: booking.venueId || (court ? court.venueId : null),
     venueName: venue ? venue.name : (booking.venueName || 'Venue'),
     courtId: booking.courtId,
@@ -80,9 +91,12 @@ function serializeDashboardBooking(booking, venue, court, now) {
     date: booking.date,
     startTime: booking.startTime,
     endTime: booking.endTime,
+    durationHours,
     pricePerHour: Number(booking.pricePerHour || (court ? court.pricePerHour : 0)),
     totalPrice: Number(booking.totalPrice || 0),
     status: booking.status,
+    paymentStatus: booking.paymentStatus || 'PENDING',
+    paymentMethod: booking.paymentMethod || null,
     operationalStatus,
     createdAt: booking.createdAt,
     updatedAt: booking.updatedAt,
@@ -185,6 +199,7 @@ export function getOwnerDashboard(req, res) {
       bookingRevenue,
     },
     venues: serializedVenues,
+    courts: myCourts.map(safeCourt),
     recentBookings: serializedBookings,
   });
 }

@@ -394,8 +394,8 @@ export function rejectBooking(req, res) {
 /**
  * POST /api/bookings/:id/pay
  * Requires: authenticate (CUSTOMER who owns the booking or ADMIN)
- * Transition: APPROVED / PAYMENT_PENDING / REQUESTED -> PAID / CONFIRMED
- * Payment Status: PENDING -> PAID
+ * Transition: APPROVED / PAYMENT_PENDING -> CONFIRMED
+ * Payment Status: PENDING -> PAID (or PENDING if Pay at Venue)
  */
 export function payBooking(req, res) {
   const booking = store.bookings.find((b) => b.id === req.params.id);
@@ -413,33 +413,79 @@ export function payBooking(req, res) {
     });
   }
 
-  // Supported source states for payment
+  // Duplicate payment check
+  if (booking.paymentStatus === PAYMENT_STATUS.PAID && booking.status === BOOKING_STATUS.CONFIRMED) {
+    return res.status(400).json({
+      status: 'error',
+      message: 'This booking has already been paid and confirmed.',
+    });
+  }
+
+  // Only APPROVED or PAYMENT_PENDING bookings can be paid
   const payableStatuses = [
     BOOKING_STATUS.APPROVED,
     BOOKING_STATUS.PAYMENT_PENDING,
-    BOOKING_STATUS.REQUESTED, // For instant demo payment if auto-approved
   ];
 
   if (!payableStatuses.includes(booking.status)) {
+    if (booking.status === BOOKING_STATUS.REQUESTED) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Booking is currently REQUESTED and must be approved before payment.',
+      });
+    }
     return res.status(400).json({
       status: 'error',
       message: `Booking in '${booking.status}' status cannot receive payment. Must be '${BOOKING_STATUS.APPROVED}' or '${BOOKING_STATUS.PAYMENT_PENDING}'.`,
     });
   }
 
-  const { paymentMethod } = req.body || {};
-  const isPayAtVenue = paymentMethod === 'PAY_AT_VENUE' || paymentMethod === 'Pay at Venue';
+  const { paymentMethod, simulateFailure, paymentResult } = req.body || {};
+
+  // Validate payment method against supported methods
+  const validMethods = ['UPI', 'CARD', 'PAY_AT_VENUE', 'Pay at Venue', 'Card', 'upi', 'card', 'pay_at_venue'];
+  if (!paymentMethod || !validMethods.includes(paymentMethod)) {
+    return res.status(400).json({
+      status: 'error',
+      message: 'Invalid payment method. Supported methods: UPI, Card, Pay at Venue.',
+    });
+  }
+
+  let normalizedMethod = 'UPI';
+  const pmLower = paymentMethod.toLowerCase();
+  if (pmLower === 'card') {
+    normalizedMethod = 'Card';
+  } else if (pmLower === 'pay_at_venue' || paymentMethod === 'Pay at Venue') {
+    normalizedMethod = 'Pay at Venue';
+  } else if (pmLower === 'upi') {
+    normalizedMethod = 'UPI';
+  }
+
+  // Handle simulated payment failure
+  if (simulateFailure === true || paymentResult === 'FAILED') {
+    booking.paymentStatus = PAYMENT_STATUS.FAILED;
+    booking.paymentMethod = normalizedMethod;
+    booking.updatedAt = new Date().toISOString();
+
+    return res.status(400).json({
+      status: 'error',
+      message: 'Simulated payment processing failed. Please retry.',
+      booking: safeBooking(booking),
+    });
+  }
+
+  const isPayAtVenue = normalizedMethod === 'Pay at Venue';
 
   booking.status = BOOKING_STATUS.CONFIRMED;
   booking.paymentStatus = isPayAtVenue ? PAYMENT_STATUS.PENDING : PAYMENT_STATUS.PAID;
-  booking.paymentMethod = isPayAtVenue ? 'Pay at Venue' : (paymentMethod || 'UPI');
+  booking.paymentMethod = normalizedMethod;
   booking.updatedAt = new Date().toISOString();
 
   return res.status(200).json({
     status: 'ok',
     message: isPayAtVenue
-      ? 'Booking confirmed. Pay at venue upon arrival.'
-      : 'Payment confirmed successfully.',
+      ? 'Booking confirmed. Payment is due at the venue upon arrival.'
+      : 'Payment processed successfully.',
     booking: safeBooking(booking),
   });
 }
@@ -496,7 +542,7 @@ export function updateBookingStatus(req, res) {
 
     // Role-specific transition permissions
     if (isCustomer) {
-      const customerAllowed = [BOOKING_STATUS.CANCELLED, BOOKING_STATUS.PAID, BOOKING_STATUS.CONFIRMED];
+      const customerAllowed = [BOOKING_STATUS.CANCELLED, BOOKING_STATUS.PAID, BOOKING_STATUS.CONFIRMED, BOOKING_STATUS.PAYMENT_PENDING];
       if (!customerAllowed.includes(targetStatus)) {
         return res.status(403).json({
           status: 'error',
@@ -508,6 +554,7 @@ export function updateBookingStatus(req, res) {
     if (isOwner && !isAdmin) {
       const ownerAllowed = [
         BOOKING_STATUS.APPROVED,
+        BOOKING_STATUS.PAYMENT_PENDING,
         BOOKING_STATUS.REJECTED,
         BOOKING_STATUS.PAYMENT_FAILED,
         BOOKING_STATUS.PAYMENT_EXPIRED,
@@ -553,7 +600,8 @@ export function updateBookingStatus(req, res) {
   }
 
   // 3. Auto-sync payment state for certain booking state shifts
-  if ([BOOKING_STATUS.PAID, BOOKING_STATUS.CONFIRMED].includes(booking.status) && booking.paymentStatus !== PAYMENT_STATUS.PAID) {
+  const isPayAtVenue = (paymentMethod || booking.paymentMethod) === 'Pay at Venue' || (paymentMethod || booking.paymentMethod) === 'PAY_AT_VENUE';
+  if ([BOOKING_STATUS.PAID, BOOKING_STATUS.CONFIRMED].includes(booking.status) && booking.paymentStatus !== PAYMENT_STATUS.PAID && !isPayAtVenue) {
     booking.paymentStatus = PAYMENT_STATUS.PAID;
   }
 

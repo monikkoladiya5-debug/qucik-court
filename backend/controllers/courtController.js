@@ -189,13 +189,16 @@ export function createCourt(req, res) {
   }
 
   // Verify sport is compatible with venue
-  const isCompatible = venue.sportTypes.some(
+  const venueSports = Array.isArray(venue.sportTypes)
+    ? venue.sportTypes
+    : (typeof venue.sportTypes === 'string' ? venue.sportTypes.split(',').map((s) => s.trim()).filter(Boolean) : []);
+  const isCompatible = venueSports.length === 0 || venueSports.some(
     (s) => s.toLowerCase() === sport.trim().toLowerCase()
   );
   if (!isCompatible) {
     return res.status(400).json({
       status: 'error',
-      message: `Sport "${sport.trim()}" is not offered at this venue. Offered sports: ${venue.sportTypes.join(', ')}.`,
+      message: `Sport "${sport.trim()}" is not offered at this venue. Offered sports: ${venueSports.join(', ')}.`,
     });
   }
 
@@ -271,13 +274,16 @@ export function updateCourt(req, res) {
     if (typeof sport !== 'string' || !sport.trim()) {
       return res.status(400).json({ status: 'error', message: 'Sport cannot be empty.' });
     }
-    const isCompatible = venue.sportTypes.some(
+    const venueSports = Array.isArray(venue.sportTypes)
+      ? venue.sportTypes
+      : (typeof venue.sportTypes === 'string' ? venue.sportTypes.split(',').map((s) => s.trim()).filter(Boolean) : []);
+    const isCompatible = venueSports.length === 0 || venueSports.some(
       (s) => s.toLowerCase() === sport.trim().toLowerCase()
     );
     if (!isCompatible) {
       return res.status(400).json({
         status: 'error',
-        message: `Sport "${sport.trim()}" is not offered at this venue. Offered sports: ${venue.sportTypes.join(', ')}.`,
+        message: `Sport "${sport.trim()}" is not offered at this venue. Offered sports: ${venueSports.join(', ')}.`,
       });
     }
     court.sport = sport.trim();
