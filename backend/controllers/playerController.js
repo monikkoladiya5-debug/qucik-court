@@ -1,4 +1,4 @@
-import { store, safePlayer, calculatePlayerTrust } from '../data/store.js';
+import { store, safePlayer, calculatePlayerTrust, calculatePlayerGamification } from '../data/store.js';
 
 const VALID_SKILL_LEVELS = ['Beginner', 'Intermediate', 'Advanced'];
 const VALID_PREFERRED_DAYS = ['Weekdays', 'Weekends', 'Flexible'];
@@ -855,5 +855,32 @@ export function respondToInvite(req, res) {
     status: 'ok',
     message: `Match invite ${status.toLowerCase()} successfully.`,
     invite,
+  });
+}
+
+// ─── CUSTOMER: Get Personal Gamification & Achievements Summary ───────────────
+
+/**
+ * GET /api/players/me/gamification
+ */
+export function getMyGamification(req, res) {
+  if (!req.user || req.user.role !== 'CUSTOMER') {
+    return res.status(403).json({
+      status: 'error',
+      message: 'Gamification summary is accessible to customers only.',
+    });
+  }
+
+  const gamification = calculatePlayerGamification(req.user.id);
+  if (!gamification) {
+    return res.status(404).json({
+      status: 'error',
+      message: 'Player gamification record not found.',
+    });
+  }
+
+  return res.status(200).json({
+    status: 'ok',
+    gamification,
   });
 }

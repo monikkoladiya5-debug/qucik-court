@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { getOwnerDashboard } from '../controllers/ownerController.js';
 import { getOwnerPricingIntelligence } from '../controllers/pricingController.js';
+import { getOwnerReviews } from '../controllers/reviewController.js';
 import { authenticate } from '../middleware/authenticate.js';
 import { requireRole } from '../middleware/requireRole.js';
 
@@ -11,5 +12,8 @@ router.get('/dashboard', authenticate, requireRole('OWNER'), getOwnerDashboard);
 
 // Owner Pricing Intelligence: strictly authenticated and OWNER-only
 router.get('/pricing-intelligence', authenticate, requireRole('OWNER'), getOwnerPricingIntelligence);
+
+// Owner Reviews: strictly authenticated and OWNER-only (Phase 20)
+router.get('/reviews', authenticate, requireRole('OWNER'), getOwnerReviews);
 
 export default router;

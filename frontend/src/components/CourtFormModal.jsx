@@ -50,6 +50,18 @@ export default function CourtFormModal({
     }
   }, [availableSports, form.sport]);
 
+  // Keyboard accessibility: Escape to close modal
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if (e.key === 'Escape' && !loading && onClose) {
+        onClose();
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [loading, onClose]);
+
+
   function handleSubmit(e) {
     e.preventDefault();
     setValidationError('');

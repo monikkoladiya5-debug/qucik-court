@@ -7,7 +7,7 @@ import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import Card from '../components/ui/Card';
 import SportIcon from '../components/ui/SportIcon';
-import { fetchMyBookings, cancelBooking, payBooking, rescheduleBooking } from '../services/api';
+import { fetchMyBookings, cancelBooking, payBooking, rescheduleBooking, createReview, fetchMyReviews } from '../services/api';
 import { getLocalDateString } from '../utils/date';
 import {
   Calendar,
@@ -38,6 +38,7 @@ import {
   KeyRound,
   Copy,
   RefreshCw,
+  Star,
 } from 'lucide-react';
 
 const CANCELLATION_REASONS = [
@@ -145,12 +146,25 @@ export default function MyBookingsPage() {
   // Selected Booking Details Pass Modal
   const [selectedPass, setSelectedPass] = useState(null);
 
+  // Reviews & Ratings state (Phase 20)
+  const [myReviews, setMyReviews] = useState([]);
+  const [reviewingBooking, setReviewingBooking] = useState(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewTitle, setReviewTitle] = useState('');
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewError, setReviewError] = useState(null);
+
   const loadBookings = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetchMyBookings();
-      setBookings(res.bookings || []);
+      const [bookingsRes, reviewsRes] = await Promise.all([
+        fetchMyBookings(),
+        fetchMyReviews().catch(() => ({ reviews: [] })),
+      ]);
+      setBookings(bookingsRes.bookings || []);
+      setMyReviews(reviewsRes.reviews || []);
     } catch (err) {
       setError(err.message || 'Failed to load your bookings. Please check your connection.');
     } finally {
@@ -176,11 +190,57 @@ export default function MyBookingsPage() {
           setReschedulingBooking(null);
           setRescheduleError(null);
         }
+        if (reviewingBooking && !reviewLoading) {
+          setReviewingBooking(null);
+          setReviewError(null);
+        }
       }
     }
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedPass, payingBooking, payLoading, cancellingBooking, cancelLoading, reschedulingBooking, rescheduleLoading]);
+  }, [selectedPass, payingBooking, payLoading, cancellingBooking, cancelLoading, reschedulingBooking, rescheduleLoading, reviewingBooking, reviewLoading]);
+
+  // Open Review Modal Helper
+  const openReviewModal = (booking) => {
+    setReviewingBooking(booking);
+    setReviewRating(5);
+    setReviewTitle('');
+    setReviewComment('');
+    setReviewError(null);
+  };
+
+  // Submit Review Handler
+  const handleReviewSubmit = async (e) => {
+    e.preventDefault();
+    if (!reviewingBooking) return;
+
+    if (!reviewTitle.trim() && !reviewComment.trim()) {
+      setReviewError('Please provide a title or comment for your review.');
+      return;
+    }
+
+    try {
+      setReviewLoading(true);
+      setReviewError(null);
+
+      const res = await createReview({
+        bookingId: reviewingBooking.id,
+        rating: Number(reviewRating),
+        title: reviewTitle.trim(),
+        comment: reviewComment.trim(),
+      });
+
+      const newReview = res.review;
+      setMyReviews((prev) => [newReview, ...prev]);
+      setSuccessMsg(`Thank you! Your ${reviewRating}-star review for ${reviewingBooking.venueName || 'the venue'} has been published.`);
+      setReviewingBooking(null);
+      setTimeout(() => setSuccessMsg(''), 5000);
+    } catch (err) {
+      setReviewError(err.message || 'Failed to submit your review. Please try again.');
+    } finally {
+      setReviewLoading(false);
+    }
+  };
 
   // Cancel Handler
   const handleCancelConfirm = async () => {
@@ -910,6 +970,34 @@ export default function MyBookingsPage() {
                             Match Pass
                           </Button>
 
+                          {/* Action 5: Rate Experience / Reviewed status (Phase 20) */}
+                          {b.status === 'COMPLETED' && (
+                            (() => {
+                              const existingReview = myReviews.find((r) => r.bookingId === b.id);
+                              if (existingReview) {
+                                return (
+                                  <span
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/40 rounded-xl"
+                                    title={`Reviewed: ${existingReview.rating} Stars`}
+                                  >
+                                    <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                                    <span>Reviewed ({existingReview.rating}★)</span>
+                                  </span>
+                                );
+                              }
+                              return (
+                                <Button
+                                  variant="primary"
+                                  size="sm"
+                                  icon={Star}
+                                  onClick={() => openReviewModal(b)}
+                                >
+                                  Rate Experience
+                                </Button>
+                              );
+                            })()
+                          )}
+
                           {/* Action 4: Cancel (if uncompleted and not already cancelled) */}
                           {isUpcoming && !isCancelled && (
                             <button
@@ -1593,6 +1681,163 @@ export default function MyBookingsPage() {
                   Confirm Cancellation
                 </Button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Review Experience Modal (Phase 20) ────────────────────────── */}
+      {reviewingBooking && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm overflow-y-auto animate-in fade-in"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="review-modal-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !reviewLoading) {
+              setReviewingBooking(null);
+              setReviewError(null);
+            }
+          }}
+        >
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="bg-[#0F131C] border border-[#28303F] rounded-2xl max-w-lg w-full p-5 sm:p-6 shadow-2xl space-y-4 my-4 sm:my-8 text-slate-100 relative">
+              {/* Header */}
+              <div className="flex items-start justify-between pb-3 border-b border-[#28303F]">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-400/10 text-amber-400 flex items-center justify-center border border-amber-400/20 shrink-0">
+                    <Star className="w-5 h-5 fill-amber-400" />
+                  </div>
+                  <div>
+                    <h3 id="review-modal-title" className="text-base font-black text-white">
+                      Rate Your Experience
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      {reviewingBooking.venueName} • {reviewingBooking.courtName}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={reviewLoading}
+                  onClick={() => {
+                    setReviewingBooking(null);
+                    setReviewError(null);
+                  }}
+                  className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/5 transition-colors shrink-0"
+                  aria-label="Close review dialog"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Match Details Pill */}
+              <div className="p-3 bg-[#0B0F17] rounded-xl border border-[#28303F] flex items-center justify-between text-xs text-slate-300 font-mono flex-wrap gap-2">
+                <span>Played: {formatBookingDate(reviewingBooking.date)}</span>
+                <span className="text-lime-400 font-bold">{reviewingBooking.startTime} - {reviewingBooking.endTime}</span>
+              </div>
+
+              <form onSubmit={handleReviewSubmit} className="space-y-4">
+                {/* 1-5 Star Interactive Selector */}
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
+                    Rating <span className="text-rose-400">*</span>
+                  </label>
+                  <div className="flex items-center gap-2">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setReviewRating(star)}
+                        className={`p-2.5 rounded-xl border transition-all focus:outline-none focus:ring-2 focus:ring-amber-400 ${
+                          star <= reviewRating
+                            ? 'bg-amber-400/15 border-amber-400/40 text-amber-400'
+                            : 'bg-[#0B0F17] border-[#28303F] text-slate-600 hover:text-slate-400 hover:border-slate-600'
+                        }`}
+                        aria-label={`${star} star${star > 1 ? 's' : ''}`}
+                      >
+                        <Star className={`w-6 h-6 ${star <= reviewRating ? 'fill-amber-400' : ''}`} />
+                      </button>
+                    ))}
+                    <span className="text-xs font-bold text-amber-400 font-mono ml-2">
+                      {reviewRating === 5 && '5 / 5 — Excellent!'}
+                      {reviewRating === 4 && '4 / 5 — Very Good'}
+                      {reviewRating === 3 && '3 / 5 — Good'}
+                      {reviewRating === 2 && '2 / 5 — Fair'}
+                      {reviewRating === 1 && '1 / 5 — Poor'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Title Input */}
+                <div className="space-y-1">
+                  <div className="flex justify-between items-center">
+                    <label htmlFor="review-title" className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                      Headline / Title
+                    </label>
+                    <span className="text-[10px] text-slate-500 font-mono">{reviewTitle.length}/100</span>
+                  </div>
+                  <input
+                    id="review-title"
+                    type="text"
+                    maxLength={100}
+                    value={reviewTitle}
+                    onChange={(e) => setReviewTitle(e.target.value)}
+                    placeholder="e.g. Great court condition & clean facilities!"
+                    className="w-full px-3 py-2 rounded-xl bg-[#0B0F17] border border-[#28303F] text-xs text-white placeholder-slate-500 focus:outline-none focus:border-lime-400"
+                  />
+                </div>
+
+                {/* Comment Textarea */}
+                <div className="space-y-1">
+                  <div className="flex justify-between items-center">
+                    <label htmlFor="review-comment" className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                      Review Details
+                    </label>
+                    <span className="text-[10px] text-slate-500 font-mono">{reviewComment.length}/500</span>
+                  </div>
+                  <textarea
+                    id="review-comment"
+                    rows={3}
+                    maxLength={500}
+                    value={reviewComment}
+                    onChange={(e) => setReviewComment(e.target.value)}
+                    placeholder="Share your feedback about the court surface, lighting, locker rooms, or staff..."
+                    className="w-full px-3 py-2 rounded-xl bg-[#0B0F17] border border-[#28303F] text-xs text-white placeholder-slate-500 focus:outline-none focus:border-lime-400 resize-none"
+                  />
+                </div>
+
+                {reviewError && (
+                  <div className="p-3 rounded-xl bg-rose-950/50 border border-rose-800/80 text-rose-300 text-xs font-medium" role="alert">
+                    {reviewError}
+                  </div>
+                )}
+
+                <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-[#28303F]">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={reviewLoading}
+                    onClick={() => {
+                      setReviewingBooking(null);
+                      setReviewError(null);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    size="sm"
+                    loading={reviewLoading}
+                    icon={Star}
+                  >
+                    Submit Review
+                  </Button>
+                </div>
+              </form>
             </div>
           </div>
         </div>

@@ -1,12 +1,11 @@
 # QuickCourt V1 — Project Context & Memory
-
 ## 1. Current Status
-- **Current Phase**: Phase 19 — Venue Trust & Verification (**COMPLETE**)
-- **Last Completed Phase**: Phase 19 — Venue Trust & Verification
-- **Milestone Audit (0–18)**: **PASSED** (Full 45-scenario milestone verification passed)
-- **Backend Test Baseline**: 448 / 448 passing tests across 82 suites (`node --test`)
-- **Frontend Build Status**: Production build passing (`vite build` 0 errors)
-- **Next Phase**: Phase 20 — Reviews & Ratings
+- **Current Phase**: Phase 24 — Responsive, Accessibility & UX QA (**COMPLETE**)
+- **Last Completed Phase**: Phase 24 — Responsive, Accessibility & UX QA
+- **Milestone Audit (0–24)**: **PASSED** (Full 10-scenario Phase 24 test suite and 578/578 regression suite passed)
+- **Backend Test Baseline**: 578 / 578 passing tests across 120 suites (`node --test`)
+- **Frontend Build Status**: Production build passing (`vite build` 0 errors, 1592 modules transformed in 5.27s)
+- **Next Phase**: Phase 25 — Final Hackathon Polish & Submission Prep
 
 ---
 
@@ -15,11 +14,12 @@
 - **Backend Stack**: Node.js (ESM), Express 4 REST API
 - **Data Persistence**: In-Memory JavaScript Store (`backend/data/store.js`) — resets on server restart (approved V1 constraint)
 - **Authentication**: Stateless JWT (`jsonwebtoken`, `bcryptjs`), 7-day expiry
+- **Server Hardening**: `app.disable('x-powered-by')`, JSON body parsing limit `1mb`, standard security headers (`X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `X-XSS-Protection: 0`), active suspended-user session revocation (403 Forbidden).
 - **Roles & RBAC**:
-  - `CUSTOMER`: Venue discovery, booking requests, payments, passes, matchmaking, personal profile/trust.
-  - `OWNER`: Venue/court management, booking approval/rejection, pass verification & check-in, owner pricing intelligence.
-  - `ADMIN`: Platform intelligence, system telemetry, user active/suspended status management.
-- **Authoritative Server**: All price calculations, booking states, tokens, QR payloads, and demand signals are strictly server-authoritative.
+  - `CUSTOMER`: Venue discovery, booking requests, payments, passes, matchmaking, personal profile/trust, reviews, gamification progress.
+  - `OWNER`: Venue/court management, booking approval/rejection, pass verification & check-in, owner pricing intelligence, venue review feed.
+  - `ADMIN`: Platform intelligence, system telemetry, user active/suspended status management, venue verification, review & gamification telemetry.
+- **Authoritative Server**: All price calculations, booking states, tokens, QR payloads, demand signals, reviews, and achievements are strictly server-authoritative.
 
 ---
 
@@ -43,7 +43,7 @@ REQUESTED ──(Owner Approve)──► APPROVED / PAYMENT_PENDING ──(Custo
 
 ---
 
-## 4. Completed Phases Summary (Phase 0 — Phase 18)
+## 4. Completed Phases Summary (Phase 0 — Phase 24)
 
 | Phase | Core Features & Business Rules | Primary Endpoints | Key Files |
 |---|---|---|---|
@@ -58,15 +58,20 @@ REQUESTED ──(Owner Approve)──► APPROVED / PAYMENT_PENDING ──(Custo
 | **8: Courts** | Court CRUD, maintenance toggle disables slots | `/api/courts` | `courtController.js`, `OwnerVenuesPage.jsx` |
 | **9: Payments** | Idempotent payment processing (UPI, Card, Venue) | `POST /api/bookings/:id/pay` | `bookingController.js`, `paymentModal.jsx` |
 | **10: Pass & QR** | Server-generated Booking ID, check-in token, QR pass | `GET /api/bookings/:id` | `bookingController.js`, `MyBookingsPage.jsx` |
-| **11: Check-In** | QR/Token verification & atomic check-in | `POST /api/bookings/:id/check-in` | `bookingController.js`, `OwnerDashboardPage.jsx` |
-| **12: Matchmaking**| Player discovery, match invites, self-exclusion | `/api/players`, `/api/players/:id/invite` | `playerController.js`, `PlayersPage.jsx` |
-| **13: Trust/Safety**| Activity-derived trust score, reporting, block list | `/api/players/:id/trust`, `/report`, `/block` | `playerController.js` |
-| **14: Cancel/Resch**| Terminal state protection, instant slot release, no-show | `/api/bookings/:id/cancel`, `/reschedule` | `bookingController.js` |
-| **15: Notifs** | Transactional event notifications for player & owner | `/api/notifications`, `/read-all` | `notificationController.js`, `NotificationsPage.jsx` |
-| **16: Pricing** | Price comparison table, Best Price/Value, owner intel | `/api/pricing/compare`, `/owner/pricing-intelligence`| `pricingController.js`, `CourtPriceComparison.jsx` |
-| **17: Best Time** | Contiguous slot advisor, peak/off-peak classification | `/api/pricing/best-times` | `pricingController.js`, `BestTimeToPlayAdvisor.jsx` |
-| **18: Admin Intel**| Platform telemetry, fleet utilization, 18hr histogram | `/api/admin/platform-intelligence` | `adminController.js`, `AdminDashboardPage.jsx` |
-| **19: Trust/Verify**| Authoritative venue verification, verified badge, moderation | `GET/PATCH /api/admin/venues/verification` | `adminController.js`, `bookingController.js`, `AdminDashboardPage.jsx` |
+| **11: Check-in** | Single-use check-in verification, duplicate lock | `POST /api/bookings/:id/check-in` | `bookingController.js`, `OwnerDashboardPage.jsx` |
+| **12: Matchmaking**| Find Players directory, skill/sport filters, invites | `/api/players` | `playerController.js`, `PlayersPage.jsx` |
+| **13: Trust** | Trust badge, two-way blocking, report violations | `/api/players/:id/trust` | `playerController.js`, `store.js` |
+| **14: Cancel/Resched**| Cancellation reasons, refund states, slot release | `/api/bookings/:id/cancel` | `bookingController.js`, `MyBookingsPage.jsx` |
+| **15: Notifs** | Transactional event notifications, unread sync | `/api/notifications` | `notificationController.js`, `NotificationsPage.jsx` |
+| **16: Pricing** | Smart pricing advisory, market comparison | `/api/pricing/advisory` | `pricingController.js`, `OwnerPricingPage.jsx` |
+| **17: Best Time** | Best time to play recommendations, demand radar | `/api/pricing/best-time` | `pricingController.js`, `VenueDetailPage.jsx` |
+| **18: Platform Intel**| Admin analytics, revenue telemetry, health radar | `/api/admin/platform-intelligence` | `adminController.js`, `AdminDashboardPage.jsx` |
+| **19: Venue Trust** | Partner verification, admin moderation, badges | `/api/admin/venues/:id/verification`| `adminController.js`, `VenueCard.jsx` |
+| **20: Reviews** | Verified player reviews, 1-5 integer ratings, dynamic average & count, duplicate protection | `POST /api/reviews`, `GET /api/reviews/venue/:id` | `reviewController.js`, `reviews.js`, `VenueDetailPage.jsx` |
+| **21: Gamification**| Deterministic sports achievements, check-in milestones, multi-sport badges, match invites | `GET /api/players/me/gamification` | `store.js`, `playerController.js`, `ProfilePage.jsx` |
+| **22: Security & Edge-Cases**| Full security hardening, BOLA/IDOR audit, suspended user revocation, header security, price authority | `/api/*` | `server.js`, `authenticate.js`, `venueController.js`, `phase22_security_edgecases.test.js` |
+| **23: Full Integration**| Cross-phase end-to-end user journeys, master customer/owner/admin flows, multi-hour bookings, pass/check-in/reviews consistency | `/api/*` | `phase23_full_integration.test.js`, `verify_phase23_runtime.mjs` |
+| **24: Responsive & Accessibility QA**| Viewport responsiveness (320px–1920px), Escape/focus modal trap management, prefers-reduced-motion, mobile drawer, touch targets | `/api/*`, CSS | `index.css`, `CourtFormModal.jsx`, `OwnerVenuesPage.jsx`, `phase24_responsive_accessibility.test.js` |
 
 ---
 
@@ -74,30 +79,55 @@ REQUESTED ──(Owner Approve)──► APPROVED / PAYMENT_PENDING ──(Custo
 - **Backgrounds**: Canvas `#0B0F17` (Obsidian), Surfaces `#111827`, Cards `#1F2937`
 - **Primary Accent**: Electric Lime (`#CCFF00` / `#A3E635`) for interactive buttons & hero badges
 - **Status Accent**: Emerald (`#10B981` / `#059669`) for confirmed, paid, checked-in, and verified states
+- **Rating & Badges Accent**: Amber (`#FBBF24` / `#F59E0B`) for star ratings, badges, breakdown distribution bars, and score tags
 - **Typography**: Plus Jakarta Sans (body/headings), JetBrains Mono (Booking IDs, check-in tokens, timestamps, rates)
-- **Constraint**: Sports-focused, authentic imagery, accessible contrast, no gimmicky neon/AI tropes.
+- **Constraint**: Sports-focused, authentic imagery, accessible contrast, no gimmicky neon/AI tropes, no casino/gambling mechanics.
 
 ---
 
 ## 6. Critical Security & Isolation Invariants
-1. **RBAC**: Strict role checks (`CUSTOMER`, `OWNER`, `ADMIN`). Unauthenticated $\to$ 401, Unauthorized $\to$ 403.
+1. **RBAC & Privilege Separation**:
+   - Strict role checks (`CUSTOMER`, `OWNER`, `ADMIN`).
+   - Unauthenticated requests return `401 Unauthorized`.
+   - Authenticated wrong role returns `403 Forbidden`.
+   - Suspended user tokens return `403 Forbidden` immediately on active requests.
 2. **BOLA / IDOR Protection**:
-   - Customers can only access their own bookings, notifications, and profile data.
-   - Owners can only access, modify, or verify bookings/courts/venues that belong to them (`venue.ownerId === req.user.id`).
-3. **Price Integrity**: Client price parameters are ignored; total price is calculated server-side from `court.pricePerHour * durationHours`.
-4. **Data Minimization**: Passwords, `passwordHash`, and private moderation records (`verifiedBy`, `verificationNote`) are excluded from customer-facing API serializations.
-5. **Venue Verification Transitions**: Strict controlled state transitions (`PENDING` $\to$ `VERIFIED`/`REJECTED`, `VERIFIED` $\to$ `SUSPENDED`, `REJECTED`/`SUSPENDED` $\to$ `VERIFIED`) with required moderation notes for rejection/suspension.
+   - Customers can only access their own bookings, notifications, reviews, and profile/gamification data.
+   - Customers can only review their own `COMPLETED` bookings (403 if attempting to review another player's booking).
+   - Server strictly derives `customerId`, `venueId`, and `courtId` from authoritative booking records (client payload cannot inject or override).
+   - Owners can only access, modify, or verify bookings/courts/venues/reviews that belong to their facilities (`venue.ownerId === req.user.id`).
+3. **Price Authority & Booking Integrity**:
+   - Total price is authoritatively computed by the server: `hourlyRate * durationHours`. Client-submitted `price`, `totalPrice`, or `hourlyRate` values are completely ignored.
+   - Slot conflicts are strictly rejected with `409 Conflict`.
+   - Inactive courts and suspended/rejected venues reject booking creation with `400 Bad Request`.
+4. **Payment State Machine & Idempotency**:
+   - Payment cannot occur before owner approval (`REQUESTED` state rejected with 400).
+   - Payment cannot occur after cancellation or completion.
+   - Pay at Venue yields `status: CONFIRMED, paymentStatus: PENDING` without false payment receipts.
+   - Online payment yields `status: CONFIRMED, paymentStatus: PAID`.
+5. **Check-In Token & QR Security**:
+   - Check-in tokens are generated server-side using cryptographic randomness (`CHK-XXXX-XXXX-XXXX`).
+   - Cancelled or unapproved bookings reject check-in verification with 400.
+   - Check-in is single-use; duplicate check-in attempts return 400.
+6. **Data Minimization & Privacy**:
+   - Zero exposure of `passwordHash`, user phone numbers, or private emails in public player listings, review feeds, or venue cards.
+   - Admin internal notes and `verifiedBy` IDs are stripped in public customer venue serializers.
+7. **Server Hardening**:
+   - `x-powered-by` header disabled to prevent fingerprinting.
+   - `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `X-XSS-Protection: 0` headers set on all responses.
+   - Body parser limit restricted to `1mb` to prevent memory starvation DoS.
 
 ---
 
-## 7. Recent Regressions & Solutions
-- **Owner Dashboard Pricing Payload**: Fixed payload property access to match `{ status: 'ok', pricingIntelligence: [...] }`.
-- **Notifications Component Import**: Fixed missing icon import (`ChevronRight`) in [NotificationsPage.jsx](file:///c:/Users/kolad/Pictures/lifelink/quick-court/frontend/src/pages/NotificationsPage.jsx).
-- **Backend Daemon Sync**: Restarted background daemon whenever new Express routes are registered.
+## 7. Architecture Limitations (In-Memory JavaScript Store)
+- **Restart Persistence**: Data resets when the Node.js process restarts (V1 approved hackathon constraint).
+- **Multi-Process Consistency**: In-memory conflict checks are authoritative for a single Node.js event-loop process, but do not provide distributed locking or transactions across a multi-process cluster.
+- **Production Concurrency**: In-memory arrays are synchronous and race-free on single Node.js event loop, but would require transactional ACID database (PostgreSQL/Redis) for distributed production deployments.
 
 ---
 
-## 8. Current Next Phase (Phase 20 Preview)
-- **Title**: Phase 20 — Reviews & Ratings
-- **Goal**: Player post-match reviews, verified booking feedback, host response flow, and facility ratings aggregation.
-- **Rule**: Inspect ONLY files relevant to Phase 20 when initiated. Do NOT scan the entire repository.
+## 8. Current Next Phase (Phase 25 Preview)
+- **Title**: Phase 25 — Final Hackathon Polish & Submission Prep
+- **Goal**: Final UI touches, end-to-end smoke validation, and deployment readiness.
+- **Rule**: Inspect ONLY files relevant to Phase 25 when initiated. Do NOT scan the entire repository.
+

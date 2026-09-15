@@ -7,7 +7,7 @@ import Badge from '../components/ui/Badge';
 import Card from '../components/ui/Card';
 import SportIcon from '../components/ui/SportIcon';
 import { useAuth } from '../context/AuthContext';
-import { fetchMyProfile, updateMyProfile, fetchMyLoyalty } from '../services/api';
+import { fetchMyProfile, updateMyProfile, fetchMyLoyalty, fetchMyGamification } from '../services/api';
 import {
   User,
   Sparkles,
@@ -28,6 +28,11 @@ import {
   ChevronRight,
   Activity,
   Compass,
+  Award,
+  Flame,
+  Layers,
+  Users,
+  Lock,
 } from 'lucide-react';
 
 const SPORTS_LIST = [
@@ -44,9 +49,10 @@ const SPORTS_LIST = [
 export default function ProfilePage() {
   const { user: authUser, updateUser } = useAuth();
 
-  // Profile & Loyalty Data State
+  // Profile, Loyalty & Gamification Data State
   const [profile, setProfile] = useState(null);
   const [loyalty, setLoyalty] = useState(null);
+  const [gamification, setGamification] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -66,12 +72,14 @@ export default function ProfilePage() {
     try {
       setLoading(true);
       setError(null);
-      const [profRes, loyRes] = await Promise.all([
+      const [profRes, loyRes, gamRes] = await Promise.all([
         fetchMyProfile(),
         fetchMyLoyalty(),
+        fetchMyGamification().catch(() => ({ gamification: null })),
       ]);
       setProfile(profRes.profile);
       setLoyalty(loyRes.loyalty);
+      setGamification(gamRes?.gamification || null);
 
       // Populate form defaults
       setFormName(profRes.profile.name || '');
@@ -230,6 +238,14 @@ export default function ProfilePage() {
   const rewards = loyalty?.completedBookingRewards ?? [];
   const currentAvatar = profile?.avatar;
   const activeSports = profile?.preferredSports || [];
+
+  // Gamification metrics (Phase 21)
+  const completedGames = gamification?.completedGames ?? eligibleCount;
+  const verifiedCheckIns = gamification?.verifiedCheckIns ?? 0;
+  const sportsPlayed = gamification?.sportsPlayed ?? [];
+  const sportsCount = gamification?.sportsCount ?? sportsPlayed.length;
+  const achievements = gamification?.achievements ?? [];
+  const earnedCount = gamification?.earnedAchievementsCount ?? achievements.filter((a) => a.earned).length;
 
   return (
     <div className="min-h-screen bg-[#0B0F17] text-slate-100 flex flex-col relative">
@@ -636,6 +652,124 @@ export default function ProfilePage() {
           {/* Right: Loyalty Hub & Match Rewards (5 Cols) */}
           <div className="lg:col-span-5 space-y-6">
             
+            {/* 0. Athletic Progress & Badges (Phase 21 Gamification) */}
+            <Card
+              id="player-gamification"
+              variant="default"
+              className="p-6 sm:p-7 relative overflow-hidden"
+            >
+              <div className="flex items-center justify-between pb-4 border-b border-[#28303F] mb-5">
+                <div>
+                  <h2 className="text-lg font-black text-white flex items-center gap-2">
+                    <Award className="w-5 h-5 text-lime-400" />
+                    Your Progress
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Authoritative rewards and badges earned from real court participation.
+                  </p>
+                </div>
+                <span className="px-2.5 py-0.5 text-[10px] font-mono font-bold rounded-full bg-lime-400/10 text-lime-400 border border-lime-400/30 uppercase tracking-wider">
+                  {earnedCount} / {achievements.length || 6} Badges
+                </span>
+              </div>
+
+              {/* 4 Compact Metric Cards Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-5">
+                <div className="bg-[#0B0F17] p-3 rounded-xl border border-[#28303F]">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center gap-1">
+                    <CalendarCheck className="w-3 h-3 text-lime-400" /> Games
+                  </div>
+                  <div className="text-xl sm:text-2xl font-black text-white font-mono">{completedGames}</div>
+                  <div className="text-[9px] text-slate-500 font-medium mt-0.5">Completed</div>
+                </div>
+
+                <div className="bg-[#0B0F17] p-3 rounded-xl border border-[#28303F]">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-400" /> Check-ins
+                  </div>
+                  <div className="text-xl sm:text-2xl font-black text-emerald-400 font-mono">{verifiedCheckIns}</div>
+                  <div className="text-[9px] text-slate-500 font-medium mt-0.5">Verified</div>
+                </div>
+
+                <div className="bg-[#0B0F17] p-3 rounded-xl border border-[#28303F]">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center gap-1">
+                    <Activity className="w-3 h-3 text-sky-400" /> Sports
+                  </div>
+                  <div className="text-xl sm:text-2xl font-black text-sky-400 font-mono">{sportsCount}</div>
+                  <div className="text-[9px] text-slate-500 font-medium mt-0.5">Played</div>
+                </div>
+
+                <div className="bg-[#0B0F17] p-3 rounded-xl border border-[#28303F]">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center gap-1">
+                    <Award className="w-3 h-3 text-amber-400" /> Badges
+                  </div>
+                  <div className="text-xl sm:text-2xl font-black text-amber-400 font-mono">{earnedCount}</div>
+                  <div className="text-[9px] text-slate-500 font-medium mt-0.5">Earned</div>
+                </div>
+              </div>
+
+              {/* Achievements Badges List */}
+              <div className="space-y-2">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 font-mono">
+                  Earned & In-Progress Badges
+                </div>
+                <div className="grid grid-cols-1 gap-2 max-h-[300px] overflow-y-auto pr-1 no-scrollbar">
+                  {achievements.map((ach) => {
+                    return (
+                      <div
+                        key={ach.id}
+                        className={`p-2.5 rounded-xl border transition-all flex items-center justify-between gap-3 ${
+                          ach.earned
+                            ? 'bg-[#0B0F17] border-lime-400/40 shadow-sm'
+                            : 'bg-[#0B0F17]/50 border-[#28303F]/60 opacity-60'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div
+                            className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold ${
+                              ach.earned
+                                ? 'bg-lime-400/10 border border-lime-400/30 text-lime-400'
+                                : 'bg-[#181C24] border border-[#28303F] text-slate-500'
+                            }`}
+                          >
+                            {ach.earned ? (
+                              ach.id === 'first-game' ? <Trophy className="w-3.5 h-3.5" /> :
+                              ach.id === 'regular-player' ? <Flame className="w-3.5 h-3.5" /> :
+                              ach.id === 'checkin-pro' ? <CheckCircle2 className="w-3.5 h-3.5" /> :
+                              ach.id === 'multi-sport' ? <Layers className="w-3.5 h-3.5" /> :
+                              ach.id === 'reliable-player' ? <ShieldCheck className="w-3.5 h-3.5" /> :
+                              <Users className="w-3.5 h-3.5" />
+                            ) : (
+                              <Lock className="w-3 h-3" />
+                            )}
+                          </div>
+
+                          <div className="min-w-0">
+                            <div className="text-xs font-bold text-white truncate">
+                              {ach.name}
+                            </div>
+                            <div className="text-[10px] text-slate-400 truncate">
+                              {ach.description}
+                            </div>
+                          </div>
+                        </div>
+
+                        <span
+                          className={`shrink-0 text-[9px] font-mono font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
+                            ach.earned
+                              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                              : 'bg-[#181C24] text-slate-500 border border-[#28303F]'
+                          }`}
+                        >
+                          {ach.earned ? 'Earned' : 'Locked'}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </Card>
+
             {/* 1. Loyalty Points Hero Card */}
             <Card
               id="loyalty-hub"

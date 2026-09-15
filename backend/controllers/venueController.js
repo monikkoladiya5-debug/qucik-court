@@ -531,6 +531,30 @@ export function updateVenue(req, res) {
     return res.status(403).json({ status: 'error', message: 'You are not authorized to modify this venue.' });
   }
 
+  const { name, city, pricePerHour, courtCount } = req.body;
+
+  if (name !== undefined && (typeof name !== 'string' || !name.trim())) {
+    return res.status(400).json({ status: 'error', message: 'Venue name cannot be empty.' });
+  }
+
+  if (city !== undefined && (typeof city !== 'string' || !city.trim())) {
+    return res.status(400).json({ status: 'error', message: 'City cannot be empty.' });
+  }
+
+  if (pricePerHour !== undefined) {
+    const numPrice = Number(pricePerHour);
+    if (isNaN(numPrice) || numPrice < 0) {
+      return res.status(400).json({ status: 'error', message: 'Price per hour must be a non-negative number.' });
+    }
+  }
+
+  if (courtCount !== undefined) {
+    const numCourts = Number(courtCount);
+    if (isNaN(numCourts) || numCourts < 0) {
+      return res.status(400).json({ status: 'error', message: 'Court count must be a non-negative number.' });
+    }
+  }
+
   const allowed = [
     'name', 'description', 'address', 'location', 'city',
     'sportTypes', 'pricePerHour', 'courtCount', 'indoor',
@@ -539,7 +563,13 @@ export function updateVenue(req, res) {
 
   allowed.forEach((key) => {
     if (req.body[key] !== undefined) {
-      venue[key] = req.body[key];
+      if (key === 'pricePerHour' || key === 'courtCount') {
+        venue[key] = Number(req.body[key]);
+      } else if (typeof req.body[key] === 'string') {
+        venue[key] = req.body[key].trim();
+      } else {
+        venue[key] = req.body[key];
+      }
     }
   });
 

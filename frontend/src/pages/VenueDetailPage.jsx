@@ -14,7 +14,7 @@ import Badge from '../components/ui/Badge';
 import SportIcon from '../components/ui/SportIcon';
 import Card, { CardHeader, CardTitle, CardContent } from '../components/ui/Card';
 import BestTimeToPlayAdvisor from '../components/BestTimeToPlayAdvisor';
-import { fetchVenue, fetchCourts, fetchCourtAvailability, createBooking } from '../services/api';
+import { fetchVenue, fetchCourts, fetchCourtAvailability, createBooking, fetchVenueReviews } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { formatBookingDate, getLocalDateString } from '../utils/date';
 
@@ -301,6 +301,10 @@ export default function VenueDetailPage() {
   const [selectedSlots, setSelectedSlots] = useState([]);
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
 
+  // Reviews & Ratings state (Phase 20)
+  const [reviewsData, setReviewsData] = useState({ count: 0, summary: null, reviews: [] });
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+
   useEffect(() => {
     setLoading(true);
     setError(null);
@@ -308,6 +312,20 @@ export default function VenueDetailPage() {
       .then((data) => setVenue(data.venue))
       .catch((err) => setError(err.message || 'The requested venue could not be found.'))
       .finally(() => setLoading(false));
+
+    setReviewsLoading(true);
+    fetchVenueReviews(id)
+      .then((data) => {
+        setReviewsData({
+          count: data.count || 0,
+          summary: data.summary || null,
+          reviews: data.reviews || [],
+        });
+      })
+      .catch((err) => {
+        console.error('Failed to load venue reviews:', err);
+      })
+      .finally(() => setReviewsLoading(false));
   }, [id]);
 
   // Load courts for this venue
@@ -941,6 +959,150 @@ export default function VenueDetailPage() {
                   <p className="text-xs text-slate-400">
                     City: <strong className="text-slate-200">{venue.city}</strong>
                   </p>
+                </section>
+
+                {/* ─── Reviews & Ratings (Phase 20) ─────────────────────────────────── */}
+                <section aria-label="Player reviews and ratings" className="bg-[#0F131C] rounded-2xl p-5 sm:p-6 border border-[#28303F] shadow-sm space-y-6">
+                  <div className="flex items-center justify-between gap-3 border-b border-[#28303F] pb-4">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-amber-400/10 text-amber-400 flex items-center justify-center border border-amber-400/20">
+                        <Star className="w-4 h-4 fill-amber-400" />
+                      </div>
+                      <div>
+                        <h2 className="text-base font-black text-white">Player Reviews & Ratings</h2>
+                        <p className="text-xs text-slate-400">Verified post-match feedback from real players</p>
+                      </div>
+                    </div>
+                    <span className="text-xs font-mono font-bold text-slate-300 bg-[#181C24] px-3 py-1 rounded-full border border-[#28303F]">
+                      {(reviewsData.summary?.reviewCount ?? venue.reviewCount ?? 0)} {(reviewsData.summary?.reviewCount ?? venue.reviewCount ?? 0) === 1 ? 'Review' : 'Reviews'}
+                    </span>
+                  </div>
+
+                  {/* Summary Rating Deck */}
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-6 bg-[#0B0F17] p-5 rounded-2xl border border-[#28303F] items-center">
+                    <div className="sm:col-span-5 text-center sm:text-left sm:border-r sm:border-[#28303F] sm:pr-6 space-y-2">
+                      <div className="flex items-baseline justify-center sm:justify-start gap-2">
+                        <span className="text-4xl font-black text-white font-mono">
+                          {((reviewsData.summary?.averageRating ?? venue.rating ?? 0)).toFixed(1)}
+                        </span>
+                        <span className="text-xs text-slate-400 font-semibold">/ 5.0</span>
+                      </div>
+                      <div className="flex items-center justify-center sm:justify-start gap-1 text-amber-400">
+                        {[1, 2, 3, 4, 5].map((star) => {
+                          const currentScore = reviewsData.summary?.averageRating ?? venue.rating ?? 0;
+                          return (
+                            <Star
+                              key={star}
+                              className={`w-4 h-4 ${star <= Math.round(currentScore) ? 'fill-amber-400 text-amber-400' : 'text-slate-700'}`}
+                            />
+                          );
+                        })}
+                      </div>
+                      <p className="text-xs text-slate-400">
+                        Based on <strong className="text-slate-200">{(reviewsData.summary?.reviewCount ?? venue.reviewCount ?? 0)}</strong> verified experiences
+                      </p>
+                    </div>
+
+                    {/* Breakdown Bars */}
+                    <div className="sm:col-span-7 space-y-1.5">
+                      {[5, 4, 3, 2, 1].map((star) => {
+                        const dist = reviewsData.summary?.distribution || {};
+                        const countForStar = dist[star] || 0;
+                        const total = reviewsData.count || 1;
+                        const pct = reviewsData.count > 0 ? Math.round((countForStar / total) * 100) : 0;
+                        return (
+                          <div key={star} className="flex items-center gap-2.5 text-xs text-slate-400">
+                            <span className="w-6 font-mono font-bold text-slate-300 flex items-center gap-1">
+                              {star} <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                            </span>
+                            <div className="flex-1 h-2 rounded-full bg-[#181C24] overflow-hidden">
+                              <div
+                                className="h-full bg-amber-400 rounded-full transition-all duration-300"
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                            <span className="w-8 text-right font-mono text-[11px] text-slate-500">
+                              {reviewsData.count > 0 ? countForStar : '—'}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Reviews List */}
+                  {reviewsLoading ? (
+                    <div className="flex items-center justify-center py-8 space-x-2 text-slate-400">
+                      <Loader2 className="w-5 h-5 animate-spin text-lime-400" />
+                      <span className="text-xs font-bold uppercase tracking-wider">Loading Reviews…</span>
+                    </div>
+                  ) : reviewsData.reviews.length > 0 ? (
+                    <div className="space-y-3.5">
+                      {reviewsData.reviews.map((rev) => (
+                        <div
+                          key={rev.id}
+                          className="p-4 sm:p-5 rounded-xl bg-[#0B0F17] border border-[#28303F] space-y-2.5 transition-colors hover:border-slate-700"
+                        >
+                          <div className="flex items-start justify-between gap-3 flex-wrap">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-lime-400/10 text-lime-400 border border-lime-400/30 flex items-center justify-center text-xs font-black uppercase">
+                                {(rev.reviewerName || 'P').charAt(0)}
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-bold text-white">
+                                    {rev.reviewerName || 'Verified Player'}
+                                  </span>
+                                  <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-1.5 py-0.2 rounded-md">
+                                    <Check className="w-3 h-3 stroke-[2.5]" />
+                                    Verified Player
+                                  </span>
+                                </div>
+                                {rev.courtName && (
+                                  <p className="text-[11px] text-slate-400 mt-0.5">
+                                    Played at <span className="text-slate-300 font-medium">{rev.courtName}</span>
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-0.5 text-amber-400">
+                                {[1, 2, 3, 4, 5].map((s) => (
+                                  <Star
+                                    key={s}
+                                    className={`w-3.5 h-3.5 ${s <= rev.rating ? 'fill-amber-400 text-amber-400' : 'text-slate-700'}`}
+                                  />
+                                ))}
+                              </div>
+                              <span className="text-[11px] text-slate-500 font-mono">
+                                {rev.createdAt ? new Date(rev.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}
+                              </span>
+                            </div>
+                          </div>
+
+                          {rev.title && (
+                            <h3 className="text-xs sm:text-sm font-bold text-white pt-1">
+                              {rev.title}
+                            </h3>
+                          )}
+
+                          {rev.comment && (
+                            <p className="text-xs text-slate-300 leading-relaxed">
+                              {rev.comment}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-8 rounded-xl bg-[#0B0F17] border border-[#28303F] text-center space-y-2">
+                      <p className="text-xs font-semibold text-slate-300">No published player reviews yet.</p>
+                      <p className="text-[11px] text-slate-500 max-w-sm mx-auto">
+                        Reviews can only be submitted by verified players after completing a court session.
+                      </p>
+                    </div>
+                  )}
                 </section>
               </div>
 

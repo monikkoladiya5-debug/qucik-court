@@ -622,6 +622,52 @@ export async function fetchBestTimes(params = {}) {
   return apiRequest('GET', `/pricing/best-times${queryString}`);
 }
 
+// ─── Reviews & Ratings (Phase 20) ───────────────────────────────────────────
+
+/**
+ * POST /api/reviews (CUSTOMER)
+ * Body: { bookingId, rating, title?, comment? }
+ * Returns { status, message, review }
+ */
+export async function createReview(payload) {
+  return apiRequest('POST', '/reviews', payload, true);
+}
+
+/**
+ * GET /api/reviews/venue/:venueId (Public)
+ * Returns { status, venueId, summary: { averageRating, reviewCount, distribution }, count, reviews }
+ */
+export async function fetchVenueReviews(venueId) {
+  return apiRequest('GET', `/reviews/venue/${venueId}`);
+}
+
+/**
+ * GET /api/reviews/my (CUSTOMER)
+ * Returns { status, count, reviews }
+ */
+export async function fetchMyReviews() {
+  return apiRequest('GET', '/reviews/my', null, true);
+}
+
+/**
+ * GET /api/owner/reviews (OWNER)
+ * Returns { status, count, summary: { totalReviews, averageRating }, reviews }
+ */
+export async function fetchOwnerReviews() {
+  return apiRequest('GET', '/owner/reviews', null, true);
+}
+
+// ─── Gamification & Badges (Phase 21) ────────────────────────────────────────
+
+/**
+ * GET /api/players/me/gamification (CUSTOMER)
+ * Returns { status, gamification }
+ */
+export async function fetchMyGamification() {
+  return apiRequest('GET', '/players/me/gamification', null, true);
+}
+
+
 
 
 

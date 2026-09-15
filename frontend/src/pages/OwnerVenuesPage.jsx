@@ -1189,6 +1189,18 @@ function CourtFormModal({ venue, court, onSave, onClose, loading, error }) {
 
   const [validationError, setValidationError] = useState('');
 
+  // Keyboard accessibility: Escape to close modal
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if (e.key === 'Escape' && !loading && onClose) {
+        onClose();
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [loading, onClose]);
+
+
   function handleSubmit(e) {
     e.preventDefault();
     setValidationError('');
@@ -1370,6 +1382,16 @@ function CourtFormModal({ venue, court, onSave, onClose, loading, error }) {
 // ─── Court Deletion Confirmation Modal ────────────────────────────────────────
 
 function CourtDeleteModal({ court, onConfirm, onCancel, loading }) {
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if (e.key === 'Escape' && !loading && onCancel) {
+        onCancel();
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [loading, onCancel]);
+
   if (!court) return null;
 
   return (
@@ -1413,6 +1435,16 @@ function CourtDeleteModal({ court, onConfirm, onCancel, loading }) {
 // ─── Venue Deletion Confirmation Modal ────────────────────────────────────────
 
 function DeleteModal({ venue, onConfirm, onCancel, loading }) {
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if (e.key === 'Escape' && !loading && onCancel) {
+        onCancel();
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [loading, onCancel]);
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in"

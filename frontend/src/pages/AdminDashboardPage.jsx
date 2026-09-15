@@ -8,7 +8,7 @@ import {
   Activity, Award, Store, Loader2, UserRound, IndianRupee,
   Shield, Check, X, CircleDot, ArrowUpRight, BarChart3,
   Flame, Zap, Trophy, Percent, Wallet, CreditCard,
-  QrCode, Calendar, AlertTriangle
+  QrCode, Calendar, AlertTriangle, Star
 } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -776,6 +776,49 @@ function AdminDashboardInner() {
                   </div>
                   <div className="w-8 h-8 rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20 flex items-center justify-center">
                     <XCircle className="w-4 h-4" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Review & Quality Ratings Telemetry Strip (Phase 20) */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+                <div className="bg-slate-900/90 p-3.5 rounded-2xl border border-slate-800 shadow-md flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Customer Reviews</p>
+                    <p className="text-xl font-black text-white mt-0.5 font-mono">
+                      {summary.totalReviews ?? 0}
+                    </p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">Authoritative published reviews</p>
+                  </div>
+                  <div className="w-8 h-8 rounded-xl bg-amber-400/10 text-amber-400 border border-amber-400/20 flex items-center justify-center">
+                    <Star className="w-4 h-4 fill-amber-400" />
+                  </div>
+                </div>
+
+                <div className="bg-slate-900/90 p-3.5 rounded-2xl border border-slate-800 shadow-md flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Platform Average Rating</p>
+                    <p className="text-xl font-black text-amber-400 mt-0.5 font-mono flex items-center gap-1">
+                      <Star className="w-4 h-4 fill-amber-400 inline" />
+                      {summary.averagePlatformRating ? summary.averagePlatformRating.toFixed(1) : '—'}
+                    </p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">Across all facilities</p>
+                  </div>
+                  <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center">
+                    <ShieldCheck className="w-4 h-4" />
+                  </div>
+                </div>
+
+                <div className="bg-slate-900/90 p-3.5 rounded-2xl border border-slate-800 shadow-md flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Low-Rated Feedback (1–2★)</p>
+                    <p className="text-xl font-black text-rose-400 mt-0.5 font-mono">
+                      {summary.lowRatedReviewsCount ?? 0}
+                    </p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">Reviews requiring quality review</p>
+                  </div>
+                  <div className="w-8 h-8 rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20 flex items-center justify-center">
+                    <ShieldAlert className="w-4 h-4" />
                   </div>
                 </div>
               </div>

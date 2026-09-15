@@ -1,4 +1,4 @@
-import { store } from '../data/store.js';
+import { store, calculatePlayerGamification } from '../data/store.js';
 import { isBookingElapsed } from './ownerController.js';
 import { parse12HourTime } from './bookingController.js';
 import { format12Hour, parseOperatingHours } from './courtController.js';
@@ -170,6 +170,23 @@ export function getAdminDashboard(req, res) {
 
   const pendingVenues = Array.isArray(store.pendingVenues) ? store.pendingVenues : [];
 
+  // Review & rating platform metrics (Phase 20)
+  const publishedReviews = (store.reviews || []).filter((r) => r.status === 'PUBLISHED');
+  const totalReviews = publishedReviews.length;
+  const reviewScoreSum = publishedReviews.reduce((sum, r) => sum + Number(r.rating || 0), 0);
+  const averagePlatformRating = totalReviews > 0 ? Number((reviewScoreSum / totalReviews).toFixed(1)) : 0;
+  const lowRatedReviewsCount = publishedReviews.filter((r) => Number(r.rating) <= 2).length;
+
+  // Gamification metrics (Phase 21)
+  let totalAchievementsEarned = 0;
+  const customerUsers = (store.users || []).filter((u) => u.role === 'CUSTOMER');
+  for (const cust of customerUsers) {
+    const gam = calculatePlayerGamification(cust.id);
+    if (gam) {
+      totalAchievementsEarned += gam.earnedAchievementsCount || 0;
+    }
+  }
+
   return res.status(200).json({
     status: 'ok',
     summary: {
@@ -188,6 +205,10 @@ export function getAdminDashboard(req, res) {
       upcomingBookings,
       bookingRevenue,
       pendingVenuesCount: pendingVenues.length,
+      totalReviews,
+      averagePlatformRating,
+      lowRatedReviewsCount,
+      totalAchievementsEarned,
     },
     users,
     venues,

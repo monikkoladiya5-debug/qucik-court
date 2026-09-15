@@ -6,7 +6,7 @@ import {
   Layers, MapPin, Activity, Sparkles, ChevronRight,
   IndianRupee, Store, Trophy, Zap, Flame, Award,
   Check, X, Eye, Calendar, User, Filter, AlertTriangle,
-  ChevronLeft, Power, Plus, Pencil, QrCode, KeyRound, Search
+  ChevronLeft, Power, Plus, Pencil, QrCode, KeyRound, Search, Star
 } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -21,7 +21,8 @@ import {
   updateCourt,
   verifyBookingPass,
   checkInPlayerBooking,
-  fetchOwnerPricingIntelligence
+  fetchOwnerPricingIntelligence,
+  fetchOwnerReviews,
 } from '../services/api';
 import { formatBookingDate, getLocalDateString } from '../utils/date';
 
@@ -315,6 +316,10 @@ function OwnerDashboardInner() {
   const [pricingLoading, setPricingLoading] = useState(false);
   const [pricingError, setPricingError] = useState(null);
 
+  // Customer Reviews state (Phase 20)
+  const [ownerReviewsData, setOwnerReviewsData] = useState({ count: 0, summary: null, reviews: [] });
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+
   // Current hour for real-time court occupancy calculation
   const currentHour = useMemo(() => new Date().getHours(), []);
 
@@ -340,6 +345,17 @@ function OwnerDashboardInner() {
       setPricingError(pErr.message || 'Unable to load pricing intelligence telemetry.');
     } finally {
       setPricingLoading(false);
+    }
+
+    // Fetch owner reviews asynchronously (Phase 20)
+    try {
+      setReviewsLoading(true);
+      const rRes = await fetchOwnerReviews();
+      setOwnerReviewsData(rRes || { count: 0, summary: null, reviews: [] });
+    } catch (rErr) {
+      console.error('Failed to load owner reviews:', rErr);
+    } finally {
+      setReviewsLoading(false);
     }
   }, []);
 
@@ -1684,6 +1700,107 @@ function OwnerDashboardInner() {
                       })}
                     </tbody>
                   </table>
+                </div>
+              )}
+            </section>
+
+            {/* ── 6. Customer Reviews & Facility Ratings (Phase 20) ─────────────── */}
+            <section aria-labelledby="reviews-heading" className="bg-slate-900/90 rounded-3xl border border-slate-800 shadow-xl p-5 sm:p-7 space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-5 border-b border-slate-800">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-amber-400/10 text-amber-400 flex items-center justify-center border border-amber-400/20">
+                    <Star className="w-5 h-5 fill-amber-400" />
+                  </div>
+                  <div>
+                    <h2 id="reviews-heading" className="text-lg sm:text-xl font-black text-white tracking-tight">
+                      Customer Reviews & Quality Ratings
+                    </h2>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Direct feedback and ratings from verified players who booked and played at your venues.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 self-start sm:self-auto">
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono">
+                    <span className="text-slate-400 font-sans">Avg:</span>
+                    <span className="text-amber-400 font-bold flex items-center gap-1">
+                      <Star className="w-3.5 h-3.5 fill-amber-400" />
+                      {ownerReviewsData.summary?.averageRating ? ownerReviewsData.summary.averageRating.toFixed(1) : '—'}
+                    </span>
+                  </div>
+                  <span className="text-xs font-bold text-slate-300 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800 font-mono">
+                    {ownerReviewsData.count} {ownerReviewsData.count === 1 ? 'Review' : 'Reviews'}
+                  </span>
+                </div>
+              </div>
+
+              {reviewsLoading ? (
+                <div className="py-12 flex items-center justify-center space-x-2 text-slate-400">
+                  <RefreshCw className="w-4 h-4 animate-spin text-emerald-400" />
+                  <span className="text-xs font-bold uppercase tracking-wider">Loading Customer Reviews…</span>
+                </div>
+              ) : ownerReviewsData.reviews.length === 0 ? (
+                <div className="py-10 px-4 rounded-2xl bg-slate-950/60 border border-slate-800/80 text-center space-y-1.5">
+                  <p className="text-xs font-bold text-slate-300">No customer reviews yet.</p>
+                  <p className="text-[11px] text-slate-500 max-w-sm mx-auto">
+                    When players complete their court bookings and submit ratings, verified feedback will appear here.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {ownerReviewsData.reviews.map((rev) => (
+                    <div
+                      key={rev.id}
+                      className="p-4 sm:p-5 rounded-2xl bg-slate-950 border border-slate-800/90 space-y-2.5 transition hover:border-slate-700"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-7 h-7 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center text-xs font-bold uppercase">
+                            {(rev.reviewerName || 'P').charAt(0)}
+                          </div>
+                          <div>
+                            <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                              <span>{rev.reviewerName || 'Verified Player'}</span>
+                              <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-1 rounded">
+                                <Check className="w-2.5 h-2.5 stroke-[2.5]" />
+                                Verified
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-slate-400 mt-0.5">
+                              {rev.venueName} {rev.courtName ? `• ${rev.courtName}` : ''}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-0.5 text-amber-400">
+                            {[1, 2, 3, 4, 5].map((s) => (
+                              <Star
+                                key={s}
+                                className={`w-3.5 h-3.5 ${s <= rev.rating ? 'fill-amber-400 text-amber-400' : 'text-slate-800'}`}
+                              />
+                            ))}
+                          </div>
+                          <span className="text-[10px] text-slate-500 font-mono ml-1">
+                            {rev.createdAt ? new Date(rev.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}
+                          </span>
+                        </div>
+                      </div>
+
+                      {rev.title && (
+                        <h3 className="text-xs font-bold text-slate-100 pt-0.5">
+                          {rev.title}
+                        </h3>
+                      )}
+
+                      {rev.comment && (
+                        <p className="text-xs text-slate-400 leading-relaxed">
+                          {rev.comment}
+                        </p>
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
             </section>

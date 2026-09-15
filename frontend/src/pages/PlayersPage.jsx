@@ -866,6 +866,21 @@ export default function PlayersPage() {
                             </div>
                           )}
 
+                          {/* Earned Achievement Badges (Phase 21) */}
+                          {player.badges && player.badges.length > 0 && (
+                            <div className="flex flex-wrap items-center gap-1.5 mb-3">
+                              {player.badges.map((badgeName) => (
+                                <span
+                                  key={badgeName}
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-lime-400/10 text-lime-400 border border-lime-400/30 text-[10px] font-mono font-bold uppercase tracking-wider"
+                                >
+                                  <Award className="w-2.5 h-2.5" />
+                                  <span>{badgeName}</span>
+                                </span>
+                              ))}
+                            </div>
+                          )}
+
                           {/* Match Score Badge */}
                           {player.matchScore !== undefined && (
                             <div className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-lime-400/10 border border-lime-400/20 mb-3">
@@ -1554,6 +1569,26 @@ export default function PlayersPage() {
                     <div className="text-xs font-black text-white">{selectedPlayer.trustSummary.cancellations}</div>
                     <div className="text-[10px] text-slate-400">Cancelled</div>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* Player Badges (Phase 21) */}
+            {selectedPlayer.badges && selectedPlayer.badges.length > 0 && (
+              <div className="p-3.5 rounded-xl bg-[#0B0F17] border border-[#28303F] space-y-2">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">
+                  Earned Achievements
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {selectedPlayer.badges.map((badgeName) => (
+                    <span
+                      key={badgeName}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-lime-400/10 text-lime-400 border border-lime-400/30 text-xs font-mono font-bold uppercase tracking-wider"
+                    >
+                      <Award className="w-3 h-3" />
+                      <span>{badgeName}</span>
+                    </span>
+                  ))}
                 </div>
               </div>
             )}

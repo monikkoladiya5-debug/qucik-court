@@ -598,6 +598,8 @@ export const store = {
     uptime: '99.98%',
     lastChecked: new Date().toISOString(),
   },
+
+  reviews: [],
 };
 
 /**
@@ -610,16 +612,73 @@ export function safeUser(user) {
 }
 
 /**
+ * Calculates authoritative review summary for a venue.
+ * If dynamic published reviews exist, computes averageRating and reviewCount.
+ * Otherwise falls back to seeded venue ratings.
+ */
+export function getVenueReviewSummary(venueId) {
+  const venue = (store.venues || []).find((v) => v.id === venueId);
+  const publishedReviews = (store.reviews || []).filter(
+    (r) => r.venueId === venueId && r.status === 'PUBLISHED'
+  );
+
+  if (publishedReviews.length > 0) {
+    const sum = publishedReviews.reduce((acc, r) => acc + Number(r.rating || 0), 0);
+    const averageRating = Number((sum / publishedReviews.length).toFixed(1));
+    const reviewCount = publishedReviews.length;
+    return { averageRating, reviewCount, isDynamic: true };
+  }
+
+  return {
+    averageRating: Number(venue?.rating || 0),
+    reviewCount: Number(venue?.reviewCount || 0),
+    isDynamic: false,
+  };
+}
+
+/**
+ * Returns a safe public review object.
+ * Strips customer passwordHash, email, phone, internal customerId, tokens per strict privacy rules.
+ */
+export function safeReview(review, role = 'PUBLIC') {
+  if (!review) return null;
+  const user = (store.users || []).find((u) => u.id === review.customerId);
+  const court = (store.courts || []).find((c) => c.id === review.courtId);
+  const venue = (store.venues || []).find((v) => v.id === review.venueId);
+
+  return {
+    id: review.id,
+    bookingId: review.bookingId,
+    venueId: review.venueId,
+    venueName: venue?.name || '',
+    courtId: review.courtId,
+    courtName: court?.name || '',
+    rating: Number(review.rating),
+    title: review.title || '',
+    comment: review.comment || '',
+    reviewerName: user?.name || 'QuickCourt Player',
+    status: review.status || 'PUBLISHED',
+    createdAt: review.createdAt,
+    updatedAt: review.updatedAt,
+  };
+}
+
+/**
  * Returns a safe public venue object — strips internal-only fields.
  * Serializes verificationStatus and isVerified safely.
+ * Calculates authoritative averageRating and reviewCount.
  */
 export function safeVenue(venue, role = 'CUSTOMER') {
   if (!venue) return null;
   const verificationStatus = venue.verificationStatus || 'VERIFIED';
   const isVerified = verificationStatus === 'VERIFIED';
+  const reviewSummary = getVenueReviewSummary(venue.id);
 
   const base = {
     ...venue,
+    rating: reviewSummary.averageRating,
+    averageRating: reviewSummary.averageRating,
+    reviewCount: reviewSummary.reviewCount,
     verificationStatus,
     isVerified,
   };
@@ -768,6 +827,121 @@ export function calculatePlayerTrust(player) {
 }
 
 /**
+ * Helper to determine sport for a booking
+ */
+export function getBookingSport(booking) {
+  if (!booking) return null;
+  if (booking.sport) return booking.sport;
+  if (booking.courtId && store.courts) {
+    const court = store.courts.find((c) => c.id === booking.courtId);
+    if (court?.sport) return court.sport;
+  }
+  if (booking.venueId && store.venues) {
+    const venue = store.venues.find((v) => v.id === booking.venueId);
+    if (venue?.sportTypes && venue.sportTypes.length > 0) return venue.sportTypes[0];
+  }
+  return null;
+}
+
+/**
+ * Computes deterministic player gamification stats and achievements from real booking & check-in records.
+ */
+export function calculatePlayerGamification(userId) {
+  if (!userId) return null;
+
+  const user = store.users ? store.users.find((u) => u.id === userId) : null;
+  const player = store.players ? store.players.find((p) => p.userId === userId) : null;
+
+  const bookings = store.bookings ? store.bookings.filter((b) => b.userId === userId) : [];
+
+  // Completed games are bookings with status === 'COMPLETED'
+  const completedBookings = bookings.filter((b) => b.status === 'COMPLETED');
+  const completedGames = completedBookings.length;
+
+  // Verified check-ins: bookings with status === 'CHECKED_IN' or checkedInAt set or status === 'COMPLETED'
+  const checkInBookings = bookings.filter(
+    (b) => b.status === 'CHECKED_IN' || Boolean(b.checkedInAt) || b.status === 'COMPLETED'
+  );
+  const verifiedCheckIns = checkInBookings.length;
+
+  // Distinct sports played in completed bookings
+  const sportsSet = new Set();
+  for (const b of completedBookings) {
+    const sport = getBookingSport(b);
+    if (sport) sportsSet.add(sport);
+  }
+  const sportsPlayed = Array.from(sportsSet);
+  const sportsCount = sportsPlayed.length;
+
+  // Trust & no-shows calculation
+  const trustSummary = calculatePlayerTrust(player || { userId, createdAt: user?.createdAt });
+  const noShows = trustSummary?.noShows || 0;
+
+  // Accepted match invites in Find Players
+  const acceptedInvites = store.matchInvites
+    ? store.matchInvites.filter(
+        (inv) =>
+          (inv.senderId === userId || (player && inv.receiverPlayerId === player.id) || inv.receiverUserId === userId) &&
+          inv.status === 'ACCEPTED'
+      ).length
+    : 0;
+
+  const achievements = [
+    {
+      id: 'first-game',
+      name: 'First Game',
+      description: 'Complete your first court booking',
+      earned: completedGames >= 1,
+    },
+    {
+      id: 'regular-player',
+      name: 'Regular Player',
+      description: 'Complete at least 5 court bookings',
+      earned: completedGames >= 5,
+    },
+    {
+      id: 'checkin-pro',
+      name: 'Check-in Pro',
+      description: 'Complete at least 5 verified check-ins',
+      earned: verifiedCheckIns >= 5,
+    },
+    {
+      id: 'multi-sport',
+      name: 'Multi-Sport',
+      description: 'Complete bookings across at least 3 distinct sports',
+      earned: sportsCount >= 3,
+    },
+    {
+      id: 'reliable-player',
+      name: 'Reliable Player',
+      description: 'Maintain a verified attendance history with zero no-shows',
+      earned: trustSummary?.trustLabel === 'Reliable Player' && noShows === 0,
+    },
+    {
+      id: 'match-player',
+      name: 'Match Player',
+      description: 'Participate in community matchmaking with accepted match invites',
+      earned: acceptedInvites >= 1,
+    },
+  ];
+
+  const earnedAchievements = achievements.filter((a) => a.earned);
+
+  return {
+    completedGames,
+    verifiedCheckIns,
+    sportsPlayed,
+    sportsCount,
+    noShows,
+    acceptedMatchInvites: acceptedInvites,
+    reliabilityScore: trustSummary?.trustLabel || 'Reliable Player',
+    earnedAchievementsCount: earnedAchievements.length,
+    totalAchievementsCount: achievements.length,
+    achievements,
+  };
+}
+
+/**
  * Returns a safe customer-facing player object.
  * Strips passwordHash, email, phone, age, and internal IDs per data minimization rules.
  */
@@ -775,6 +949,7 @@ export function safePlayer(player, currentUserId = null) {
   if (!player) return null;
 
   const trustSummary = calculatePlayerTrust(player);
+  const gamification = player.userId ? calculatePlayerGamification(player.userId) : null;
 
   let isBlocked = false;
   if (currentUserId && store.playerBlocks) {
@@ -784,6 +959,10 @@ export function safePlayer(player, currentUserId = null) {
         (b.targetPlayerId === player.id || (player.userId && b.targetUserId === player.userId))
     );
   }
+
+  const earnedBadges = gamification
+    ? gamification.achievements.filter((a) => a.earned).map((a) => a.name)
+    : [];
 
   return {
     id: player.id,
@@ -798,6 +977,7 @@ export function safePlayer(player, currentUserId = null) {
     distance: player.distance || '',
     imageUrl: player.imageUrl || null,
     trustSummary,
+    badges: earnedBadges,
     isBlocked,
     ...(player.matchScore !== undefined ? { matchScore: player.matchScore } : {}),
     ...(player.matchReasons ? { matchReasons: player.matchReasons } : {}),

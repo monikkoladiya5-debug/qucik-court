@@ -25,6 +25,11 @@ export function authenticate(req, res, next) {
       return res.status(401).json({ status: 'error', message: 'User not found. Please log in again.' });
     }
 
+    // Active session revocation for suspended accounts
+    if (user.status === 'suspended') {
+      return res.status(403).json({ status: 'error', message: 'Account is suspended. Please contact support.' });
+    }
+
     // Attach safe user to request — never attach passwordHash downstream
     // eslint-disable-next-line no-unused-vars
     const { passwordHash, ...safeUser } = user;

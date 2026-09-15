@@ -14,11 +14,22 @@ import ownerRouter from './routes/owner.js';
 import adminRouter from './routes/admin.js';
 import notificationRouter from './routes/notifications.js';
 import pricingRouter from './routes/pricing.js';
+import reviewRouter from './routes/reviews.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { store } from './data/store.js';
 
 const app = express();
 const PORT = process.env.PORT || 4000;
+
+// ─── Security Hardening ────────────────────────────────────────────────────────
+app.disable('x-powered-by');
+
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '0');
+  next();
+});
 
 // ─── Middleware ────────────────────────────────────────────────────────────────
 app.use(cors({
@@ -26,7 +37,7 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 app.use('/api/health', healthRouter);
@@ -42,6 +53,7 @@ app.use('/api/owner', ownerRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/notifications', notificationRouter);
 app.use('/api/pricing', pricingRouter);
+app.use('/api/reviews', reviewRouter);
 
 // ─── Summary stats (foundation convenience endpoint) ──────────────────────────
 app.get('/api/summary', (req, res) => {

@@ -12,6 +12,7 @@ import {
   blockPlayer,
   unblockPlayer,
   getMyBlocks,
+  getMyGamification,
 } from '../controllers/playerController.js';
 import { authenticate } from '../middleware/authenticate.js';
 import { requireRole } from '../middleware/requireRole.js';
@@ -28,6 +29,9 @@ router.get('/me/profile', getMyProfile);
 
 // Customer: update own player discovery profile
 router.put('/me/profile', updateMyProfile);
+
+// Customer: get personal gamification and achievements summary (Phase 21)
+router.get('/me/gamification', getMyGamification);
 
 // Customer: get sent and received match invites
 router.get('/me/invites', getMyInvites);
