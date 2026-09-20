@@ -229,7 +229,11 @@ const testDate = '2028-10-15'; // Far future date to prevent collision with toda
     // Reject
     const rejRes = await fetch(`${baseUrl}/api/bookings/${rejBookingId}/reject`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${ownerToken}` },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${ownerToken}`,
+      },
+      body: JSON.stringify({ reason: 'COURT_UNAVAILABLE' }),
     });
 
     assert.equal(rejRes.status, 200);

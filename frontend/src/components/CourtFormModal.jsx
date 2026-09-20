@@ -24,16 +24,18 @@ export default function CourtFormModal({
 
   const activeVenue = venue || venues.find((v) => v.id === selectedVenueId) || venues[0] || null;
 
-  // Safely extract sports offered at the venue
-  const availableSports = (Array.isArray(activeVenue?.sportTypes) && activeVenue.sportTypes.length > 0)
+  // Safely extract sports offered at the venue or fallback to all supported sports
+  const venueSports = (Array.isArray(activeVenue?.sportTypes) && activeVenue.sportTypes.length > 0)
     ? activeVenue.sportTypes
     : (typeof activeVenue?.sportTypes === 'string'
         ? activeVenue.sportTypes.split(',').map((s) => s.trim()).filter(Boolean)
-        : (activeVenue?.sport ? [activeVenue.sport] : ALL_SPORTS));
+        : (activeVenue?.sport ? [activeVenue.sport] : []));
+
+  const availableSports = [...new Set([...venueSports, ...ALL_SPORTS])];
 
   const [form, setForm] = useState({
     name: court?.name || '',
-    sport: court?.sport || (availableSports[0] || 'Badminton'),
+    sport: court?.sport || (venueSports[0] || ALL_SPORTS[0]),
     courtType: court?.courtType || 'Synthetic Mat',
     pricePerHour: court?.pricePerHour !== undefined ? String(court.pricePerHour) : String(activeVenue?.pricePerHour || 400),
     operatingHours: court?.operatingHours || activeVenue?.openingHours || '06:00 AM - 10:00 PM',
@@ -42,13 +44,6 @@ export default function CourtFormModal({
   });
 
   const [validationError, setValidationError] = useState('');
-
-  // Update sport when venue changes if currently selected sport isn't available
-  useEffect(() => {
-    if (availableSports.length > 0 && !availableSports.includes(form.sport)) {
-      setForm((f) => ({ ...f, sport: availableSports[0] }));
-    }
-  }, [availableSports, form.sport]);
 
   // Keyboard accessibility: Escape to close modal
   useEffect(() => {
@@ -114,7 +109,7 @@ export default function CourtFormModal({
               {isEdit ? `Edit Court — ${court?.name || 'Court'}` : 'Configure New Court Unit'}
             </h2>
             <p className="text-xs text-slate-400 mt-0.5">
-              {isEdit ? 'Update surface specifications, rates, and active operational status.' : `Add a playable court unit to ${activeVenue?.name || 'your facility'}.`}
+              {isEdit ? 'Update surface specifications, rates, and active operational status.' : `Add a court unit to ${activeVenue?.name || 'your facility'}. New courts require admin approval before becoming active.`}
             </p>
           </div>
           <button
@@ -289,7 +284,7 @@ export default function CourtFormModal({
               className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-slate-950 text-xs font-black rounded-xl shadow-md shadow-emerald-500/20 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-400 disabled:opacity-60"
             >
               <Check className="w-4 h-4 stroke-[3]" />
-              <span>{loading ? 'Saving Court...' : (isEdit ? 'Update Court Specifications' : 'Deploy Court to Fleet')}</span>
+              <span>{loading ? 'Saving Court...' : (isEdit ? 'Update Court Specifications' : 'Submit Court for Admin Approval')}</span>
             </button>
           </div>
         </form>

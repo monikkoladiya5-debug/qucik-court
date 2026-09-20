@@ -26,6 +26,7 @@ import {
   ChevronRight,
   ShieldAlert,
   Sparkles,
+  Building2,
 } from 'lucide-react';
 
 function formatNotificationTime(isoStr) {
@@ -51,6 +52,18 @@ function formatNotificationTime(isoStr) {
 
 function getNotificationIcon(type) {
   switch (type) {
+    case 'NEW_COURT_REQUEST':
+      return <Building2 className="w-4 h-4 text-amber-400" />;
+    case 'COURT_APPROVED':
+      return <CheckCircle2 className="w-4 h-4 text-emerald-400" />;
+    case 'COURT_REJECTED':
+      return <XCircle className="w-4 h-4 text-rose-400" />;
+    case 'VENUE_VERIFIED':
+    case 'VENUE_RESTORED':
+      return <CheckCircle2 className="w-4 h-4 text-emerald-400" />;
+    case 'VENUE_REJECTED':
+    case 'VENUE_SUSPENDED':
+      return <ShieldAlert className="w-4 h-4 text-rose-400" />;
     case 'BOOKING_REQUESTED':
     case 'NEW_BOOKING_REQUEST':
       return <Clock className="w-4 h-4 text-amber-400" />;
@@ -323,6 +336,16 @@ export default function NotificationsPage() {
                         {item.bookingId && (
                           <span className="font-mono text-slate-400">
                             #{item.bookingId}
+                          </span>
+                        )}
+                        {item.courtId && (
+                          <span className="font-mono text-amber-400/80 bg-amber-400/10 px-1.5 py-0.5 rounded border border-amber-400/20">
+                            Court #{item.courtId}
+                          </span>
+                        )}
+                        {item.venueId && !item.courtId && (
+                          <span className="font-mono text-emerald-400/80 bg-emerald-400/10 px-1.5 py-0.5 rounded border border-emerald-400/20">
+                            Venue #{item.venueId}
                           </span>
                         )}
                       </div>

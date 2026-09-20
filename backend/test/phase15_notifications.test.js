@@ -299,7 +299,7 @@ describe('Phase 15: Booking Lifecycle Event Generation', () => {
     assert.ok(ownerPayNotif, 'Owner must receive PAYMENT_RECEIVED');
   });
 
-  it('5. Reschedule triggers Customer BOOKING_RESCHEDULED and Owner CUSTOMER_RESCHEDULED', async () => {
+  it('5. Reschedule triggers Customer BOOKING_RESCHEDULED and Owner NEW_BOOKING_REQUEST', async () => {
     const newSlot = findAvailableSlotWithDate(activeCourt, 1, '2029-08-10');
     assert.ok(newSlot);
 
@@ -327,12 +327,33 @@ describe('Phase 15: Booking Lifecycle Event Generation', () => {
     assert.ok(custResched.message.includes(newSlot.date));
 
     const ownerResched = store.notifications.find(
-      (n) => n.recipientUserId === 'u-102' && n.bookingId === testBookingId && n.type === NOTIFICATION_TYPES.CUSTOMER_RESCHEDULED
+      (n) => n.recipientUserId === 'u-102' && n.bookingId === testBookingId && n.type === NOTIFICATION_TYPES.NEW_BOOKING_REQUEST
     );
-    assert.ok(ownerResched, 'Owner must receive CUSTOMER_RESCHEDULED');
+    assert.ok(ownerResched, 'Owner must receive NEW_BOOKING_REQUEST');
   });
 
   it('6. Check-in triggers Customer CHECK_IN_COMPLETED notification', async () => {
+    // Owner approves the rescheduled booking
+    await fetch(`${baseUrl}/api/bookings/${testBookingId}/approve`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${ownerToken}`,
+      },
+    });
+
+    // Customer confirms payment
+    await fetch(`${baseUrl}/api/bookings/${testBookingId}/pay`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${customer1Token}`,
+      },
+      body: JSON.stringify({
+        paymentMethod: 'UPI',
+      }),
+    });
+
     const res = await fetch(`${baseUrl}/api/bookings/${testBookingId}/check-in`, {
       method: 'POST',
       headers: {
@@ -378,6 +399,7 @@ describe('Phase 15: Booking Lifecycle Event Generation', () => {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${ownerToken}`,
       },
+      body: JSON.stringify({ reason: 'COURT_UNAVAILABLE' }),
     });
     assert.equal(rejRes.status, 200);
 

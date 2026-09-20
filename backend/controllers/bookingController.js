@@ -83,6 +83,13 @@ export function createBooking(req, res) {
     return res.status(404).json({ status: 'error', message: 'Court not found.' });
   }
 
+  if (court.approvalStatus && court.approvalStatus !== 'APPROVED') {
+    return res.status(400).json({
+      status: 'error',
+      message: 'This court is pending administrator approval and cannot be booked.',
+    });
+  }
+
   if (!court.isActive) {
     return res.status(400).json({
       status: 'error',
@@ -596,6 +603,9 @@ export function rescheduleBooking(req, res) {
   booking.endTime = format12Hour(endHour);
   booking.pricePerHour = pricePerHour;
   booking.totalPrice = totalPrice;
+  booking.status = BOOKING_STATUS.REQUESTED;
+  booking.paymentStatus = PAYMENT_STATUS.PENDING;
+  booking.paymentMethod = null;
   booking.updatedAt = new Date().toISOString();
 
   // Phase 15: Reschedule Notifications
@@ -604,7 +614,7 @@ export function rescheduleBooking(req, res) {
     recipientUserId: booking.userId,
     type: NOTIFICATION_TYPES.BOOKING_RESCHEDULED,
     title: 'Booking Rescheduled',
-    message: `Your booking #${booking.id} is now scheduled for ${court.name} on ${booking.date} (${booking.startTime} - ${booking.endTime}, ${durationHours} hr).`,
+    message: `Your booking #${booking.id} is now scheduled for ${court.name} on ${booking.date} (${booking.startTime} - ${booking.endTime}, ${durationHours} hr). Waiting for venue approval.`,
     bookingId: booking.id,
     venueId: booking.venueId,
   });
@@ -612,9 +622,9 @@ export function rescheduleBooking(req, res) {
   if (venue && venue.ownerId) {
     createNotification({
       recipientUserId: venue.ownerId,
-      type: NOTIFICATION_TYPES.CUSTOMER_RESCHEDULED,
-      title: 'Booking Rescheduled',
-      message: `Booking #${booking.id} was rescheduled to ${court.name} on ${booking.date} (${booking.startTime} - ${booking.endTime}, ${durationHours} hr).`,
+      type: NOTIFICATION_TYPES.NEW_BOOKING_REQUEST,
+      title: 'New Booking Request',
+      message: `Booking request #${booking.id} rescheduled for ${court.name} on ${booking.date} (${booking.startTime} - ${booking.endTime}, ${durationHours} hr).`,
       bookingId: booking.id,
       venueId: booking.venueId,
     });
@@ -689,12 +699,35 @@ export function approveBooking(req, res) {
   });
 }
 
+export const VALID_REJECTION_REASONS = [
+  'COURT_UNAVAILABLE',
+  'SCHEDULE_CONFLICT',
+  'MAINTENANCE',
+  'VENUE_CLOSURE',
+  'INCORRECT_BOOKING_DETAILS',
+  'SLOT_ALREADY_RESERVED',
+  'VENUE_POLICY',
+  'OTHER',
+];
+
+export const REJECTION_REASON_LABELS = {
+  COURT_UNAVAILABLE: 'Court unavailable',
+  SCHEDULE_CONFLICT: 'Schedule conflict',
+  MAINTENANCE: 'Maintenance',
+  VENUE_CLOSURE: 'Venue closure',
+  INCORRECT_BOOKING_DETAILS: 'Incorrect booking details',
+  SLOT_ALREADY_RESERVED: 'Slot already reserved',
+  VENUE_POLICY: 'Venue policy',
+  OTHER: 'Other',
+};
+
 // ─── OWNER / ADMIN: Reject Booking ────────────────────────────────────────────
 
 /**
  * POST /api/bookings/:id/reject
  * Requires: authenticate (OWNER of venue or ADMIN)
  * Transition: REQUESTED -> REJECTED
+ * Enforces mandatory rejection reason from controlled list.
  */
 export function rejectBooking(req, res) {
   const booking = store.bookings.find((b) => b.id === req.params.id);
@@ -719,25 +752,90 @@ export function rejectBooking(req, res) {
     });
   }
 
-  booking.status = BOOKING_STATUS.REJECTED;
-  booking.updatedAt = new Date().toISOString();
+  const { reason, note, rejectionReason, rejectionNote } = req.body || {};
+  const rawReason = reason || rejectionReason;
+  const rawNote = note !== undefined ? note : rejectionNote;
 
-  // Phase 15: Rejection Notification
+  if (!rawReason || typeof rawReason !== 'string' || !rawReason.trim()) {
+    return res.status(400).json({
+      status: 'error',
+      message: 'Rejection reason is required.',
+    });
+  }
+
+  const trimmedReason = rawReason.trim();
+  let matchedReason = VALID_REJECTION_REASONS.find(
+    (r) => r.toLowerCase() === trimmedReason.toLowerCase()
+  );
+  if (!matchedReason) {
+    const entry = Object.entries(REJECTION_REASON_LABELS).find(
+      ([, label]) => label.toLowerCase() === trimmedReason.toLowerCase()
+    );
+    if (entry) {
+      matchedReason = entry[0];
+    }
+  }
+
+  if (!matchedReason) {
+    return res.status(400).json({
+      status: 'error',
+      message: `Invalid rejection reason: '${trimmedReason}'. Allowed reasons: ${VALID_REJECTION_REASONS.join(', ')}`,
+    });
+  }
+
+  let validatedNote = null;
+  if (rawNote !== undefined && rawNote !== null && rawNote !== '') {
+    if (typeof rawNote !== 'string') {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Rejection note must be a string.',
+      });
+    }
+    if (rawNote.trim().length > 200) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Rejection note must be 200 characters or fewer.',
+      });
+    }
+    validatedNote = rawNote.trim();
+  }
+
+  if (matchedReason === 'OTHER' && !validatedNote) {
+    return res.status(400).json({
+      status: 'error',
+      message: 'A short explanation is required when selecting Other as the rejection reason.',
+    });
+  }
+
+  const nowIso = new Date().toISOString();
+  booking.status = BOOKING_STATUS.REJECTED;
+  booking.rejectionReason = matchedReason;
+  booking.rejectionNote = validatedNote;
+  booking.rejectedAt = nowIso;
+  booking.rejectedBy = req.user.id;
+  booking.updatedAt = nowIso;
+
   const court = store.courts.find((c) => c.id === booking.courtId);
-  const courtName = court?.name || 'court';
+  const venue = store.venues.find((v) => v.id === (booking.venueId || court?.venueId));
+  const venueName = venue?.name || booking.venueName || 'Venue';
+  const reasonLabel = REJECTION_REASON_LABELS[matchedReason] || matchedReason;
+
+  const notifMessage = validatedNote
+    ? `Your booking request for ${venueName} was rejected. Reason: ${reasonLabel}. Note: ${validatedNote}`
+    : `Your booking request for ${venueName} was rejected. Reason: ${reasonLabel}.`;
 
   createNotification({
     recipientUserId: booking.userId,
     type: NOTIFICATION_TYPES.BOOKING_REJECTED,
     title: 'Booking Request Rejected',
-    message: `Your booking request #${booking.id} for ${courtName} on ${booking.date} (${booking.startTime} - ${booking.endTime}) was rejected by the venue.`,
+    message: notifMessage,
     bookingId: booking.id,
     venueId: booking.venueId,
   });
 
   return res.status(200).json({
     status: 'ok',
-    message: 'Booking rejected.',
+    message: 'Booking rejected successfully.',
     booking: safeBooking(booking),
   });
 }

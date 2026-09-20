@@ -315,7 +315,11 @@ describe('Phase 23 — Full Product Integration Test Suite', () => {
       // Owner rejects
       const rejRes = await fetch(`${baseUrl}/api/bookings/${bId}/reject`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${owner1Token}` },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${owner1Token}`,
+        },
+        body: JSON.stringify({ reason: 'COURT_UNAVAILABLE' }),
       });
       assert.equal(rejRes.status, 200);
 
@@ -545,6 +549,17 @@ describe('Phase 23 — Full Product Integration Test Suite', () => {
       const data = await res.json();
       createdCourtId = data.court.id;
       assert.ok(createdCourtId);
+
+      // Admin approves the court
+      const appRes = await fetch(`${baseUrl}/api/admin/courts/${createdCourtId}/approval`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${adminToken}`,
+        },
+        body: JSON.stringify({ status: 'APPROVED' }),
+      });
+      assert.equal(appRes.status, 200);
     });
 
     it('Customer discovers and books the newly created court', async () => {

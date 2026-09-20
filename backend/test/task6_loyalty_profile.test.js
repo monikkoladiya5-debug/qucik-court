@@ -3,7 +3,7 @@ process.env.NODE_ENV = 'test';
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { app } from '../server.js';
-import { store } from '../data/store.js';
+import { store, resetStore } from '../data/store.js';
 
 let server;
 let baseUrl;
@@ -16,6 +16,7 @@ let adminToken;
 let initialBookingsCount;
 
 before(async () => {
+  resetStore();
   server = app.listen(0);
   await new Promise((resolve) => server.once('listening', resolve));
   const port = server.address().port;

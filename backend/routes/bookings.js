@@ -37,6 +37,7 @@ router.get('/:id', requireRole('CUSTOMER'), getBooking);
 
 // Customer: cancel booking (ownership checked)
 router.post('/:id/cancel', requireRole('CUSTOMER'), cancelBooking);
+router.patch('/:id/cancel', requireRole('CUSTOMER'), cancelBooking);
 router.delete('/:id', requireRole('CUSTOMER'), cancelBooking);
 
 // Customer: reschedule booking (ownership checked)
@@ -48,9 +49,11 @@ router.post('/:id/check-in', checkInBooking);
 
 // Owner of venue or Admin: approve booking
 router.post('/:id/approve', approveBooking);
+router.patch('/:id/approve', approveBooking);
 
 // Owner of venue or Admin: reject booking
 router.post('/:id/reject', rejectBooking);
+router.patch('/:id/reject', rejectBooking);
 
 // Customer or Admin: demo pay for booking
 router.post('/:id/pay', payBooking);

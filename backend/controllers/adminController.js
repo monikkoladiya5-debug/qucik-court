@@ -104,6 +104,10 @@ export function serializeAdminBooking(booking, now = new Date()) {
     operationalStatus,
     paymentStatus: booking.paymentStatus || (['PAID', 'CONFIRMED', 'CHECKED_IN', 'COMPLETED'].includes(booking.status) ? 'PAID' : 'PENDING'),
     paymentMethod: booking.paymentMethod || null,
+    rejectionReason: booking.rejectionReason || null,
+    rejectionNote: booking.rejectionNote || null,
+    rejectedAt: booking.rejectedAt || null,
+    rejectedBy: booking.rejectedBy || null,
     createdAt: booking.createdAt,
     updatedAt: booking.updatedAt,
   };
@@ -205,6 +209,7 @@ export function getAdminDashboard(req, res) {
       upcomingBookings,
       bookingRevenue,
       pendingVenuesCount: pendingVenues.length,
+      pendingCourtsCount: (store.courts || []).filter((c) => (c.approvalStatus || 'APPROVED') === 'PENDING').length,
       totalReviews,
       averagePlatformRating,
       lowRatedReviewsCount,
@@ -906,5 +911,211 @@ export function updateVenueVerification(req, res) {
     venue: serializeAdminVenue(venue),
   });
 }
+
+// ─── Court Approval & Moderation Management ──────────────────────────────────
+
+export const VALID_COURT_APPROVAL_TRANSITIONS = {
+  PENDING: ['APPROVED', 'REJECTED'],
+  APPROVED: ['REJECTED'],
+  REJECTED: ['APPROVED'],
+};
+
+export const VALID_COURT_APPROVAL_STATUSES = ['PENDING', 'APPROVED', 'REJECTED'];
+
+/**
+ * Safely serializes a court for admin auditing & moderation.
+ * Enriches with venue summary and owner details.
+ */
+export function serializeAdminCourt(court) {
+  if (!court) return null;
+  const venue = (store.venues || []).find((v) => v.id === court.venueId);
+  const owner = venue ? (store.users || []).find((u) => u.id === venue.ownerId) : null;
+
+  return {
+    id: court.id,
+    venueId: court.venueId,
+    venueName: venue ? venue.name : 'Unknown Facility',
+    venueLocation: venue ? (venue.location || venue.city || '') : '',
+    venueCity: venue ? (venue.city || '') : '',
+    ownerId: venue ? venue.ownerId : null,
+    ownerName: owner ? owner.name : 'Unknown Owner',
+    ownerEmail: owner ? owner.email : '',
+    name: court.name,
+    sport: court.sport,
+    courtType: court.courtType || 'Standard',
+    indoor: Boolean(court.indoor),
+    pricePerHour: Number(court.pricePerHour),
+    operatingHours: court.operatingHours,
+    isActive: Boolean(court.isActive),
+    approvalStatus: court.approvalStatus || 'APPROVED',
+    approvedAt: court.approvedAt || null,
+    approvedBy: court.approvedBy || null,
+    approvalNote: court.approvalNote || null,
+    approvalUpdatedAt: court.approvalUpdatedAt || null,
+    createdAt: court.createdAt,
+    updatedAt: court.updatedAt,
+  };
+}
+
+/**
+ * GET /api/admin/courts/approval
+ * Requires: authenticate + requireRole('ADMIN')
+ * Query: status (optional: ALL, PENDING, APPROVED, REJECTED), search (optional)
+ */
+export function listCourtApprovals(req, res) {
+  const { status, search } = req.query || {};
+
+  const allCourts = store.courts || [];
+  const counts = {
+    total: allCourts.length,
+    pending: allCourts.filter((c) => (c.approvalStatus || 'APPROVED') === 'PENDING').length,
+    approved: allCourts.filter((c) => (c.approvalStatus || 'APPROVED') === 'APPROVED').length,
+    rejected: allCourts.filter((c) => c.approvalStatus === 'REJECTED').length,
+  };
+
+  let filtered = [...allCourts];
+
+  if (status && status.toUpperCase() !== 'ALL') {
+    const targetStatus = status.toUpperCase();
+    if (!VALID_COURT_APPROVAL_STATUSES.includes(targetStatus)) {
+      return res.status(400).json({
+        status: 'error',
+        message: `Invalid court approval status filter. Valid options: ALL, ${VALID_COURT_APPROVAL_STATUSES.join(', ')}`,
+      });
+    }
+    filtered = filtered.filter((c) => (c.approvalStatus || 'APPROVED') === targetStatus);
+  }
+
+  if (search && typeof search === 'string' && search.trim()) {
+    const q = search.trim().toLowerCase();
+    filtered = filtered.filter((c) => {
+      const venue = (store.venues || []).find((v) => v.id === c.venueId);
+      const owner = venue ? (store.users || []).find((u) => u.id === venue.ownerId) : null;
+      const nameMatch = (c.name || '').toLowerCase().includes(q);
+      const sportMatch = (c.sport || '').toLowerCase().includes(q);
+      const venueMatch = venue && (venue.name || '').toLowerCase().includes(q);
+      const cityMatch = venue && (venue.city || '').toLowerCase().includes(q);
+      const ownerMatch = owner && ((owner.name || '').toLowerCase().includes(q) || (owner.email || '').toLowerCase().includes(q));
+      return nameMatch || sportMatch || venueMatch || cityMatch || ownerMatch;
+    });
+  }
+
+  return res.status(200).json({
+    status: 'ok',
+    counts,
+    courts: filtered.map(serializeAdminCourt),
+  });
+}
+
+/**
+ * PATCH /api/admin/courts/:courtId/approval
+ * Requires: authenticate + requireRole('ADMIN')
+ * Body: { status: 'APPROVED' | 'REJECTED', note?: string, reason?: string }
+ */
+export function updateCourtApproval(req, res) {
+  const { courtId } = req.params;
+  const rawStatus = req.body?.status || req.body?.approvalStatus;
+  const rawNote = req.body?.note || req.body?.approvalNote || req.body?.reason;
+
+  const court = (store.courts || []).find((c) => c.id === courtId);
+  if (!court) {
+    return res.status(404).json({
+      status: 'error',
+      message: 'Court not found.',
+    });
+  }
+
+  if (!rawStatus || typeof rawStatus !== 'string') {
+    return res.status(400).json({
+      status: 'error',
+      message: 'Approval status is required.',
+    });
+  }
+
+  const targetStatus = rawStatus.trim().toUpperCase();
+  if (!VALID_COURT_APPROVAL_STATUSES.includes(targetStatus)) {
+    return res.status(400).json({
+      status: 'error',
+      message: `Invalid approval status: '${rawStatus}'. Allowed values: ${VALID_COURT_APPROVAL_STATUSES.join(', ')}`,
+    });
+  }
+
+  const currentStatus = court.approvalStatus || 'APPROVED';
+  const allowedTransitions = VALID_COURT_APPROVAL_TRANSITIONS[currentStatus] || [];
+
+  if (!allowedTransitions.includes(targetStatus)) {
+    return res.status(400).json({
+      status: 'error',
+      message: `Cannot transition court approval from '${currentStatus}' to '${targetStatus}'. Allowed transitions: ${allowedTransitions.length ? allowedTransitions.join(', ') : 'none'}`,
+    });
+  }
+
+  const noteText = typeof rawNote === 'string' && rawNote.trim() ? rawNote.trim() : '';
+
+  if (targetStatus === 'REJECTED' && !noteText) {
+    return res.status(400).json({
+      status: 'error',
+      message: 'A reason/note is required when rejecting a court request.',
+    });
+  }
+
+  if (noteText.length > 500) {
+    return res.status(400).json({
+      status: 'error',
+      message: 'Approval note must be 500 characters or fewer.',
+    });
+  }
+
+  const nowIso = new Date().toISOString();
+  court.approvalStatus = targetStatus;
+  court.approvalUpdatedAt = nowIso;
+  court.approvedBy = req.user.id;
+
+  if (targetStatus === 'APPROVED') {
+    court.approvedAt = nowIso;
+    court.approvalNote = noteText || 'Approved by administrator';
+    court.isActive = true;
+  } else {
+    court.approvedAt = null;
+    court.approvalNote = noteText;
+    court.isActive = false;
+  }
+
+  const venue = (store.venues || []).find((v) => v.id === court.venueId);
+  if (venue) {
+    // Sync active/approved count on venue
+    venue.courtCount = (store.courts || []).filter((c) => c.venueId === venue.id && (c.approvalStatus || 'APPROVED') === 'APPROVED').length;
+
+    // Dispatch owner notification
+    if (venue.ownerId) {
+      if (targetStatus === 'APPROVED') {
+        createNotification({
+          recipientUserId: venue.ownerId,
+          type: NOTIFICATION_TYPES.COURT_APPROVED,
+          title: 'Court Request Approved',
+          message: `Your court "${court.name}" at venue "${venue.name}" has been approved by the QuickCourt team and is now active for bookings.`,
+          venueId: venue.id,
+          courtId: court.id,
+        });
+      } else if (targetStatus === 'REJECTED') {
+        createNotification({
+          recipientUserId: venue.ownerId,
+          type: NOTIFICATION_TYPES.COURT_REJECTED,
+          title: 'Court Request Rejected',
+          message: `Your court "${court.name}" at venue "${venue.name}" was rejected. Reason: ${noteText}`,
+          venueId: venue.id,
+          courtId: court.id,
+        });
+      }
+    }
+  }
+
+  return res.status(200).json({
+    status: 'ok',
+    message: `Court approval status updated to ${targetStatus}.`,
+    court: serializeAdminCourt(court),
+  });
+}
+
 
 

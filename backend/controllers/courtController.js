@@ -1,6 +1,21 @@
 import { store, safeCourt } from '../data/store.js';
 import { isBookingActive } from '../config/bookingStates.js';
 import { parse12HourTime } from './bookingController.js';
+import {
+  createNotification,
+  NOTIFICATION_TYPES,
+} from './notificationController.js';
+
+export const SUPPORTED_SPORTS = [
+  'Badminton',
+  'Tennis',
+  'Football',
+  'Basketball',
+  'Pickleball',
+  'Cricket',
+  'Squash',
+  'Table Tennis',
+];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -71,9 +86,10 @@ function getDeterministicStatus(court, dateStr, hour) {
  *   - venueId
  *   - sport
  *   - isActive ('true' | 'false')
+ * Public discovery only returns APPROVED courts.
  */
 export function listCourts(req, res) {
-  let results = store.courts;
+  let results = store.courts.filter((c) => (c.approvalStatus || 'APPROVED') === 'APPROVED');
 
   const { venueId, sport, isActive } = req.query;
 
@@ -103,11 +119,12 @@ export function listCourts(req, res) {
 /**
  * GET /api/courts/:id
  * Returns court and associated venue summary.
+ * Public discovery only allows viewing APPROVED courts.
  */
 export function getCourt(req, res) {
   const court = store.courts.find((c) => c.id === req.params.id);
 
-  if (!court) {
+  if (!court || (court.approvalStatus && court.approvalStatus !== 'APPROVED')) {
     return res.status(404).json({ status: 'error', message: 'Court not found.' });
   }
 
@@ -188,12 +205,22 @@ export function createCourt(req, res) {
     return res.status(400).json({ status: 'error', message: 'Sport is required.' });
   }
 
+  const normalizedSport = SUPPORTED_SPORTS.find(
+    (s) => s.toLowerCase() === sport.trim().toLowerCase()
+  );
+  if (!normalizedSport) {
+    return res.status(400).json({
+      status: 'error',
+      message: `Invalid sport "${sport.trim()}". Supported sports: ${SUPPORTED_SPORTS.join(', ')}.`,
+    });
+  }
+
   // Verify sport is compatible with venue
   const venueSports = Array.isArray(venue.sportTypes)
     ? venue.sportTypes
     : (typeof venue.sportTypes === 'string' ? venue.sportTypes.split(',').map((s) => s.trim()).filter(Boolean) : []);
   const isCompatible = venueSports.length === 0 || venueSports.some(
-    (s) => s.toLowerCase() === sport.trim().toLowerCase()
+    (s) => s.toLowerCase() === normalizedSport.toLowerCase()
   );
   if (!isCompatible) {
     return res.status(400).json({
@@ -212,28 +239,53 @@ export function createCourt(req, res) {
 
   const now = new Date().toISOString();
 
-  // Create court entity — strip any client-supplied id, ownerId, timestamps
+  // Create court entity with explicit pending admin approval status
   const newCourt = {
     id: generateCourtId(),
     venueId: venue.id,
     name: name.trim(),
-    sport: sport.trim(),
+    sport: normalizedSport,
     courtType: (typeof courtType === 'string' && courtType.trim()) || 'Standard',
     indoor: indoor !== undefined ? Boolean(indoor) : Boolean(venue.indoor),
     pricePerHour: numericPrice,
     operatingHours: (typeof operatingHours === 'string' && operatingHours.trim()) || venue.openingHours,
     isActive: isActive !== undefined ? Boolean(isActive) : true,
+    approvalStatus: 'PENDING',
+    approvedAt: null,
+    approvedBy: null,
+    approvalNote: 'Pending administrator approval',
+    approvalUpdatedAt: now,
     createdAt: now,
     updatedAt: now,
   };
 
   store.courts.push(newCourt);
 
-  // Sync courtCount on venue
-  venue.courtCount = store.courts.filter((c) => c.venueId === venue.id).length;
+  // Sync courtCount on venue (counting only approved courts)
+  venue.courtCount = store.courts.filter((c) => c.venueId === venue.id && (c.approvalStatus || 'APPROVED') === 'APPROVED').length;
+
+  // Authoritatively derive Admin users and dispatch notification
+  const adminUsers = (store.users || []).filter(
+    (u) => (u.role || '').toUpperCase() === 'ADMIN'
+  );
+  if (adminUsers.length > 0) {
+    const ownerUser = (store.users || []).find((u) => u.id === req.user.id);
+    const ownerName = ownerUser ? ownerUser.name : 'Facility Owner';
+    adminUsers.forEach((adminUser) => {
+      createNotification({
+        recipientUserId: adminUser.id,
+        type: NOTIFICATION_TYPES.NEW_COURT_REQUEST,
+        title: 'New Court Approval Request',
+        message: `Owner ${ownerName} requested approval for a new court "${newCourt.name}" (${newCourt.sport}, ₹${newCourt.pricePerHour}/hr) at venue "${venue.name}".`,
+        venueId: venue.id,
+        courtId: newCourt.id,
+      });
+    });
+  }
 
   return res.status(201).json({
     status: 'ok',
+    message: 'Court submitted for administrator approval.',
     court: safeCourt(newCourt),
   });
 }
@@ -274,11 +326,20 @@ export function updateCourt(req, res) {
     if (typeof sport !== 'string' || !sport.trim()) {
       return res.status(400).json({ status: 'error', message: 'Sport cannot be empty.' });
     }
+    const normalizedSport = SUPPORTED_SPORTS.find(
+      (s) => s.toLowerCase() === sport.trim().toLowerCase()
+    );
+    if (!normalizedSport) {
+      return res.status(400).json({
+        status: 'error',
+        message: `Invalid sport "${sport.trim()}". Supported sports: ${SUPPORTED_SPORTS.join(', ')}.`,
+      });
+    }
     const venueSports = Array.isArray(venue.sportTypes)
       ? venue.sportTypes
       : (typeof venue.sportTypes === 'string' ? venue.sportTypes.split(',').map((s) => s.trim()).filter(Boolean) : []);
     const isCompatible = venueSports.length === 0 || venueSports.some(
-      (s) => s.toLowerCase() === sport.trim().toLowerCase()
+      (s) => s.toLowerCase() === normalizedSport.toLowerCase()
     );
     if (!isCompatible) {
       return res.status(400).json({
@@ -286,7 +347,7 @@ export function updateCourt(req, res) {
         message: `Sport "${sport.trim()}" is not offered at this venue. Offered sports: ${venueSports.join(', ')}.`,
       });
     }
-    court.sport = sport.trim();
+    court.sport = normalizedSport;
   }
 
   if (courtType !== undefined) {
@@ -349,8 +410,8 @@ export function deleteCourt(req, res) {
 
   store.courts.splice(idx, 1);
 
-  // Sync courtCount on venue
-  venue.courtCount = store.courts.filter((c) => c.venueId === venue.id).length;
+  // Sync courtCount on venue (counting only approved courts)
+  venue.courtCount = store.courts.filter((c) => c.venueId === venue.id && (c.approvalStatus || 'APPROVED') === 'APPROVED').length;
 
   // Clean up associated bookings to maintain referential integrity
   store.bookings = store.bookings.filter((b) => b.courtId !== court.id);
@@ -367,10 +428,11 @@ export function deleteCourt(req, res) {
  * GET /api/courts/:id/availability?date=YYYY-MM-DD
  * Calculates availability from operating hours and active bookings.
  * Does NOT mutate store data.
+ * Public endpoint: requires court to be approved.
  */
 export function getCourtAvailability(req, res) {
   const court = store.courts.find((c) => c.id === req.params.id);
-  if (!court) {
+  if (!court || (court.approvalStatus && court.approvalStatus !== 'APPROVED')) {
     return res.status(404).json({ status: 'error', message: 'Court not found.' });
   }
 

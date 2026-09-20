@@ -98,6 +98,8 @@ describe('Phase 8: Court Inventory & Maintenance Management', () => {
     assert.equal(body.court.pricePerHour, 850);
     assert.equal(body.court.isActive, true);
     createdCourtId = body.court.id;
+    const courtInStore = store.courts.find((c) => c.id === createdCourtId);
+    if (courtInStore) courtInStore.approvalStatus = 'APPROVED';
   });
 
   it('2. Rejects court creation when sport type is incompatible with venue', async () => {

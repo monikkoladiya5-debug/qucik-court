@@ -168,10 +168,10 @@ export function getOwnerDashboard(req, res) {
     return serializeDashboardVenue(v, venueCourts);
   });
 
-  // 6. Serialize bookings (sorted latest first)
+  // 6. Serialize bookings (sorted latest first, considering updates/reschedules)
   const sortedBookings = [...myBookings].sort((a, b) => {
-    const timeA = new Date(a.createdAt || `${a.date}T00:00:00Z`).getTime();
-    const timeB = new Date(b.createdAt || `${b.date}T00:00:00Z`).getTime();
+    const timeA = new Date(a.updatedAt || a.createdAt || `${a.date}T00:00:00Z`).getTime();
+    const timeB = new Date(b.updatedAt || b.createdAt || `${b.date}T00:00:00Z`).getTime();
     return timeB - timeA;
   });
 

@@ -309,10 +309,11 @@ export async function approveBooking(id) {
 
 /**
  * POST /api/bookings/:id/reject  (OWNER / ADMIN)
+ * Body: { reason: string, note?: string }
  * Returns { status, message, booking }
  */
-export async function rejectBooking(id) {
-  return apiRequest('POST', `/bookings/${id}/reject`, null, true);
+export async function rejectBooking(id, data = {}) {
+  return apiRequest('POST', `/bookings/${id}/reject`, data, true);
 }
 
 /**
@@ -544,6 +545,28 @@ export async function fetchAdminVenueVerifications(params = {}) {
  */
 export async function updateVenueVerificationApi(venueId, data) {
   return apiRequest('PATCH', `/admin/venues/${venueId}/verification`, data, true);
+}
+
+/**
+ * GET /api/admin/courts/approval (ADMIN)
+ * Query: { status, search }
+ * Returns { status, counts, courts }
+ */
+export async function fetchAdminCourtApprovals(params = {}) {
+  const qp = new URLSearchParams();
+  if (params.status && params.status !== 'ALL') qp.set('status', params.status);
+  if (params.search) qp.set('search', params.search);
+  const qs = qp.toString();
+  return apiRequest('GET', `/admin/courts/approval${qs ? `?${qs}` : ''}`, null, true);
+}
+
+/**
+ * PATCH /api/admin/courts/:courtId/approval (ADMIN)
+ * Body: { status: 'APPROVED' | 'REJECTED', note?: string, reason?: string }
+ * Returns { status, message, court }
+ */
+export async function updateCourtApprovalApi(courtId, data) {
+  return apiRequest('PATCH', `/admin/courts/${courtId}/approval`, data, true);
 }
 
 // ─── Notifications (Phase 15) ────────────────────────────────────────────────

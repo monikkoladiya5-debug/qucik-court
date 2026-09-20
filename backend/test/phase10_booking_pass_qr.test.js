@@ -77,6 +77,8 @@ before(async () => {
   });
   const cData = await cRes.json();
   courtId = cData.court.id;
+  const courtInStore = store.courts.find((c) => c.id === courtId);
+  if (courtInStore) courtInStore.approvalStatus = 'APPROVED';
 });
 
 after(async () => {
@@ -263,7 +265,11 @@ describe('Phase 10: Booking ID + Check-In Token + Digital Pass', () => {
 
     await fetch(`${baseUrl}/api/bookings/${rejectBookingId}/reject`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${owner1Token}` },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${owner1Token}`,
+      },
+      body: JSON.stringify({ reason: 'COURT_UNAVAILABLE' }),
     });
 
     const checkRes = await fetch(`${baseUrl}/api/bookings/${rejectBookingId}`, {

@@ -19,9 +19,41 @@ import {
   fetchAdminPlatformIntelligence,
   toggleUserStatusApi,
   fetchAdminVenueVerifications,
-  updateVenueVerificationApi
+  updateVenueVerificationApi,
+  fetchAdminCourtApprovals,
+  updateCourtApprovalApi,
 } from '../services/api';
 import { formatBookingDate } from '../utils/date';
+
+/**
+ * Court Approval Status Badge
+ */
+function CourtApprovalStatusBadge({ status }) {
+  switch (status) {
+    case 'APPROVED':
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-black bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+          <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+          <span>APPROVED</span>
+        </span>
+      );
+    case 'REJECTED':
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-black bg-rose-500/10 text-rose-400 border border-rose-500/20">
+          <XCircle className="w-3.5 h-3.5 text-rose-400" />
+          <span>REJECTED</span>
+        </span>
+      );
+    case 'PENDING':
+    default:
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-black bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">
+          <Clock className="w-3.5 h-3.5 text-yellow-400" />
+          <span>PENDING</span>
+        </span>
+      );
+  }
+}
 
 /**
  * Verification Status Badge (Phase 19)
@@ -219,7 +251,18 @@ function AdminDashboardInner() {
   const [verificationModalError, setVerificationModalError] = useState(null);
   const [verificationUpdating, setVerificationUpdating] = useState(false);
 
-  // Active Main Navigation Tab: 'OVERVIEW' | 'USERS' | 'VERIFICATION' | 'VENUES' | 'BOOKINGS'
+  // Court Approval State
+  const [courtApprovals, setCourtApprovals] = useState([]);
+  const [courtApprovalLoading, setCourtApprovalLoading] = useState(false);
+  const [courtApprovalError, setCourtApprovalError] = useState(null);
+  const [courtApprovalFilter, setCourtApprovalFilter] = useState('ALL');
+  const [courtApprovalSearch, setCourtApprovalSearch] = useState('');
+  const [courtActionTarget, setCourtActionTarget] = useState(null); // { court, targetStatus: 'APPROVED' | 'REJECTED' }
+  const [courtActionNote, setCourtActionNote] = useState('');
+  const [courtActionModalError, setCourtActionModalError] = useState(null);
+  const [courtActionUpdating, setCourtActionUpdating] = useState(false);
+
+  // Active Main Navigation Tab: 'OVERVIEW' | 'USERS' | 'VERIFICATION' | 'COURTS' | 'VENUES' | 'BOOKINGS'
   const [mainTab, setMainTab] = useState('OVERVIEW');
 
   // Bookings sub-filter: 'ALL' | 'UPCOMING' | 'COMPLETED' | 'CANCELLED'
@@ -276,6 +319,23 @@ function AdminDashboardInner() {
     }
   }, []);
 
+  // Load Court Approvals Queue
+  const loadCourtApprovals = useCallback(async (filter, search) => {
+    try {
+      setCourtApprovalLoading(true);
+      setCourtApprovalError(null);
+      const res = await fetchAdminCourtApprovals({
+        status: filter === 'ALL' ? undefined : filter,
+        search: search.trim() || undefined,
+      });
+      setCourtApprovals(res?.courts || []);
+    } catch (err) {
+      setCourtApprovalError(err.message || 'Failed to load court approvals queue.');
+    } finally {
+      setCourtApprovalLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadDashboard();
   }, [loadDashboard]);
@@ -287,6 +347,10 @@ function AdminDashboardInner() {
   useEffect(() => {
     loadVerifications(verificationFilter, verificationSearch);
   }, [loadVerifications, verificationFilter, verificationSearch]);
+
+  useEffect(() => {
+    loadCourtApprovals(courtApprovalFilter, courtApprovalSearch);
+  }, [loadCourtApprovals, courtApprovalFilter, courtApprovalSearch]);
 
   // Keyboard Escape listener to dismiss modals safely
   useEffect(() => {
@@ -301,11 +365,68 @@ function AdminDashboardInner() {
           setVerificationReason('');
           setVerificationModalError(null);
         }
+        if (courtActionTarget && !courtActionUpdating) {
+          setCourtActionTarget(null);
+          setCourtActionNote('');
+          setCourtActionModalError(null);
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [userToToggle, statusUpdatingId, verificationActionTarget, verificationUpdating]);
+  }, [userToToggle, statusUpdatingId, verificationActionTarget, verificationUpdating, courtActionTarget, courtActionUpdating]);
+
+  // Open court action modal
+  const handleOpenCourtActionModal = (court, targetStatus) => {
+    setCourtActionTarget({ court, targetStatus });
+    setCourtActionNote('');
+    setCourtActionModalError(null);
+  };
+
+  // Close court action modal
+  const handleCloseCourtActionModal = () => {
+    if (courtActionUpdating) return;
+    setCourtActionTarget(null);
+    setCourtActionNote('');
+    setCourtActionModalError(null);
+  };
+
+  // Execute court approval status update
+  const handleConfirmCourtAction = async () => {
+    if (!courtActionTarget) return;
+    const { court, targetStatus } = courtActionTarget;
+
+    if (targetStatus === 'REJECTED' && !courtActionNote.trim()) {
+      setCourtActionModalError('A clear rejection note is required when declining a court request.');
+      return;
+    }
+
+    try {
+      setCourtActionUpdating(true);
+      setCourtActionModalError(null);
+      const res = await updateCourtApprovalApi(court.id, {
+        approvalStatus: targetStatus,
+        approvalNote: courtActionNote.trim() || undefined,
+      });
+
+      if (res?.status === 'ok') {
+        setFeedback({
+          type: 'success',
+          message: `Court "${court.name}" approval status updated to ${targetStatus}.`,
+        });
+        setCourtActionTarget(null);
+        setCourtActionNote('');
+        await loadCourtApprovals(courtApprovalFilter, courtApprovalSearch);
+        await loadDashboard();
+      } else {
+        throw new Error(res?.message || 'Failed to update court approval');
+      }
+    } catch (err) {
+      setCourtActionModalError(err.message || 'Failed to update court approval.');
+    } finally {
+      setCourtActionUpdating(false);
+    }
+  };
 
   // Open verification modal
   const handleOpenVerificationModal = (venue, targetStatus) => {
@@ -838,6 +959,12 @@ function AdminDashboardInner() {
                       label: 'Venue Verification',
                       count: verificationData?.counts?.pending ?? 0,
                       isAlert: (verificationData?.counts?.pending ?? 0) > 0,
+                    },
+                    {
+                      key: 'COURTS',
+                      label: 'Court Approvals',
+                      count: courtApprovals.filter((c) => (c.approvalStatus || 'APPROVED') === 'PENDING').length,
+                      isAlert: courtApprovals.filter((c) => (c.approvalStatus || 'APPROVED') === 'PENDING').length > 0,
                     },
                     { key: 'VENUES', label: 'Venues & Courts', count: venues.length },
                     { key: 'BOOKINGS', label: 'Bookings Ledger', count: bookings.length },
@@ -1471,6 +1598,217 @@ function AdminDashboardInner() {
                 </div>
               )}
 
+              {/* ─── TAB 2.8: COURT APPROVAL MODERATION ───────────── */}
+              {mainTab === 'COURTS' && (
+                <div className="pt-5 space-y-6">
+                  {/* Status Metric Strip */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-yellow-400">Pending Review</span>
+                        <Clock className="w-4 h-4 text-yellow-400" />
+                      </div>
+                      <div className="text-2xl font-black text-white font-mono mt-1">
+                        {courtApprovals.filter((c) => (c.approvalStatus || 'APPROVED') === 'PENDING').length}
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-0.5">Awaiting moderation</p>
+                    </div>
+
+                    <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Approved Courts</span>
+                        <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                      </div>
+                      <div className="text-2xl font-black text-white font-mono mt-1">
+                        {courtApprovals.filter((c) => (c.approvalStatus || 'APPROVED') === 'APPROVED').length}
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-0.5">Active & discoverable</p>
+                    </div>
+
+                    <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-rose-400">Rejected Courts</span>
+                        <XCircle className="w-4 h-4 text-rose-400" />
+                      </div>
+                      <div className="text-2xl font-black text-white font-mono mt-1">
+                        {courtApprovals.filter((c) => c.approvalStatus === 'REJECTED').length}
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-0.5">Moderation declined</p>
+                    </div>
+
+                    <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Requests</span>
+                        <Layers className="w-4 h-4 text-slate-400" />
+                      </div>
+                      <div className="text-2xl font-black text-white font-mono mt-1">
+                        {courtApprovals.length}
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-0.5">All court applications</p>
+                    </div>
+                  </div>
+
+                  {/* Filter & Search Bar */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+                    <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+                      {['ALL', 'PENDING', 'APPROVED', 'REJECTED'].map((f) => (
+                        <button
+                          key={f}
+                          type="button"
+                          onClick={() => setCourtApprovalFilter(f)}
+                          className={`px-3 py-1.5 text-xs font-bold rounded-xl transition ${
+                            courtApprovalFilter === f
+                              ? 'bg-slate-800 text-white border border-slate-700 font-black'
+                              : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
+                          }`}
+                        >
+                          {f === 'ALL' ? 'All Courts' : f}
+                          {f === 'PENDING' && courtApprovals.filter((c) => (c.approvalStatus || 'APPROVED') === 'PENDING').length > 0 && (
+                            <span className="ml-1.5 px-1.5 py-0.2 rounded-full text-[10px] bg-yellow-500/20 text-yellow-400 font-mono">
+                              {courtApprovals.filter((c) => (c.approvalStatus || 'APPROVED') === 'PENDING').length}
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="relative w-full sm:w-72">
+                      <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        placeholder="Search court, sport, venue, owner..."
+                        value={courtApprovalSearch}
+                        onChange={(e) => setCourtApprovalSearch(e.target.value)}
+                        className="w-full pl-9 pr-3.5 py-2 rounded-xl border border-slate-800 bg-slate-950 text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Court Approvals Table */}
+                  <div className="overflow-x-auto rounded-2xl border border-slate-800">
+                    <table className="w-full text-left border-collapse min-w-[850px]">
+                      <thead>
+                        <tr className="bg-slate-950 border-b border-slate-800 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                          <th className="py-3 px-4">Court & Sport</th>
+                          <th className="py-3 px-4">Venue & City</th>
+                          <th className="py-3 px-4">Owner / Host</th>
+                          <th className="py-3 px-4">Specifications</th>
+                          <th className="py-3 px-4 text-center">Status</th>
+                          <th className="py-3 px-4 text-right">Moderation Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/80 text-xs bg-slate-900/60">
+                        {courtApprovalLoading ? (
+                          <tr>
+                            <td colSpan="6" className="py-12 text-center text-slate-400">
+                              <Loader2 className="w-6 h-6 animate-spin mx-auto text-emerald-400 mb-2" />
+                              <p>Loading court moderation requests…</p>
+                            </td>
+                          </tr>
+                        ) : courtApprovals.length === 0 ? (
+                          <tr>
+                            <td colSpan="6" className="py-12 text-center text-slate-500">
+                              <ShieldCheck className="w-10 h-10 mx-auto mb-2 text-slate-600" />
+                              <p className="font-bold text-xs text-slate-300">No courts matching criteria</p>
+                              <p className="text-[11px] text-slate-500 mt-0.5">All court creation requests have been processed.</p>
+                            </td>
+                          </tr>
+                        ) : (
+                          courtApprovals.map((court) => {
+                            const cStatus = court.approvalStatus || 'APPROVED';
+                            return (
+                              <tr key={court.id} className="hover:bg-slate-800/40 transition-colors">
+                                <td className="py-3 px-4">
+                                  <div className="font-bold text-white flex items-center gap-2">
+                                    <span>{court.name}</span>
+                                    <span className="font-mono text-[10px] text-slate-500 font-normal">#{court.id}</span>
+                                  </div>
+                                  <div className="text-[11px] text-slate-400 mt-0.5 flex items-center gap-1.5">
+                                    <span className="font-semibold text-emerald-400">{court.sport}</span>
+                                    <span>•</span>
+                                    <span>{court.courtType || 'Standard'}</span>
+                                  </div>
+                                </td>
+                                <td className="py-3 px-4">
+                                  <p className="font-bold text-slate-200">{court.venueName || 'Venue'}</p>
+                                  <p className="text-[11px] text-slate-400">{court.venueLocation || court.venueCity || 'Location N/A'}</p>
+                                </td>
+                                <td className="py-3 px-4">
+                                  <p className="font-bold text-white">{court.ownerName || 'Owner'}</p>
+                                  <p className="text-[11px] text-slate-500 font-mono">{court.ownerEmail || 'N/A'}</p>
+                                </td>
+                                <td className="py-3 px-4">
+                                  <div className="space-y-0.5 text-[11px]">
+                                    <div className="font-mono font-bold text-emerald-400">₹{court.pricePerHour}/hr</div>
+                                    <div className="text-slate-400">{court.indoor ? 'Indoor' : 'Outdoor'} • {court.operatingHours || '06:00 AM - 10:00 PM'}</div>
+                                    {court.approvalNote && (
+                                      <div className="text-[10px] text-slate-400 italic truncate max-w-xs" title={court.approvalNote}>
+                                        Note: {court.approvalNote}
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="py-3 px-4 text-center">
+                                  <CourtApprovalStatusBadge status={cStatus} />
+                                </td>
+                                <td className="py-3 px-4 text-right">
+                                  <div className="flex items-center justify-end gap-2">
+                                    {cStatus === 'PENDING' && (
+                                      <>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleOpenCourtActionModal(court, 'APPROVED')}
+                                          className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 transition flex items-center gap-1"
+                                          title="Approve and activate this court"
+                                        >
+                                          <Check className="w-3.5 h-3.5" />
+                                          <span>Approve</span>
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleOpenCourtActionModal(court, 'REJECTED')}
+                                          className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 transition flex items-center gap-1"
+                                          title="Reject this court request"
+                                        >
+                                          <X className="w-3.5 h-3.5" />
+                                          <span>Reject</span>
+                                        </button>
+                                      </>
+                                    )}
+                                    {cStatus === 'APPROVED' && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleOpenCourtActionModal(court, 'REJECTED')}
+                                        className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 transition flex items-center gap-1"
+                                        title="Revoke and reject this court"
+                                      >
+                                        <X className="w-3.5 h-3.5" />
+                                        <span>Reject</span>
+                                      </button>
+                                    )}
+                                    {cStatus === 'REJECTED' && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleOpenCourtActionModal(court, 'APPROVED')}
+                                        className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 transition flex items-center gap-1"
+                                        title="Approve and activate this court"
+                                      >
+                                        <Check className="w-3.5 h-3.5" />
+                                        <span>Approve</span>
+                                      </button>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
               {/* ─── TAB 3: VENUES & COURTS ───────────────────────────────────── */}
               {mainTab === 'VENUES' && (
                 <div className="pt-5 space-y-4">
@@ -1608,6 +1946,13 @@ function AdminDashboardInner() {
                               </td>
                               <td className="py-3 px-4 text-right">
                                 <BookingStatusBadge operationalStatus={b.operationalStatus} status={b.status} />
+                                {b.status === 'REJECTED' && (
+                                  <div className="mt-1.5 text-[11px] text-rose-400 bg-rose-500/10 p-2 rounded-lg border border-rose-500/20 text-left space-y-0.5">
+                                    <div><strong>Reason:</strong> {b.rejectionReason}</div>
+                                    {b.rejectionNote && <div><strong>Note:</strong> "{b.rejectionNote}"</div>}
+                                    {b.rejectedAt && <div className="text-[10px] text-slate-400 font-mono">Time: {new Date(b.rejectedAt).toLocaleString()}</div>}
+                                  </div>
+                                )}
                               </td>
                             </tr>
                           ))
@@ -1894,6 +2239,151 @@ function AdminDashboardInner() {
                         : verificationActionTarget.targetStatus === 'REJECTED'
                         ? 'Confirm Rejection'
                         : 'Confirm Suspension'}
+                    </span>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* ─── 7. Court Approval Action Modal ─────────────────────────────── */}
+        {courtActionTarget && (
+          <div
+            className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="court-modal-title"
+            aria-describedby="court-modal-desc"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                handleCloseCourtActionModal();
+              }
+            }}
+          >
+            <div className="bg-slate-900 rounded-3xl max-w-lg w-full p-6 sm:p-7 border border-slate-800 shadow-2xl space-y-4 text-slate-100">
+              <div className="flex items-center gap-3.5">
+                <div
+                  className={`w-12 h-12 rounded-2xl flex items-center justify-center border shrink-0 ${
+                    courtActionTarget.targetStatus === 'APPROVED'
+                      ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                      : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+                  }`}
+                >
+                  {courtActionTarget.targetStatus === 'APPROVED' ? (
+                    <ShieldCheck className="w-6 h-6" />
+                  ) : (
+                    <XCircle className="w-6 h-6" />
+                  )}
+                </div>
+                <div>
+                  <h3 id="court-modal-title" className="text-base font-black text-white">
+                    {courtActionTarget.targetStatus === 'APPROVED'
+                      ? 'Approve Court Request?'
+                      : 'Reject Court Request?'}
+                  </h3>
+                  <p className="text-xs text-slate-400 font-medium mt-0.5">
+                    {courtActionTarget.targetStatus === 'APPROVED'
+                      ? 'Make court active, discoverable, and available for player bookings'
+                      : 'Decline court request and require moderation feedback'}
+                  </p>
+                </div>
+              </div>
+
+              <div id="court-modal-desc" className="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-slate-400">Court Name:</span>
+                  <span className="font-bold text-white">{courtActionTarget.court.name}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-slate-400">Venue & Facility:</span>
+                  <span className="text-slate-300">{courtActionTarget.court.venueName || 'Venue'}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-slate-400">Sport & Surface:</span>
+                  <span className="text-slate-300">{courtActionTarget.court.sport} ({courtActionTarget.court.courtType || 'Standard'})</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-slate-400">Rate:</span>
+                  <span className="font-mono font-bold text-emerald-400">₹{courtActionTarget.court.pricePerHour}/hr</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-slate-400">Owner:</span>
+                  <span className="text-slate-300">{courtActionTarget.court.ownerName} ({courtActionTarget.court.ownerEmail})</span>
+                </div>
+                <div className="flex items-center justify-between pt-2 border-t border-slate-800">
+                  <span className="font-semibold text-slate-400">Target State:</span>
+                  <CourtApprovalStatusBadge status={courtActionTarget.targetStatus} />
+                </div>
+              </div>
+
+              {/* Moderation Note Field */}
+              <div className="space-y-1.5">
+                <label htmlFor="court-action-note-input" className="block text-xs font-bold text-slate-300 uppercase tracking-wider">
+                  {courtActionTarget.targetStatus === 'REJECTED' ? (
+                    <>Rejection Note <span className="text-rose-400">*</span></>
+                  ) : (
+                    <>Approval / Audit Note <span className="text-slate-500 font-normal">(Optional)</span></>
+                  )}
+                </label>
+                <textarea
+                  id="court-action-note-input"
+                  rows={3}
+                  value={courtActionNote}
+                  onChange={(e) => {
+                    setCourtActionNote(e.target.value);
+                    if (courtActionModalError) setCourtActionModalError(null);
+                  }}
+                  maxLength={500}
+                  placeholder={
+                    courtActionTarget.targetStatus === 'APPROVED'
+                      ? 'Optional approval note (e.g. Court specifications verified)...'
+                      : 'Explain why this court request was rejected (e.g. Incomplete surface details, rate outside venue bounds)...'
+                  }
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-700/80 bg-slate-950 text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all resize-none"
+                />
+                <div className="flex justify-between items-center text-[10px] text-slate-500">
+                  <span>Note will be notified and visible to the facility owner.</span>
+                  <span>{courtActionNote.length}/500</span>
+                </div>
+              </div>
+
+              {courtActionModalError && (
+                <div role="alert" className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs font-medium flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                  <span>{courtActionModalError}</span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  disabled={courtActionUpdating}
+                  onClick={handleCloseCourtActionModal}
+                  className="px-4 py-2.5 text-xs font-bold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-slate-500 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  disabled={courtActionUpdating}
+                  onClick={handleConfirmCourtAction}
+                  className={`inline-flex items-center gap-2 px-5 py-2.5 text-xs font-black text-white rounded-xl shadow-md transition-all focus:outline-none focus:ring-2 disabled:opacity-60 ${
+                    courtActionTarget.targetStatus === 'APPROVED'
+                      ? 'bg-emerald-600 hover:bg-emerald-500 focus:ring-emerald-500'
+                      : 'bg-rose-600 hover:bg-rose-500 focus:ring-rose-500'
+                  }`}
+                >
+                  {courtActionUpdating ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Processing…</span>
+                    </>
+                  ) : (
+                    <span>
+                      {courtActionTarget.targetStatus === 'APPROVED'
+                        ? 'Confirm Approval'
+                        : 'Confirm Rejection'}
                     </span>
                   )}
                 </button>

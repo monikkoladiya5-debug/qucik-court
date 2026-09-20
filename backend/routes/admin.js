@@ -5,6 +5,8 @@ import {
   getPlatformIntelligence,
   listVenueVerifications,
   updateVenueVerification,
+  listCourtApprovals,
+  updateCourtApproval,
 } from '../controllers/adminController.js';
 import { authenticate } from '../middleware/authenticate.js';
 import { requireRole } from '../middleware/requireRole.js';
@@ -23,6 +25,10 @@ router.get('/platform-intelligence', getPlatformIntelligence);
 // Venue Trust & Verification Management (Phase 19)
 router.get('/venues/verification', listVenueVerifications);
 router.patch('/venues/:venueId/verification', updateVenueVerification);
+
+// Court Approval & Moderation Management
+router.get('/courts/approval', listCourtApprovals);
+router.patch('/courts/:courtId/approval', updateCourtApproval);
 
 // User Status Management: toggle between active and suspended
 router.patch('/users/:id/status', toggleUserStatus);

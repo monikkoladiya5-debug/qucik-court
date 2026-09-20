@@ -333,7 +333,11 @@ describe('Phase 11: Owner Verification & Check-In', () => {
     // Reject booking
     await fetch(`${baseUrl}/api/bookings/${booking.id}/reject`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${owner1Token}` },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${owner1Token}`,
+      },
+      body: JSON.stringify({ reason: 'COURT_UNAVAILABLE' }),
     });
 
     const checkInRes = await fetch(`${baseUrl}/api/bookings/${booking.id}/check-in`, {

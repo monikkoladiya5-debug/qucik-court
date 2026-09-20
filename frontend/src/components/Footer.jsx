@@ -1,8 +1,11 @@
 import React from 'react';
-import { Activity, ArrowUpRight } from 'lucide-react';
+import { Activity, ArrowUpRight, ShieldCheck, Trophy, Users, Building2, CheckCircle2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 export default function Footer() {
+  const { isAuthenticated, role } = useAuth();
+
   return (
     <footer className="bg-[#0B0F17] text-slate-400 py-12 mt-auto border-t border-[#28303F]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-8">
@@ -78,26 +81,75 @@ export default function Footer() {
         </div>
 
         <div>
-          <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-4">Facility Partners</h4>
-          <ul className="space-y-2 text-xs sm:text-sm">
-            <li>
-              <Link to="/owner/dashboard" className="hover:text-lime-400 transition-colors inline-flex items-center gap-1">
-                <span>Partner Dashboard</span>
-                <ArrowUpRight className="w-3 h-3 text-slate-500" />
-              </Link>
-            </li>
-            <li>
-              <Link to="/owner/venues" className="hover:text-lime-400 transition-colors inline-flex items-center gap-1">
-                <span>Manage Facilities</span>
-                <ArrowUpRight className="w-3 h-3 text-slate-500" />
-              </Link>
-            </li>
-            <li>
-              <Link to="/auth" className="hover:text-lime-400 transition-colors">
-                Register as Facility Owner
-              </Link>
-            </li>
-          </ul>
+          {isAuthenticated && role === 'OWNER' ? (
+            <>
+              <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-4">Facility Workspace</h4>
+              <ul className="space-y-2 text-xs sm:text-sm">
+                <li>
+                  <Link to="/owner/dashboard" className="hover:text-emerald-400 transition-colors inline-flex items-center gap-1">
+                    <span>Operations Dashboard</span>
+                    <ArrowUpRight className="w-3 h-3 text-slate-500" />
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/owner/venues" className="hover:text-emerald-400 transition-colors inline-flex items-center gap-1">
+                    <span>Manage Courts & Venues</span>
+                    <ArrowUpRight className="w-3 h-3 text-slate-500" />
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/notifications" className="hover:text-emerald-400 transition-colors">
+                    Booking Notifications
+                  </Link>
+                </li>
+              </ul>
+            </>
+          ) : isAuthenticated && role === 'ADMIN' ? (
+            <>
+              <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-4">Platform Administration</h4>
+              <ul className="space-y-2 text-xs sm:text-sm">
+                <li>
+                  <Link to="/admin/dashboard" className="hover:text-slate-200 transition-colors inline-flex items-center gap-1">
+                    <span>Admin Command Center</span>
+                    <ArrowUpRight className="w-3 h-3 text-slate-500" />
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/notifications" className="hover:text-slate-200 transition-colors">
+                    Platform Alerts
+                  </Link>
+                </li>
+              </ul>
+            </>
+          ) : (
+            <>
+              <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-4">Trust & Community</h4>
+              <ul className="space-y-2 text-xs sm:text-sm">
+                <li>
+                  <Link to="/venues" className="hover:text-lime-400 transition-colors">
+                    Verified Facilities & Reviews
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/players" className="hover:text-lime-400 transition-colors">
+                    Player Matchmaking Directory
+                  </Link>
+                </li>
+                {isAuthenticated && (
+                  <li>
+                    <Link to="/profile" className="hover:text-lime-400 transition-colors">
+                      My Player Rewards & Badges
+                    </Link>
+                  </li>
+                )}
+                <li>
+                  <Link to="/auth" className="text-slate-500 hover:text-slate-300 transition-colors text-xs">
+                    Partner & Admin Access
+                  </Link>
+                </li>
+              </ul>
+            </>
+          )}
         </div>
       </div>
 

@@ -25,6 +25,11 @@ export const NOTIFICATION_TYPES = {
   VENUE_REJECTED: 'VENUE_REJECTED',
   VENUE_SUSPENDED: 'VENUE_SUSPENDED',
   VENUE_RESTORED: 'VENUE_RESTORED',
+  COURT_APPROVED: 'COURT_APPROVED',
+  COURT_REJECTED: 'COURT_REJECTED',
+
+  // Admin notifications
+  NEW_COURT_REQUEST: 'NEW_COURT_REQUEST',
 };
 
 /**
@@ -41,6 +46,7 @@ export function safeNotification(n) {
     message: n.message,
     bookingId: n.bookingId || null,
     venueId: n.venueId || null,
+    courtId: n.courtId || null,
     readAt: n.readAt || null,
     isRead: Boolean(n.readAt),
     createdAt: n.createdAt,
@@ -51,7 +57,7 @@ export function safeNotification(n) {
  * Creates an authoritative transactional notification in the store.
  * Prevents rapid accidental duplicate creation.
  */
-export function createNotification({ recipientUserId, type, title, message, bookingId = null, venueId = null }) {
+export function createNotification({ recipientUserId, type, title, message, bookingId = null, venueId = null, courtId = null }) {
   if (!recipientUserId || !type || !title || !message) {
     return null;
   }
@@ -64,6 +70,9 @@ export function createNotification({ recipientUserId, type, title, message, book
   // 1. For state-changing booking events, prevent creating the exact same notification type for the same booking
   const existing = store.notifications.find((n) => {
     if (bookingId && n.bookingId === bookingId && n.type === type && n.recipientUserId === recipientUserId) {
+      return true;
+    }
+    if (courtId && n.courtId === courtId && n.type === type && n.recipientUserId === recipientUserId) {
       return true;
     }
     return false;
@@ -82,6 +91,7 @@ export function createNotification({ recipientUserId, type, title, message, book
     message,
     bookingId,
     venueId,
+    courtId,
     readAt: null,
     createdAt: now.toISOString(),
   };

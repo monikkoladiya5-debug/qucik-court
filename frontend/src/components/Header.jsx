@@ -55,6 +55,14 @@ export default function Header() {
   const meta = role ? ROLE_META[role] : null;
   const RoleIcon = meta?.icon;
 
+  const brandDestination = !isAuthenticated
+    ? '/'
+    : role === 'OWNER'
+    ? '/owner/dashboard'
+    : role === 'ADMIN'
+    ? '/admin/dashboard'
+    : '/';
+
   function handleLogout() {
     logout();
     setMobileMenuOpen(false);
@@ -68,7 +76,7 @@ export default function Header() {
         {/* Left: Brand Identity & Primary Nav */}
         <div className="flex items-center gap-6 lg:gap-8">
           <Link
-            to="/"
+            to={brandDestination}
             className="flex items-center gap-2.5 focus:outline-none focus:ring-2 focus:ring-lime-400 rounded-lg py-1 px-1 transition-opacity hover:opacity-95"
             aria-label="QuickCourt Home"
           >
@@ -83,23 +91,23 @@ export default function Header() {
           </Link>
 
           {/* Desktop Navigation Links */}
-          <nav className="hidden md:flex items-center gap-1.5" aria-label="Main Customer Navigation">
-            <NavLink
-              to="/venues"
-              className={({ isActive }) =>
-                `px-3.5 py-1.5 text-xs font-semibold rounded-full transition-all ${
-                  isActive
-                    ? 'text-lime-400 bg-lime-400/10 border border-lime-400/30'
-                    : 'text-slate-300 hover:text-white hover:bg-white/5 border border-transparent'
-                }`
-              }
-            >
-              Explore Courts
-            </NavLink>
-
-            {/* If Customer: Players, My Bookings, Profile */}
-            {isAuthenticated && role === 'CUSTOMER' && (
+          <nav className="hidden md:flex items-center gap-1.5" aria-label="Main Navigation">
+            {/* Customer / Unauthenticated Navigation */}
+            {(!isAuthenticated || role === 'CUSTOMER') && (
               <>
+                <NavLink
+                  to="/venues"
+                  className={({ isActive }) =>
+                    `px-3.5 py-1.5 text-xs font-semibold rounded-full transition-all ${
+                      isActive
+                        ? 'text-lime-400 bg-lime-400/10 border border-lime-400/30'
+                        : 'text-slate-300 hover:text-white hover:bg-white/5 border border-transparent'
+                    }`
+                  }
+                >
+                  Explore Courts
+                </NavLink>
+
                 <NavLink
                   to="/players"
                   className={({ isActive }) =>
@@ -114,51 +122,38 @@ export default function Header() {
                   <span>Find Players</span>
                 </NavLink>
 
-                <NavLink
-                  to="/my-bookings"
-                  className={({ isActive }) =>
-                    `px-3.5 py-1.5 text-xs font-semibold rounded-full transition-all flex items-center gap-1.5 ${
-                      isActive
-                        ? 'text-lime-400 bg-lime-400/10 border border-lime-400/30'
-                        : 'text-slate-300 hover:text-white hover:bg-white/5 border border-transparent'
-                    }`
-                  }
-                >
-                  <CalendarCheck className="w-3.5 h-3.5 text-lime-400" />
-                  <span>My Bookings</span>
-                </NavLink>
+                {isAuthenticated && (
+                  <>
+                    <NavLink
+                      to="/my-bookings"
+                      className={({ isActive }) =>
+                        `px-3.5 py-1.5 text-xs font-semibold rounded-full transition-all flex items-center gap-1.5 ${
+                          isActive
+                            ? 'text-lime-400 bg-lime-400/10 border border-lime-400/30'
+                            : 'text-slate-300 hover:text-white hover:bg-white/5 border border-transparent'
+                        }`
+                      }
+                    >
+                      <CalendarCheck className="w-3.5 h-3.5 text-lime-400" />
+                      <span>My Bookings</span>
+                    </NavLink>
 
-                <NavLink
-                  to="/profile"
-                  className={({ isActive }) =>
-                    `px-3.5 py-1.5 text-xs font-semibold rounded-full transition-all flex items-center gap-1.5 ${
-                      isActive
-                        ? 'text-lime-400 bg-lime-400/10 border border-lime-400/30'
-                        : 'text-slate-300 hover:text-white hover:bg-white/5 border border-transparent'
-                    }`
-                  }
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-lime-400" />
-                  <span>Profile & Rewards</span>
-                </NavLink>
+                    <NavLink
+                      to="/profile"
+                      className={({ isActive }) =>
+                        `px-3.5 py-1.5 text-xs font-semibold rounded-full transition-all flex items-center gap-1.5 ${
+                          isActive
+                            ? 'text-lime-400 bg-lime-400/10 border border-lime-400/30'
+                            : 'text-slate-300 hover:text-white hover:bg-white/5 border border-transparent'
+                        }`
+                      }
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-lime-400" />
+                      <span>Profile & Rewards</span>
+                    </NavLink>
+                  </>
+                )}
               </>
-            )}
-
-            {/* Unauthenticated: Discover Players link */}
-            {!isAuthenticated && (
-              <NavLink
-                to="/players"
-                className={({ isActive }) =>
-                  `px-3.5 py-1.5 text-xs font-semibold rounded-full transition-all flex items-center gap-1.5 ${
-                    isActive
-                      ? 'text-lime-400 bg-lime-400/10 border border-lime-400/30'
-                      : 'text-slate-300 hover:text-white hover:bg-white/5 border border-transparent'
-                  }`
-                }
-              >
-                <Users className="w-3.5 h-3.5 text-lime-400" />
-                <span>Find Players</span>
-              </NavLink>
             )}
 
             {/* Owner Navigation */}
@@ -214,14 +209,26 @@ export default function Header() {
 
         {/* Right: Actions, Primary CTA & Auth */}
         <div className="flex items-center gap-3">
-          {/* Primary CTA: "Find a Court" */}
-          <Link
-            to="/venues"
-            className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-lime-400 hover:bg-lime-300 active:scale-[0.98] text-slate-950 font-bold text-xs shadow-qc-lime transition-all focus:outline-none focus:ring-2 focus:ring-lime-400"
-          >
-            <Search className="w-3.5 h-3.5" />
-            <span>Find a Court</span>
-          </Link>
+          {/* Role-Specific Primary CTA */}
+          {(!isAuthenticated || role === 'CUSTOMER') && (
+            <Link
+              to="/venues"
+              className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-lime-400 hover:bg-lime-300 active:scale-[0.98] text-slate-950 font-bold text-xs shadow-qc-lime transition-all focus:outline-none focus:ring-2 focus:ring-lime-400"
+            >
+              <Search className="w-3.5 h-3.5" />
+              <span>Find a Court</span>
+            </Link>
+          )}
+
+          {isAuthenticated && role === 'OWNER' && (
+            <Link
+              to="/owner/venues"
+              className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-emerald-500 hover:bg-emerald-400 active:scale-[0.98] text-slate-950 font-bold text-xs shadow-md transition-all focus:outline-none focus:ring-2 focus:ring-emerald-400"
+            >
+              <Building2 className="w-3.5 h-3.5" />
+              <span>Manage Venues</span>
+            </Link>
+          )}
 
           {/* User Status / Auth Controls */}
           {isAuthenticated && user ? (
@@ -320,48 +327,19 @@ export default function Header() {
       {mobileMenuOpen && (
         <nav aria-label="Mobile Navigation" className="md:hidden border-t border-[#28303F] bg-[#0B0F17] px-4 pt-3 pb-5 space-y-2 animate-in slide-in-from-top-2 duration-150 shadow-2xl">
           {/* Primary CTA inside mobile drawer */}
-          <Link
-            to="/venues"
-            onClick={() => setMobileMenuOpen(false)}
-            className="flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-full bg-lime-400 text-slate-950 font-bold text-sm shadow-qc-lime"
-          >
-            <Search className="w-4 h-4" />
-            <span>Find a Court</span>
-          </Link>
-
-          <NavLink
-            to="/venues"
-            onClick={() => setMobileMenuOpen(false)}
-            className={({ isActive }) =>
-              `flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
-                isActive ? 'bg-lime-400/10 text-lime-400 border border-lime-400/30' : 'text-slate-300 hover:bg-[#181C24]'
-              }`
-            }
-          >
-            <span>Explore Courts</span>
-            <ChevronRight className="w-4 h-4 text-slate-500" />
-          </NavLink>
-
-          <NavLink
-            to="/players"
-            onClick={() => setMobileMenuOpen(false)}
-            className={({ isActive }) =>
-              `flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
-                isActive ? 'bg-lime-400/10 text-lime-400 border border-lime-400/30' : 'text-slate-300 hover:bg-[#181C24]'
-              }`
-            }
-          >
-            <div className="flex items-center gap-2">
-              <Users className="w-4 h-4 text-lime-400" />
-              <span>Find Players</span>
-            </div>
-            <ChevronRight className="w-4 h-4 text-slate-500" />
-          </NavLink>
-
-          {isAuthenticated && role === 'CUSTOMER' && (
+          {(!isAuthenticated || role === 'CUSTOMER') && (
             <>
+              <Link
+                to="/venues"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-full bg-lime-400 text-slate-950 font-bold text-sm shadow-qc-lime"
+              >
+                <Search className="w-4 h-4" />
+                <span>Find a Court</span>
+              </Link>
+
               <NavLink
-                to="/my-bookings"
+                to="/venues"
                 onClick={() => setMobileMenuOpen(false)}
                 className={({ isActive }) =>
                   `flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
@@ -369,15 +347,12 @@ export default function Header() {
                   }`
                 }
               >
-                <div className="flex items-center gap-2">
-                  <CalendarCheck className="w-4 h-4 text-lime-400" />
-                  <span>My Bookings</span>
-                </div>
+                <span>Explore Courts</span>
                 <ChevronRight className="w-4 h-4 text-slate-500" />
               </NavLink>
 
               <NavLink
-                to="/profile"
+                to="/players"
                 onClick={() => setMobileMenuOpen(false)}
                 className={({ isActive }) =>
                   `flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
@@ -386,16 +361,61 @@ export default function Header() {
                 }
               >
                 <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-lime-400" />
-                  <span>Profile & Rewards</span>
+                  <Users className="w-4 h-4 text-lime-400" />
+                  <span>Find Players</span>
                 </div>
                 <ChevronRight className="w-4 h-4 text-slate-500" />
               </NavLink>
+
+              {isAuthenticated && (
+                <>
+                  <NavLink
+                    to="/my-bookings"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={({ isActive }) =>
+                      `flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+                        isActive ? 'bg-lime-400/10 text-lime-400 border border-lime-400/30' : 'text-slate-300 hover:bg-[#181C24]'
+                      }`
+                    }
+                  >
+                    <div className="flex items-center gap-2">
+                      <CalendarCheck className="w-4 h-4 text-lime-400" />
+                      <span>My Bookings</span>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-slate-500" />
+                  </NavLink>
+
+                  <NavLink
+                    to="/profile"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={({ isActive }) =>
+                      `flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+                        isActive ? 'bg-lime-400/10 text-lime-400 border border-lime-400/30' : 'text-slate-300 hover:bg-[#181C24]'
+                      }`
+                    }
+                  >
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-lime-400" />
+                      <span>Profile & Rewards</span>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-slate-500" />
+                  </NavLink>
+                </>
+              )}
             </>
           )}
 
           {isAuthenticated && role === 'OWNER' && (
             <>
+              <Link
+                to="/owner/venues"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-full bg-emerald-500 text-slate-950 font-bold text-sm shadow-md"
+              >
+                <Building2 className="w-4 h-4" />
+                <span>Manage Venues</span>
+              </Link>
+
               <NavLink
                 to="/owner/dashboard"
                 onClick={() => setMobileMenuOpen(false)}
@@ -447,6 +467,8 @@ export default function Header() {
               <ChevronRight className="w-4 h-4 text-slate-500" />
             </NavLink>
           )}
+
+
 
           {isAuthenticated && (
             <NavLink

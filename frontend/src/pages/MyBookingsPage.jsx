@@ -49,6 +49,17 @@ const CANCELLATION_REASONS = [
   'Other',
 ];
 
+const REJECTION_REASON_LABELS = {
+  COURT_UNAVAILABLE: 'Court unavailable',
+  SCHEDULE_CONFLICT: 'Schedule conflict',
+  MAINTENANCE: 'Maintenance',
+  VENUE_CLOSURE: 'Venue closure',
+  INCORRECT_BOOKING_DETAILS: 'Incorrect booking details',
+  SLOT_ALREADY_RESERVED: 'Slot already reserved',
+  VENUE_POLICY: 'Venue policy',
+  OTHER: 'Other',
+};
+
 const STANDARD_SLOTS_12H = [
   '06:00 AM', '07:00 AM', '08:00 AM', '09:00 AM', '10:00 AM', '11:00 AM',
   '12:00 PM', '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM', '05:00 PM',
@@ -920,6 +931,21 @@ export default function MyBookingsPage() {
                               </span>
                             )}
                           </div>
+
+                          {/* Rejection Reason & Note Banner */}
+                          {b.status === 'REJECTED' && (
+                            <div className="mt-3 p-3.5 bg-rose-950/40 border border-rose-800/60 rounded-xl text-xs space-y-1">
+                              <div className="flex items-center gap-2 font-bold text-rose-400">
+                                <XCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                                <span>Booking Rejected: {REJECTION_REASON_LABELS[b.rejectionReason] || b.rejectionReason || 'Court unavailable'}</span>
+                              </div>
+                              {b.rejectionNote && (
+                                <p className="text-slate-300 pl-6 text-[11px] leading-relaxed">
+                                  <span className="text-slate-400 font-semibold">Owner note:</span> "{b.rejectionNote}"
+                                </p>
+                              )}
+                            </div>
+                          )}
                         </div>
 
                         {/* Right Financial & Action Controls */}
@@ -1109,6 +1135,24 @@ export default function MyBookingsPage() {
                         Present this verification token or QR pass to the venue operator upon arrival
                       </p>
                     </div>
+                  </div>
+                ) : selectedPass.status === 'REJECTED' ? (
+                  /* Rejection Banner for Rejected Booking */
+                  <div className="p-4 rounded-xl bg-rose-950/40 border border-rose-800/60 text-center space-y-2">
+                    <div className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-400 flex items-center justify-center border border-rose-500/20 mx-auto">
+                      <XCircle className="w-5 h-5" />
+                    </div>
+                    <h4 className="text-xs font-bold text-rose-300 uppercase tracking-wider">
+                      Booking Request Rejected
+                    </h4>
+                    <p className="text-xs font-semibold text-white">
+                      Reason: {REJECTION_REASON_LABELS[selectedPass.rejectionReason] || selectedPass.rejectionReason || 'Court unavailable'}
+                    </p>
+                    {selectedPass.rejectionNote && (
+                      <p className="text-[11px] text-slate-300 italic bg-rose-950/30 p-2 rounded-lg border border-rose-900/40">
+                        "{selectedPass.rejectionNote}"
+                      </p>
+                    )}
                   </div>
                 ) : (
                   /* Notice when booking is not yet confirmed */

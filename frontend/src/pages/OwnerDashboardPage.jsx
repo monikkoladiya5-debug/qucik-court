@@ -169,33 +169,188 @@ function MetricCard({ title, value, subtitle, icon: Icon, iconColor, pulseDot, i
   );
 }
 
-/**
- * Booking Details Modal
- */
+const REJECTION_REASONS = [
+  { value: 'COURT_UNAVAILABLE', label: 'Court unavailable' },
+  { value: 'SCHEDULE_CONFLICT', label: 'Schedule conflict' },
+  { value: 'MAINTENANCE', label: 'Maintenance' },
+  { value: 'VENUE_CLOSURE', label: 'Venue closure' },
+  { value: 'INCORRECT_BOOKING_DETAILS', label: 'Incorrect booking details' },
+  { value: 'SLOT_ALREADY_RESERVED', label: 'Slot already reserved' },
+  { value: 'VENUE_POLICY', label: 'Venue policy' },
+  { value: 'OTHER', label: 'Other' },
+];
+
+function RejectionReasonModal({ booking, onClose, onConfirm, loading }) {
+  const [reason, setReason] = useState('');
+  const [note, setNote] = useState('');
+  const [error, setError] = useState('');
+
+  // Escape key handler
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && !loading && onClose) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [loading, onClose]);
+
+  const isValid = Boolean(reason) && (reason !== 'OTHER' || note.trim().length > 0) && note.trim().length <= 200;
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!reason) {
+      setError('Please select a valid rejection reason.');
+      return;
+    }
+    if (reason === 'OTHER' && !note.trim()) {
+      setError('A short explanation note is required when choosing Other.');
+      return;
+    }
+    if (note.trim().length > 200) {
+      setError('Rejection note must be 200 characters or fewer.');
+      return;
+    }
+    setError('');
+    onConfirm(booking.id, { reason, note: note.trim() || undefined });
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="reject-modal-title"
+    >
+      <div className="bg-slate-900 rounded-3xl max-w-md w-full p-6 sm:p-7 border border-slate-800 shadow-2xl space-y-4 text-slate-100">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-rose-500/10 text-rose-400 flex items-center justify-center border border-rose-500/20">
+              <AlertCircle className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 id="reject-modal-title" className="text-base font-black text-white">
+                Reject Booking Request
+              </h3>
+              <p className="text-[11px] text-slate-400 font-mono">
+                Booking #{booking?.id}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={loading}
+            className="p-1.5 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {error && (
+          <div role="alert" className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs font-medium flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+          <div>
+            <label htmlFor="select-rejection-reason" className="block font-bold uppercase tracking-wider text-slate-300 mb-1.5">
+              Rejection Reason <span className="text-rose-400">*</span>
+            </label>
+            <select
+              id="select-rejection-reason"
+              value={reason}
+              onChange={(e) => {
+                setReason(e.target.value);
+                if (error) setError('');
+              }}
+              required
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-700 text-xs text-white bg-slate-950 focus:outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 transition-all font-semibold"
+            >
+              <option value="" disabled>Select reason...</option>
+              {REJECTION_REASONS.map((r) => (
+                <option key={r.value} value={r.value}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label htmlFor="rejection-note" className="block font-bold uppercase tracking-wider text-slate-300">
+                Additional Note {reason === 'OTHER' ? <span className="text-rose-400 font-bold">* (Required)</span> : <span className="text-slate-500 font-normal">(Optional)</span>}
+              </label>
+              <span className={`text-[10px] font-mono ${note.length > 200 ? 'text-rose-400 font-bold' : 'text-slate-500'}`}>
+                {note.length} / 200
+              </span>
+            </div>
+            <textarea
+              id="rejection-note"
+              rows="3"
+              value={note}
+              maxLength={200}
+              onChange={(e) => {
+                setNote(e.target.value);
+                if (error) setError('');
+              }}
+              placeholder={reason === 'OTHER' ? 'Explain why the booking is being rejected...' : 'Add a brief note for the player (e.g. Schedule conflict with league match)...'}
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-700 text-xs text-white bg-slate-950 placeholder:text-slate-500 focus:outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 transition-all resize-none"
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-800">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={loading}
+              className="px-4 py-2.5 text-xs font-bold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-xl transition"
+            >
+              Cancel
+            </button>
+            <button
+              id="btn-confirm-rejection"
+              type="submit"
+              disabled={loading || !isValid}
+              className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-black text-white bg-rose-600 hover:bg-rose-500 active:bg-rose-700 rounded-xl shadow-md transition disabled:opacity-50"
+            >
+              {loading ? 'Rejecting...' : 'Reject Request'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 function BookingDetailModal({ booking, onClose, onApprove, onReject, actionLoading }) {
   if (!booking) return null;
 
-  const SportIcon = SPORT_ICONS[booking.sport] || Activity;
   const isPending = booking.status === 'REQUESTED';
+  const SportIcon = SPORT_ICONS[booking.sport] || Activity;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150">
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-xl w-full p-6 shadow-2xl relative overflow-hidden text-left">
+    <div
+      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-booking-title"
+    >
+      <div className="bg-slate-900 rounded-3xl max-w-lg w-full p-6 sm:p-7 border border-slate-800 shadow-2xl space-y-4 text-slate-100 max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-start justify-between gap-4 pb-4 border-b border-slate-800">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="font-mono text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded border border-emerald-500/20">
-                {booking.id}
-              </span>
-              <BookingStatusBadge status={booking.status} operationalStatus={booking.operationalStatus} />
-            </div>
-            <h3 className="text-lg font-black text-white mt-1">Reservation Details</h3>
+        <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+          <div className="flex items-center gap-3">
+            <span className="font-mono text-xs font-bold text-slate-300 bg-slate-950 px-2.5 py-1 rounded-md border border-slate-800">
+              {booking.id}
+            </span>
+            <BookingStatusBadge status={booking.status} />
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-white rounded-xl bg-slate-800/60 hover:bg-slate-800 transition"
-            aria-label="Close modal"
+            className="p-1.5 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition"
           >
             <X className="w-5 h-5" />
           </button>
@@ -258,7 +413,7 @@ function BookingDetailModal({ booking, onClose, onApprove, onReject, actionLoadi
           {isPending && (
             <>
               <button
-                onClick={() => onReject(booking.id)}
+                onClick={() => onReject(booking)}
                 disabled={actionLoading === booking.id}
                 className="px-4 py-2 rounded-xl text-xs font-bold text-rose-400 hover:text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 transition disabled:opacity-50"
               >
@@ -287,9 +442,11 @@ function OwnerDashboardInner() {
   const [error, setError] = useState(null);
   const [actionFeedback, setActionFeedback] = useState(null);
   const [actionLoading, setActionLoading] = useState(null);
-  
+
   // Selected booking for detail modal inspection
   const [selectedBooking, setSelectedBooking] = useState(null);
+  // Rejection modal target booking
+  const [rejectingBooking, setRejectingBooking] = useState(null);
 
   // Check-In Verification State
   const [verifyInput, setVerifyInput] = useState('');
@@ -444,17 +601,18 @@ function OwnerDashboardInner() {
     }
   };
 
-  // Handle Reject Action (Authoritative backend call)
-  const handleReject = async (bookingId) => {
+  // Handle Reject Action (Authoritative backend call with reason)
+  const handleRejectConfirm = async (bookingId, { reason, note }) => {
     try {
       setActionLoading(bookingId);
       setActionFeedback(null);
-      const res = await rejectBooking(bookingId);
+      const res = await rejectBooking(bookingId, { reason, note });
       if (res?.status === 'ok') {
         setActionFeedback({
           type: 'success',
           message: `Booking ${bookingId} has been rejected.`
         });
+        setRejectingBooking(null);
         if (selectedBooking && selectedBooking.id === bookingId) {
           setSelectedBooking(null);
         }
@@ -510,7 +668,7 @@ function OwnerDashboardInner() {
         if (res?.status === 'ok') {
           setActionFeedback({
             type: 'success',
-            message: `Court "${courtData.name}" created and deployed to fleet!`
+            message: `Court "${courtData.name}" submitted for admin approval.`
           });
           setCourtModal(null);
           await loadDashboard();
@@ -634,7 +792,7 @@ function OwnerDashboardInner() {
       <Header />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-10">
-        
+
         {/* ─── Top Header & Console Identity ─────────────────────────────────── */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
           <div>
@@ -695,11 +853,10 @@ function OwnerDashboardInner() {
         {actionFeedback && (
           <div
             role="status"
-            className={`mb-6 p-4 rounded-2xl flex items-center justify-between gap-3 shadow-xl transition-all ${
-              actionFeedback.type === 'success'
+            className={`mb-6 p-4 rounded-2xl flex items-center justify-between gap-3 shadow-xl transition-all ${actionFeedback.type === 'success'
                 ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-300'
                 : 'bg-rose-500/10 border border-rose-500/30 text-rose-300'
-            }`}
+              }`}
           >
             <div className="flex items-center gap-2.5 text-xs font-bold">
               {actionFeedback.type === 'success' ? (
@@ -752,13 +909,13 @@ function OwnerDashboardInner() {
         {/* ─── Dashboard Content ─────────────────────────────────────────────── */}
         {!loading && data && (
           <div className="space-y-8">
-            
+
             {/* ── 1. Authoritative Operational Metrics (HUD) ──────────────────── */}
             <section aria-labelledby="metrics-heading">
               <h2 id="metrics-heading" className="sr-only">Owner Business Performance Metrics</h2>
-              
+
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                
+
                 {/* 1. Confirmed Booking Revenue (Hero KPI) */}
                 <div className="p-5 rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950/20 shadow-xl flex flex-col justify-between relative overflow-hidden group">
                   <div className="flex items-center justify-between gap-3 mb-3">
@@ -1085,7 +1242,7 @@ function OwnerDashboardInner() {
 
                           <button
                             id={`btn-reject-${b.id}`}
-                            onClick={() => handleReject(b.id)}
+                            onClick={() => setRejectingBooking(b)}
                             disabled={isProcessing}
                             className="flex-1 py-2 px-3 rounded-xl text-xs font-bold text-rose-400 hover:text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 transition disabled:opacity-50 text-center"
                           >
@@ -1171,11 +1328,10 @@ function OwnerDashboardInner() {
                           </div>
 
                           <div className="flex items-center gap-2 text-xs">
-                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-mono text-[11px] font-bold ${
-                              court.isActive
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-mono text-[11px] font-bold ${court.isActive
                                 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                                 : 'bg-slate-800 text-slate-400 border border-slate-700'
-                            }`}>
+                              }`}>
                               <span className={`w-1.5 h-1.5 rounded-full ${court.isActive ? 'bg-emerald-400' : 'bg-slate-500'}`} />
                               {court.isActive ? 'ACTIVE' : 'INACTIVE'}
                             </span>
@@ -1204,19 +1360,18 @@ function OwnerDashboardInner() {
                                 <button
                                   key={b.id}
                                   onClick={() => setSelectedBooking(b)}
-                                  className={`p-3.5 rounded-xl border text-left transition hover:scale-[1.01] focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
-                                    b.status === 'REQUESTED'
+                                  className={`p-3.5 rounded-xl border text-left transition hover:scale-[1.01] focus:outline-none focus:ring-2 focus:ring-emerald-500 ${b.status === 'REQUESTED'
                                       ? 'bg-amber-500/5 border-amber-500/30 hover:border-amber-500/50'
                                       : b.status === 'APPROVED'
-                                      ? 'bg-sky-500/5 border-sky-500/30 hover:border-sky-500/50'
-                                      : b.status === 'PAYMENT_PENDING'
-                                      ? 'bg-orange-500/5 border-orange-500/30 hover:border-orange-500/50'
-                                      : b.status === 'CONFIRMED' || b.status === 'PAID'
-                                      ? 'bg-emerald-500/5 border-emerald-500/30 hover:border-emerald-500/50'
-                                      : b.status === 'CANCELLED' || b.status === 'REJECTED'
-                                      ? 'bg-rose-500/5 border-rose-500/20 hover:border-rose-500/40 opacity-70'
-                                      : 'bg-slate-900 border-slate-800 hover:border-slate-700'
-                                  }`}
+                                        ? 'bg-sky-500/5 border-sky-500/30 hover:border-sky-500/50'
+                                        : b.status === 'PAYMENT_PENDING'
+                                          ? 'bg-orange-500/5 border-orange-500/30 hover:border-orange-500/50'
+                                          : b.status === 'CONFIRMED' || b.status === 'PAID'
+                                            ? 'bg-emerald-500/5 border-emerald-500/30 hover:border-emerald-500/50'
+                                            : b.status === 'CANCELLED' || b.status === 'REJECTED'
+                                              ? 'bg-rose-500/5 border-rose-500/20 hover:border-rose-500/40 opacity-70'
+                                              : 'bg-slate-900 border-slate-800 hover:border-slate-700'
+                                    }`}
                                 >
                                   {/* Interval Time Badge */}
                                   <div className="flex items-center justify-between gap-1 mb-1.5">
@@ -1304,9 +1459,8 @@ function OwnerDashboardInner() {
                     return (
                       <div
                         key={court.id}
-                        className={`p-5 rounded-3xl border bg-slate-950 transition flex flex-col justify-between shadow-lg ${
-                          court.isActive ? 'border-slate-800 hover:border-slate-700' : 'border-slate-800/60 opacity-85'
-                        }`}
+                        className={`p-5 rounded-3xl border bg-slate-950 transition flex flex-col justify-between shadow-lg ${court.isActive ? 'border-slate-800 hover:border-slate-700' : 'border-slate-800/60 opacity-85'
+                          }`}
                       >
                         <div>
                           {/* Top Status Strip */}
@@ -1321,22 +1475,36 @@ function OwnerDashboardInner() {
                               </div>
                             </div>
 
-                            {/* Operational Status Tag */}
-                            {opState.status === 'OCCUPIED' ? (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-mono">
-                                <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
-                                OCCUPIED
-                              </span>
-                            ) : opState.status === 'INACTIVE' ? (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20 font-mono">
-                                INACTIVE / OFFLINE
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                                AVAILABLE
-                              </span>
-                            )}
+                            {/* Approval & Operational Status Tag */}
+                            <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                              {court.approvalStatus === 'PENDING' && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 font-mono">
+                                  <Clock className="w-3 h-3" />
+                                  PENDING APPROVAL
+                                </span>
+                              )}
+                              {court.approvalStatus === 'REJECTED' && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20 font-mono" title={court.approvalNote || 'Rejected by admin'}>
+                                  <XCircle className="w-3 h-3" />
+                                  REJECTED
+                                </span>
+                              )}
+                              {opState.status === 'OCCUPIED' ? (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-mono">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
+                                  OCCUPIED
+                                </span>
+                              ) : opState.status === 'INACTIVE' ? (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20 font-mono">
+                                  INACTIVE / OFFLINE
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                                  AVAILABLE
+                                </span>
+                              )}
+                            </div>
                           </div>
 
                           {/* Court Specs */}
@@ -1357,6 +1525,11 @@ function OwnerDashboardInner() {
                               <span>Environment:</span>
                               <span className="text-slate-300 text-[11px]">{court.indoor ? 'Indoor Hall' : 'Outdoor Complex'}</span>
                             </div>
+                            {court.approvalStatus === 'REJECTED' && court.approvalNote && (
+                              <div className="mt-2 p-2 bg-rose-500/10 rounded-xl border border-rose-500/20 text-[11px] text-rose-300">
+                                <strong>Admin Note:</strong> {court.approvalNote}
+                              </div>
+                            )}
                             {opState.status === 'OCCUPIED' && opState.currentBooking && (
                               <div className="mt-2 p-2 bg-indigo-500/10 rounded-xl border border-indigo-500/20 text-[11px] text-indigo-300">
                                 <strong>Active Match:</strong> {opState.currentBooking.startTime} - {opState.currentBooking.endTime} ({opState.currentBooking.playerName || 'Player'})
@@ -1371,11 +1544,10 @@ function OwnerDashboardInner() {
                           <button
                             onClick={() => handleToggleCourtActive(court)}
                             disabled={isToggling}
-                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition border focus:outline-none ${
-                              court.isActive
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition border focus:outline-none ${court.isActive
                                 ? 'bg-slate-900 text-slate-300 border-slate-800 hover:bg-slate-800 hover:text-rose-400'
                                 : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
-                            }`}
+                              }`}
                             title={court.isActive ? 'Deactivate court (take offline for maintenance)' : 'Activate court for public player bookings'}
                           >
                             <Power className="w-3.5 h-3.5" />
@@ -1600,16 +1772,14 @@ function OwnerDashboardInner() {
                       key={tab.key}
                       onClick={() => setActiveTab(tab.key)}
                       aria-pressed={activeTab === tab.key}
-                      className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
-                        activeTab === tab.key
+                      className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-emerald-500 ${activeTab === tab.key
                           ? 'bg-slate-800 text-white shadow-sm border border-slate-700'
                           : 'text-slate-400 hover:text-white'
-                      }`}
+                        }`}
                     >
                       <span>{tab.label}</span>
-                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold font-mono ${
-                        activeTab === tab.key ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-950 text-slate-500'
-                      }`}>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold font-mono ${activeTab === tab.key ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-950 text-slate-500'
+                        }`}>
                         {tab.count}
                       </span>
                     </button>
@@ -1814,9 +1984,19 @@ function OwnerDashboardInner() {
         booking={selectedBooking}
         onClose={() => setSelectedBooking(null)}
         onApprove={handleApprove}
-        onReject={handleReject}
+        onReject={(b) => setRejectingBooking(b)}
         actionLoading={actionLoading}
       />
+
+      {/* ─── Rejection Reason Modal ────────────────────────────────────────── */}
+      {rejectingBooking && (
+        <RejectionReasonModal
+          booking={rejectingBooking}
+          onClose={() => setRejectingBooking(null)}
+          onConfirm={handleRejectConfirm}
+          loading={actionLoading === rejectingBooking.id}
+        />
+      )}
 
       {/* ─── Add / Edit Court Modal ─────────────────────────────────────────── */}
       {courtModal && (

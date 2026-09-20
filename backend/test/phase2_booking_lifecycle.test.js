@@ -254,7 +254,11 @@ describe('Phase 2: Alternative Rejection & Cancellation Flows', () => {
 
     const rejectRes = await fetch(`${baseUrl}/api/bookings/${rejectBookingId}/reject`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${ownerToken}` },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${ownerToken}`,
+      },
+      body: JSON.stringify({ reason: 'COURT_UNAVAILABLE' }),
     });
 
     assert.equal(rejectRes.status, 200);

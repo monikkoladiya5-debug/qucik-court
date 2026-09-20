@@ -17,7 +17,7 @@ import {
   fetchCourts, createCourt, updateCourt, deleteCourt
 } from '../services/api';
 
-const ALL_SPORTS = ['Badminton', 'Tennis', 'Football', 'Basketball', 'Pickleball', 'Cricket', 'Squash'];
+const ALL_SPORTS = ['Badminton', 'Tennis', 'Football', 'Basketball', 'Pickleball', 'Cricket', 'Squash', 'Table Tennis'];
 
 const SPORT_ICONS = {
   Badminton: Trophy,
@@ -1171,15 +1171,17 @@ function CourtFormModal({ venue, court, onSave, onClose, loading, error }) {
   const isEdit = Boolean(court);
 
   // Safely extract available sports from venue with multiple fallbacks
-  const availableSports = (Array.isArray(venue?.sportTypes) && venue.sportTypes.length > 0)
+  const venueSports = (Array.isArray(venue?.sportTypes) && venue.sportTypes.length > 0)
     ? venue.sportTypes
     : (typeof venue?.sportTypes === 'string'
         ? venue.sportTypes.split(',').map((s) => s.trim()).filter(Boolean)
-        : (venue?.sport ? [venue.sport] : ALL_SPORTS));
+        : (venue?.sport ? [venue.sport] : []));
+
+  const availableSports = [...new Set([...venueSports, ...ALL_SPORTS])];
 
   const [form, setForm] = useState({
     name: court?.name || '',
-    sport: court?.sport || (availableSports[0] || 'Badminton'),
+    sport: court?.sport || (venueSports[0] || ALL_SPORTS[0]),
     courtType: court?.courtType || 'Synthetic Mat',
     pricePerHour: court?.pricePerHour !== undefined ? String(court.pricePerHour) : String(venue?.pricePerHour || 400),
     operatingHours: court?.operatingHours || venue?.openingHours || '06:00 AM - 10:00 PM',
@@ -1248,7 +1250,7 @@ function CourtFormModal({ venue, court, onSave, onClose, loading, error }) {
               {isEdit ? `Edit — ${court?.name || 'Court'}` : `Add Court to ${venue?.name || 'Facility'}`}
             </h2>
             <p className="text-xs text-slate-400 mt-0.5">
-              Configure court surface specifications, operating hours, and hourly rate.
+              Configure court surface specifications, operating hours, and hourly rate. New courts require admin approval before becoming active.
             </p>
           </div>
           <button
@@ -1362,7 +1364,7 @@ function CourtFormModal({ venue, court, onSave, onClose, loading, error }) {
               className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 bg-lime-400 hover:bg-lime-300 active:bg-lime-500 text-slate-950 text-xs font-black rounded-xl shadow-qc-lime transition-all focus:outline-none focus:ring-2 focus:ring-lime-400 disabled:opacity-60"
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              <span>{isEdit ? 'Save Court Changes' : 'Create Court'}</span>
+              <span>{isEdit ? 'Save Court Changes' : 'Submit Court for Admin Approval'}</span>
             </button>
             <button
               type="button"
@@ -1710,7 +1712,7 @@ function FacilityOperationsView({ venue, onBack, onVenueUpdated }) {
     try {
       if (activeForm === 'add') {
         await createCourt(venue.id, data);
-        flash('Court created and deployed to facility fleet!');
+        flash('Court submitted for admin approval.');
       } else {
         await updateCourt(activeForm.id, data);
         flash('Court specifications updated successfully!');
@@ -1918,14 +1920,26 @@ function FacilityOperationsView({ venue, onBack, onVenueUpdated }) {
                         <p className="text-[11px] text-slate-500 font-mono mt-0.5">ID: {court.id}</p>
                       </div>
 
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase border ${
-                        court.isActive
-                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                          : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
-                      }`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${court.isActive ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'}`} />
-                        {court.isActive ? 'Active' : 'Offline'}
-                      </span>
+                      {court.approvalStatus === 'PENDING' ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase border bg-yellow-500/10 text-yellow-400 border-yellow-500/20">
+                          <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />
+                          Pending Admin Approval
+                        </span>
+                      ) : court.approvalStatus === 'REJECTED' ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase border bg-rose-500/10 text-rose-400 border-rose-500/20">
+                          <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+                          Rejected by Admin
+                        </span>
+                      ) : (
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase border ${
+                          court.isActive
+                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                            : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                        }`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${court.isActive ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'}`} />
+                          {court.isActive ? 'Active' : 'Offline'}
+                        </span>
+                      )}
                     </div>
 
                     {/* Sport and Specs */}
@@ -1954,6 +1968,11 @@ function FacilityOperationsView({ venue, onBack, onVenueUpdated }) {
                         <span className="text-slate-500">Hours:</span>
                         <span className="text-slate-300 font-medium truncate">{court.operatingHours || '06:00 AM - 10:00 PM'}</span>
                       </div>
+                      {court.approvalStatus === 'REJECTED' && court.approvalNote && (
+                        <div className="mt-2 p-2 bg-rose-500/10 rounded-xl border border-rose-500/20 text-[11px] text-rose-300">
+                          <strong>Admin Note:</strong> {court.approvalNote}
+                        </div>
+                      )}
                     </div>
                   </div>
 

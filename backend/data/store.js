@@ -247,6 +247,11 @@ export const store = {
       isActive: true, // active courts can be viewed; booking is Task 4
       createdAt: '2026-01-15T08:00:00.000Z',
       updatedAt: '2026-01-15T08:00:00.000Z',
+      approvalStatus: 'APPROVED',
+      approvedAt: '2026-01-15T08:00:00.000Z',
+      approvedBy: 'u-103',
+      approvalNote: 'Verified partner court',
+      approvalUpdatedAt: '2026-01-15T08:00:00.000Z',
     },
     {
       id: 'c-2',
@@ -260,6 +265,11 @@ export const store = {
       isActive: true,
       createdAt: '2026-01-15T08:30:00.000Z',
       updatedAt: '2026-01-15T08:30:00.000Z',
+      approvalStatus: 'APPROVED',
+      approvedAt: '2026-01-15T08:30:00.000Z',
+      approvedBy: 'u-103',
+      approvalNote: 'Verified partner court',
+      approvalUpdatedAt: '2026-01-15T08:30:00.000Z',
     },
     {
       id: 'c-3',
@@ -273,6 +283,11 @@ export const store = {
       isActive: true,
       createdAt: '2026-01-16T09:00:00.000Z',
       updatedAt: '2026-01-16T09:00:00.000Z',
+      approvalStatus: 'APPROVED',
+      approvedAt: '2026-01-16T09:00:00.000Z',
+      approvedBy: 'u-103',
+      approvalNote: 'Verified partner court',
+      approvalUpdatedAt: '2026-01-16T09:00:00.000Z',
     },
     {
       id: 'c-4',
@@ -286,6 +301,11 @@ export const store = {
       isActive: true,
       createdAt: '2026-02-06T10:00:00.000Z',
       updatedAt: '2026-02-06T10:00:00.000Z',
+      approvalStatus: 'APPROVED',
+      approvedAt: '2026-02-06T10:00:00.000Z',
+      approvedBy: 'u-103',
+      approvalNote: 'Verified partner court',
+      approvalUpdatedAt: '2026-02-06T10:00:00.000Z',
     },
     {
       id: 'c-5',
@@ -299,6 +319,11 @@ export const store = {
       isActive: true,
       createdAt: '2026-02-06T10:30:00.000Z',
       updatedAt: '2026-02-06T10:30:00.000Z',
+      approvalStatus: 'APPROVED',
+      approvedAt: '2026-02-06T10:30:00.000Z',
+      approvedBy: 'u-103',
+      approvalNote: 'Verified partner court',
+      approvalUpdatedAt: '2026-02-06T10:30:00.000Z',
     },
     {
       id: 'c-6',
@@ -312,6 +337,11 @@ export const store = {
       isActive: true,
       createdAt: '2026-01-21T07:00:00.000Z',
       updatedAt: '2026-01-21T07:00:00.000Z',
+      approvalStatus: 'APPROVED',
+      approvedAt: '2026-01-21T07:00:00.000Z',
+      approvedBy: 'u-103',
+      approvalNote: 'Verified partner court',
+      approvalUpdatedAt: '2026-01-21T07:00:00.000Z',
     },
     {
       id: 'c-7',
@@ -325,6 +355,11 @@ export const store = {
       isActive: true,
       createdAt: '2026-01-21T07:30:00.000Z',
       updatedAt: '2026-01-21T07:30:00.000Z',
+      approvalStatus: 'APPROVED',
+      approvedAt: '2026-01-21T07:30:00.000Z',
+      approvedBy: 'u-103',
+      approvalNote: 'Verified partner court',
+      approvalUpdatedAt: '2026-01-21T07:30:00.000Z',
     },
     {
       id: 'c-8',
@@ -338,6 +373,11 @@ export const store = {
       isActive: true,
       createdAt: '2025-11-16T08:00:00.000Z',
       updatedAt: '2025-11-16T08:00:00.000Z',
+      approvalStatus: 'APPROVED',
+      approvedAt: '2025-11-16T08:00:00.000Z',
+      approvedBy: 'u-103',
+      approvalNote: 'Verified partner court',
+      approvalUpdatedAt: '2025-11-16T08:00:00.000Z',
     },
     {
       id: 'c-9',
@@ -351,6 +391,11 @@ export const store = {
       isActive: true,
       createdAt: '2025-11-16T08:30:00.000Z',
       updatedAt: '2025-11-16T08:30:00.000Z',
+      approvalStatus: 'APPROVED',
+      approvedAt: '2025-11-16T08:30:00.000Z',
+      approvedBy: 'u-103',
+      approvalNote: 'Verified partner court',
+      approvalUpdatedAt: '2025-11-16T08:30:00.000Z',
     },
     {
       id: 'c-10',
@@ -364,6 +409,11 @@ export const store = {
       isActive: true,
       createdAt: '2026-03-02T09:00:00.000Z',
       updatedAt: '2026-03-02T09:00:00.000Z',
+      approvalStatus: 'APPROVED',
+      approvedAt: '2026-03-02T09:00:00.000Z',
+      approvedBy: 'u-103',
+      approvalNote: 'Verified partner court',
+      approvalUpdatedAt: '2026-03-02T09:00:00.000Z',
     },
     {
       id: 'c-11',
@@ -377,6 +427,11 @@ export const store = {
       isActive: true,
       createdAt: '2026-03-02T09:30:00.000Z',
       updatedAt: '2026-03-02T09:30:00.000Z',
+      approvalStatus: 'APPROVED',
+      approvedAt: '2026-03-02T09:30:00.000Z',
+      approvedBy: 'u-103',
+      approvalNote: 'Verified partner court',
+      approvalUpdatedAt: '2026-03-02T09:30:00.000Z',
     },
     {
       id: 'c-12',
@@ -390,6 +445,11 @@ export const store = {
       isActive: true,
       createdAt: '2026-04-13T08:00:00.000Z',
       updatedAt: '2026-04-13T08:00:00.000Z',
+      approvalStatus: 'APPROVED',
+      approvedAt: '2026-04-13T08:00:00.000Z',
+      approvedBy: 'u-103',
+      approvalNote: 'Verified partner court',
+      approvalUpdatedAt: '2026-04-13T08:00:00.000Z',
     },
     {
       id: 'c-13',
@@ -403,6 +463,11 @@ export const store = {
       isActive: true,
       createdAt: '2026-04-13T08:30:00.000Z',
       updatedAt: '2026-04-13T08:30:00.000Z',
+      approvalStatus: 'APPROVED',
+      approvedAt: '2026-04-13T08:30:00.000Z',
+      approvedBy: 'u-103',
+      approvalNote: 'Verified partner court',
+      approvalUpdatedAt: '2026-04-13T08:30:00.000Z',
     },
   ],
 
@@ -412,7 +477,7 @@ export const store = {
       userId: 'u-101',
       courtId: 'c-1',
       venueId: 'v-1',
-      date: '2026-09-20',
+      date: '2026-09-28',
       startTime: '08:00 AM',
       endTime: '09:00 AM',
       pricePerHour: 400,
@@ -602,6 +667,20 @@ export const store = {
   reviews: [],
 };
 
+const INITIAL_STORE = JSON.parse(JSON.stringify(store));
+
+/**
+ * Resets the in-memory store back to its initial seeded baseline state.
+ * Used for test isolation and deterministic lifecycle verification.
+ */
+export function resetStore() {
+  for (const key of Object.keys(store)) {
+    delete store[key];
+  }
+  const fresh = JSON.parse(JSON.stringify(INITIAL_STORE));
+  Object.assign(store, fresh);
+}
+
 /**
  * Returns a safe public user object — never includes passwordHash.
  */
@@ -707,6 +786,9 @@ export function safeCourt(court) {
     pricePerHour: Number(court.pricePerHour),
     operatingHours: court.operatingHours,
     isActive: Boolean(court.isActive),
+    approvalStatus: court.approvalStatus || 'APPROVED',
+    approvedAt: court.approvedAt || null,
+    approvalNote: court.approvalNote || null,
     createdAt: court.createdAt,
     updatedAt: court.updatedAt,
   };
@@ -759,6 +841,9 @@ export function safeBooking(booking) {
     ...(booking.cancellationReason ? { cancellationReason: booking.cancellationReason } : {}),
     ...(booking.cancellationNote ? { cancellationNote: booking.cancellationNote } : {}),
     ...(booking.cancelledAt ? { cancelledAt: booking.cancelledAt } : {}),
+    ...(booking.rejectionReason ? { rejectionReason: booking.rejectionReason } : {}),
+    ...(booking.rejectionNote ? { rejectionNote: booking.rejectionNote } : {}),
+    ...(booking.rejectedAt ? { rejectedAt: booking.rejectedAt } : {}),
     ...(isConfirmed && booking.checkInToken ? { checkInToken: booking.checkInToken } : {}),
     ...(booking.checkedInAt ? { checkedInAt: booking.checkedInAt } : {}),
     createdAt: booking.createdAt,

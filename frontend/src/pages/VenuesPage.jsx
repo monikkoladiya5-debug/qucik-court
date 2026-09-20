@@ -45,11 +45,10 @@ function VenueCard({ venue }) {
         {/* Facility Type Badge & Verified Badge */}
         <div className="absolute top-3 left-3 flex items-center gap-1.5 flex-wrap">
           <span
-            className={`px-2.5 py-1 rounded-lg text-xs font-bold shadow-sm backdrop-blur-md border ${
-              venue.indoor
+            className={`px-2.5 py-1 rounded-lg text-xs font-bold shadow-sm backdrop-blur-md border ${venue.indoor
                 ? 'bg-[#0B0F17]/90 text-lime-400 border-lime-400/30'
                 : 'bg-[#0B0F17]/90 text-emerald-400 border-emerald-500/30'
-            }`}
+              }`}
           >
             {venue.indoor ? 'Indoor Arena' : 'Outdoor Turf'}
           </span>
@@ -173,25 +172,25 @@ export default function VenuesPage() {
   const [searchParams] = useSearchParams();
 
   // Filter state initialized from URL query params if present
-  const [search, setSearch]         = useState(() => searchParams.get('search') || searchParams.get('q') || '');
-  const [city, setCity]             = useState(() => searchParams.get('city') || '');
-  const [sport, setSport]           = useState(() => searchParams.get('sport') || '');
-  const [indoor, setIndoor]         = useState(() => searchParams.get('indoor') || '');
-  const [maxPrice, setMaxPrice]     = useState(() => searchParams.get('maxPrice') || '');
-  const [sortBy, setSortBy]         = useState(() => searchParams.get('sortBy') || '');
+  const [search, setSearch] = useState(() => searchParams.get('search') || searchParams.get('q') || '');
+  const [city, setCity] = useState(() => searchParams.get('city') || '');
+  const [sport, setSport] = useState(() => searchParams.get('sport') || '');
+  const [indoor, setIndoor] = useState(() => searchParams.get('indoor') || '');
+  const [maxPrice, setMaxPrice] = useState(() => searchParams.get('maxPrice') || '');
+  const [sortBy, setSortBy] = useState(() => searchParams.get('sortBy') || '');
   const [showFilters, setShowFilters] = useState(() => Boolean(searchParams.get('city') || searchParams.get('indoor') || searchParams.get('maxPrice')));
 
-  const [activeTab, setActiveTab]   = useState(() => (searchParams.get('tab') === 'compare' ? 'compare' : 'explore'));
-  const [venues, setVenues]         = useState([]);
-  const [meta, setMeta]             = useState({ cities: [], sports: [] });
-  const [loading, setLoading]       = useState(true);
-  const [error, setError]           = useState(null);
+  const [activeTab, setActiveTab] = useState(() => (searchParams.get('tab') === 'compare' ? 'compare' : 'explore'));
+  const [venues, setVenues] = useState([]);
+  const [meta, setMeta] = useState({ cities: [], sports: [] });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   // Fetch metadata once on mount
   useEffect(() => {
     fetchVenueMeta()
       .then((m) => setMeta(m))
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   // Main loader function
@@ -201,11 +200,11 @@ export default function VenuesPage() {
     try {
       const filters = {};
       if (search.trim()) filters.search = search.trim();
-      if (city)           filters.city   = city;
-      if (sport)          filters.sport  = sport;
-      if (indoor !== '')  filters.indoor = indoor === 'true';
+      if (city) filters.city = city;
+      if (sport) filters.sport = sport;
+      if (indoor !== '') filters.indoor = indoor === 'true';
       if (maxPrice !== '') filters.maxPrice = maxPrice;
-      if (sortBy)         filters.sortBy = sortBy;
+      if (sortBy) filters.sortBy = sortBy;
 
       const data = await fetchVenues(filters);
       setVenues(data.venues || []);
@@ -242,7 +241,7 @@ export default function VenuesPage() {
       <Header />
 
       <main className="relative z-10 flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
-        
+
         {/* Marketplace Compact Header */}
         <div className="mb-6">
           <div className="flex items-center gap-2 text-xs font-bold text-lime-400 uppercase tracking-wider mb-2">
@@ -253,7 +252,7 @@ export default function VenuesPage() {
               {activeTab === 'compare' ? 'Court Price Comparison' : 'Explore Facilities'}
             </span>
           </div>
-          
+
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
             <div>
               <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight">
@@ -265,17 +264,16 @@ export default function VenuesPage() {
                   : 'Explore verified sports venues across India, compare hourly rates and court amenities, and reserve your playtime.'}
               </p>
             </div>
-            
+
             {/* View Switcher Tabs */}
             <div className="flex items-center p-1 bg-[#0F131C] border border-[#28303F] rounded-xl self-start md:self-auto shadow-sm">
               <button
                 type="button"
                 onClick={() => setActiveTab('explore')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-                  activeTab === 'explore'
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'explore'
                     ? 'bg-lime-400 text-slate-950 shadow-md'
                     : 'text-slate-400 hover:text-white'
-                }`}
+                  }`}
               >
                 <Building2 className="w-3.5 h-3.5" />
                 <span>Explore Venues</span>
@@ -283,11 +281,10 @@ export default function VenuesPage() {
               <button
                 type="button"
                 onClick={() => setActiveTab('compare')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-                  activeTab === 'compare'
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'compare'
                     ? 'bg-lime-400 text-slate-950 shadow-md'
                     : 'text-slate-400 hover:text-white'
-                }`}
+                  }`}
               >
                 <ArrowUpDown className="w-3.5 h-3.5" />
                 <span>Price Comparison</span>
@@ -312,386 +309,383 @@ export default function VenuesPage() {
               aria-label="Venue search and filter controls"
               className="bg-[#0F131C] border border-[#28303F] rounded-2xl p-4 sm:p-5 shadow-xl mb-6 space-y-3.5"
             >
-          {/* Main Controls Row */}
-          <div className="flex flex-col sm:flex-row gap-2.5">
-            {/* Search Input */}
-            <div className="relative flex-1">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" aria-hidden="true" />
-              <input
-                id="venue-search"
-                type="search"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by venue name, location, or sport…"
-                aria-label="Search venues"
-                className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-[#0B0F17] border border-[#28303F] text-slate-100 placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-lime-400 focus:border-transparent transition-all"
-              />
-              {search && (
+              {/* Main Controls Row */}
+              <div className="flex flex-col sm:flex-row gap-2.5">
+                {/* Search Input */}
+                <div className="relative flex-1">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" aria-hidden="true" />
+                  <input
+                    id="venue-search"
+                    type="search"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search by venue name, location, or sport…"
+                    aria-label="Search venues"
+                    className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-[#0B0F17] border border-[#28303F] text-slate-100 placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-lime-400 focus:border-transparent transition-all"
+                  />
+                  {search && (
+                    <button
+                      type="button"
+                      onClick={() => setSearch('')}
+                      aria-label="Clear search text"
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-200 rounded-md"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
+                {/* City Dropdown (Desktop / Tablet inline) */}
+                <div className="hidden sm:block min-w-[140px]">
+                  <label htmlFor="filter-city-inline" className="sr-only">Filter by city</label>
+                  <select
+                    id="filter-city-inline"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#0B0F17] border border-[#28303F] text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-lime-400 transition-colors"
+                  >
+                    <option value="">All Cities</option>
+                    {meta.cities?.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Facility Type Dropdown (Desktop / Tablet inline) */}
+                <div className="hidden md:block min-w-[160px]">
+                  <label htmlFor="filter-indoor-inline" className="sr-only">Filter by facility type</label>
+                  <select
+                    id="filter-indoor-inline"
+                    value={indoor}
+                    onChange={(e) => setIndoor(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#0B0F17] border border-[#28303F] text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-lime-400 transition-colors"
+                  >
+                    <option value="">All Types</option>
+                    <option value="true">Indoor Arena</option>
+                    <option value="false">Outdoor Turf</option>
+                  </select>
+                </div>
+
+                {/* Filter Drawer Toggle Button (Mobile & Advanced filters) */}
                 <button
                   type="button"
-                  onClick={() => setSearch('')}
-                  aria-label="Clear search text"
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-200 rounded-md"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-
-            {/* City Dropdown (Desktop / Tablet inline) */}
-            <div className="hidden sm:block min-w-[140px]">
-              <label htmlFor="filter-city-inline" className="sr-only">Filter by city</label>
-              <select
-                id="filter-city-inline"
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-[#0B0F17] border border-[#28303F] text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-lime-400 transition-colors"
-              >
-                <option value="">All Cities</option>
-                {meta.cities?.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Facility Type Dropdown (Desktop / Tablet inline) */}
-            <div className="hidden md:block min-w-[160px]">
-              <label htmlFor="filter-indoor-inline" className="sr-only">Filter by facility type</label>
-              <select
-                id="filter-indoor-inline"
-                value={indoor}
-                onChange={(e) => setIndoor(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-[#0B0F17] border border-[#28303F] text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-lime-400 transition-colors"
-              >
-                <option value="">All Types</option>
-                <option value="true">Indoor Arena</option>
-                <option value="false">Outdoor Turf</option>
-              </select>
-            </div>
-
-            {/* Filter Drawer Toggle Button (Mobile & Advanced filters) */}
-            <button
-              type="button"
-              onClick={() => setShowFilters((prev) => !prev)}
-              aria-expanded={showFilters}
-              aria-controls="filter-panel"
-              className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border text-xs sm:text-sm font-bold transition-all focus:outline-none focus:ring-2 focus:ring-lime-400 ${
-                showFilters || activeFilterCount > 0
-                  ? 'bg-lime-400 text-slate-950 border-lime-400 shadow-qc-lime'
-                  : 'bg-[#0B0F17] text-slate-300 border-[#28303F] hover:bg-[#181C24]'
-              }`}
-            >
-              <SlidersHorizontal className="w-4 h-4" />
-              <span>Filters</span>
-              {activeFilterCount > 0 && (
-                <span className="w-5 h-5 rounded-full bg-slate-950 text-lime-400 text-xs font-black flex items-center justify-center">
-                  {activeFilterCount}
-                </span>
-              )}
-            </button>
-          </div>
-
-          {/* Quick 1-Click Sport Pills */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 no-scrollbar text-xs">
-            <button
-              type="button"
-              onClick={() => setSport('')}
-              aria-pressed={sport === ''}
-              className={`px-3 py-1.5 rounded-full font-bold whitespace-nowrap transition-all ${
-                sport === ''
-                  ? 'bg-lime-400 text-slate-950 shadow-qc-lime'
-                  : 'bg-[#0B0F17] text-slate-400 border border-[#28303F] hover:bg-[#181C24] hover:text-slate-200'
-              }`}
-            >
-              All Sports
-            </button>
-            {meta.sports?.map((s) => {
-              const isSelected = sport === s;
-              return (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => setSport(isSelected ? '' : s)}
-                  aria-pressed={isSelected}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full font-bold whitespace-nowrap border transition-all ${
-                    isSelected
+                  onClick={() => setShowFilters((prev) => !prev)}
+                  aria-expanded={showFilters}
+                  aria-controls="filter-panel"
+                  className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border text-xs sm:text-sm font-bold transition-all focus:outline-none focus:ring-2 focus:ring-lime-400 ${showFilters || activeFilterCount > 0
                       ? 'bg-lime-400 text-slate-950 border-lime-400 shadow-qc-lime'
-                      : 'bg-[#0B0F17] text-slate-300 border-[#28303F] hover:border-slate-700 hover:bg-[#181C24]'
-                  }`}
+                      : 'bg-[#0B0F17] text-slate-300 border-[#28303F] hover:bg-[#181C24]'
+                    }`}
                 >
-                  <SportIcon sport={s} className="w-3.5 h-3.5" aria-hidden="true" />
-                  <span>{s}</span>
+                  <SlidersHorizontal className="w-4 h-4" />
+                  <span>Filters</span>
+                  {activeFilterCount > 0 && (
+                    <span className="w-5 h-5 rounded-full bg-slate-950 text-lime-400 text-xs font-black flex items-center justify-center">
+                      {activeFilterCount}
+                    </span>
+                  )}
                 </button>
-              );
-            })}
-          </div>
-
-          {/* Active Filter Chips & Reset Bar */}
-          {hasFilters && (
-            <div className="pt-2 border-t border-[#28303F] flex flex-wrap items-center justify-between gap-2">
-              <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                <span className="text-slate-400 font-medium mr-1">Active:</span>
-                {search.trim() && (
-                  <button
-                    type="button"
-                    onClick={() => setSearch('')}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#181C24] text-slate-200 hover:bg-slate-800 border border-[#28303F] text-[11px]"
-                  >
-                    <span>Search: "{search}"</span>
-                    <X className="w-3 h-3 text-slate-400" />
-                  </button>
-                )}
-                {city && (
-                  <button
-                    type="button"
-                    onClick={() => setCity('')}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#181C24] text-slate-200 hover:bg-slate-800 border border-[#28303F] text-[11px]"
-                  >
-                    <span>City: {city}</span>
-                    <X className="w-3 h-3 text-slate-400" />
-                  </button>
-                )}
-                {sport && (
-                  <button
-                    type="button"
-                    onClick={() => setSport('')}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#181C24] text-slate-200 hover:bg-slate-800 border border-[#28303F] text-[11px]"
-                  >
-                    <SportIcon sport={sport} className="w-3 h-3 text-lime-400" aria-hidden="true" />
-                    <span>Sport: {sport}</span>
-                    <X className="w-3 h-3 text-slate-400" />
-                  </button>
-                )}
-                {indoor !== '' && (
-                  <button
-                    type="button"
-                    onClick={() => setIndoor('')}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#181C24] text-slate-200 hover:bg-slate-800 border border-[#28303F] text-[11px]"
-                  >
-                    <span>{indoor === 'true' ? 'Indoor Arena' : 'Outdoor Turf'}</span>
-                    <X className="w-3 h-3 text-slate-400" />
-                  </button>
-                )}
-                {maxPrice !== '' && (
-                  <button
-                    type="button"
-                    onClick={() => setMaxPrice('')}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#181C24] text-slate-200 hover:bg-slate-800 border border-[#28303F] text-[11px]"
-                  >
-                    <span>Max Price: ₹{maxPrice}/hr</span>
-                    <X className="w-3 h-3 text-slate-400" />
-                  </button>
-                )}
-                {sortBy && (
-                  <button
-                    type="button"
-                    onClick={() => setSortBy('')}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#181C24] text-slate-200 hover:bg-slate-800 border border-[#28303F] text-[11px]"
-                  >
-                    <span>Sort: {sortBy.replace('_', ' ')}</span>
-                    <X className="w-3 h-3 text-slate-400" />
-                  </button>
-                )}
               </div>
 
-              <button
-                type="button"
-                onClick={clearFilters}
-                className="text-xs font-bold text-rose-400 hover:text-rose-300 hover:underline transition-colors"
-              >
-                Clear all
-              </button>
-            </div>
-          )}
-        </section>
-
-        {/* Collapsible Detailed Filter Drawer */}
-        {showFilters && (
-          <div
-            id="filter-panel"
-            className="mb-6 p-5 bg-[#0F131C] rounded-2xl border border-[#28303F] shadow-lg animate-in fade-in slide-in-from-top-2"
-          >
-            <div className="flex items-center justify-between pb-3 mb-4 border-b border-[#28303F]">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400">Refine Search Results</h2>
-              {hasFilters && (
+              {/* Quick 1-Click Sport Pills */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 no-scrollbar text-xs">
                 <button
                   type="button"
-                  onClick={clearFilters}
-                  className="text-xs font-bold text-rose-400 hover:text-rose-300 hover:underline transition-colors"
+                  onClick={() => setSport('')}
+                  aria-pressed={sport === ''}
+                  className={`px-3 py-1.5 rounded-full font-bold whitespace-nowrap transition-all ${sport === ''
+                      ? 'bg-lime-400 text-slate-950 shadow-qc-lime'
+                      : 'bg-[#0B0F17] text-slate-400 border border-[#28303F] hover:bg-[#181C24] hover:text-slate-200'
+                    }`}
                 >
-                  Reset All Filters
+                  All Sports
                 </button>
+                {meta.sports?.map((s) => {
+                  const isSelected = sport === s;
+                  return (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setSport(isSelected ? '' : s)}
+                      aria-pressed={isSelected}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full font-bold whitespace-nowrap border transition-all ${isSelected
+                          ? 'bg-lime-400 text-slate-950 border-lime-400 shadow-qc-lime'
+                          : 'bg-[#0B0F17] text-slate-300 border-[#28303F] hover:border-slate-700 hover:bg-[#181C24]'
+                        }`}
+                    >
+                      <SportIcon sport={s} className="w-3.5 h-3.5" aria-hidden="true" />
+                      <span>{s}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Active Filter Chips & Reset Bar */}
+              {hasFilters && (
+                <div className="pt-2 border-t border-[#28303F] flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                    <span className="text-slate-400 font-medium mr-1">Active:</span>
+                    {search.trim() && (
+                      <button
+                        type="button"
+                        onClick={() => setSearch('')}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#181C24] text-slate-200 hover:bg-slate-800 border border-[#28303F] text-[11px]"
+                      >
+                        <span>Search: "{search}"</span>
+                        <X className="w-3 h-3 text-slate-400" />
+                      </button>
+                    )}
+                    {city && (
+                      <button
+                        type="button"
+                        onClick={() => setCity('')}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#181C24] text-slate-200 hover:bg-slate-800 border border-[#28303F] text-[11px]"
+                      >
+                        <span>City: {city}</span>
+                        <X className="w-3 h-3 text-slate-400" />
+                      </button>
+                    )}
+                    {sport && (
+                      <button
+                        type="button"
+                        onClick={() => setSport('')}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#181C24] text-slate-200 hover:bg-slate-800 border border-[#28303F] text-[11px]"
+                      >
+                        <SportIcon sport={sport} className="w-3 h-3 text-lime-400" aria-hidden="true" />
+                        <span>Sport: {sport}</span>
+                        <X className="w-3 h-3 text-slate-400" />
+                      </button>
+                    )}
+                    {indoor !== '' && (
+                      <button
+                        type="button"
+                        onClick={() => setIndoor('')}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#181C24] text-slate-200 hover:bg-slate-800 border border-[#28303F] text-[11px]"
+                      >
+                        <span>{indoor === 'true' ? 'Indoor Arena' : 'Outdoor Turf'}</span>
+                        <X className="w-3 h-3 text-slate-400" />
+                      </button>
+                    )}
+                    {maxPrice !== '' && (
+                      <button
+                        type="button"
+                        onClick={() => setMaxPrice('')}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#181C24] text-slate-200 hover:bg-slate-800 border border-[#28303F] text-[11px]"
+                      >
+                        <span>Max Price: ₹{maxPrice}/hr</span>
+                        <X className="w-3 h-3 text-slate-400" />
+                      </button>
+                    )}
+                    {sortBy && (
+                      <button
+                        type="button"
+                        onClick={() => setSortBy('')}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#181C24] text-slate-200 hover:bg-slate-800 border border-[#28303F] text-[11px]"
+                      >
+                        <span>Sort: {sortBy.replace('_', ' ')}</span>
+                        <X className="w-3 h-3 text-slate-400" />
+                      </button>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="text-xs font-bold text-rose-400 hover:text-rose-300 hover:underline transition-colors"
+                  >
+                    Clear all
+                  </button>
+                </div>
               )}
-            </div>
+            </section>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-              {/* City Select */}
-              <div>
-                <label htmlFor="filter-city" className="block text-xs font-bold text-slate-300 mb-1.5">
-                  Select City
-                </label>
-                <select
-                  id="filter-city"
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#0B0F17] border border-[#28303F] text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-lime-400 transition-colors"
-                >
-                  <option value="">All Cities</option>
-                  {meta.cities?.map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Sport Select */}
-              <div>
-                <label htmlFor="filter-sport-select" className="block text-xs font-bold text-slate-300 mb-1.5">
-                  Sport Type
-                </label>
-                <select
-                  id="filter-sport-select"
-                  value={sport}
-                  onChange={(e) => setSport(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#0B0F17] border border-[#28303F] text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-lime-400 transition-colors"
-                >
-                  <option value="">All Sports</option>
-                  {meta.sports?.map((s) => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Indoor / Outdoor Select */}
-              <div>
-                <label htmlFor="filter-venue-type" className="block text-xs font-bold text-slate-300 mb-1.5">
-                  Facility Type
-                </label>
-                <select
-                  id="filter-venue-type"
-                  value={indoor}
-                  onChange={(e) => setIndoor(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#0B0F17] border border-[#28303F] text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-lime-400 transition-colors"
-                >
-                  <option value="">All Facilities</option>
-                  <option value="true">Indoor Arena Only</option>
-                  <option value="false">Outdoor Turf Only</option>
-                </select>
-              </div>
-
-              {/* Max Budget Filter */}
-              <div>
-                <label htmlFor="filter-max-price" className="block text-xs font-bold text-slate-300 mb-1.5">
-                  Max Budget
-                </label>
-                <select
-                  id="filter-max-price"
-                  value={maxPrice}
-                  onChange={(e) => setMaxPrice(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#0B0F17] border border-[#28303F] text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-lime-400 transition-colors"
-                >
-                  <option value="">Any Price</option>
-                  <option value="400">Under ₹400 / hr</option>
-                  <option value="500">Under ₹500 / hr</option>
-                  <option value="600">Under ₹600 / hr</option>
-                  <option value="800">Under ₹800 / hr</option>
-                </select>
-              </div>
-
-              {/* Sort By */}
-              <div>
-                <label htmlFor="filter-sort-by" className="block text-xs font-bold text-slate-300 mb-1.5">
-                  Sort Results
-                </label>
-                <select
-                  id="filter-sort-by"
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#0B0F17] border border-[#28303F] text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-lime-400 transition-colors"
-                >
-                  <option value="">Default Featured</option>
-                  <option value="price_asc">Price: Low to High</option>
-                  <option value="price_desc">Price: High to Low</option>
-                  <option value="rating_desc">Highest Rated</option>
-                  <option value="courts_desc">Most Courts</option>
-                </select>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Results Summary Bar */}
-        <div className="flex items-center justify-between pb-3 mb-5 border-b border-[#28303F] text-xs font-medium text-slate-400">
-          <div className="flex items-center gap-2">
-            <span>
-              Showing <strong className="text-white font-black">{venues.length}</strong> verified {venues.length === 1 ? 'facility' : 'facilities'}
-              {hasFilters && ' matching your criteria'}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-lime-400 animate-pulse" />
-            <span className="text-slate-300 font-semibold">Live Availability</span>
-          </div>
-        </div>
-
-        {/* Venue Results Section */}
-        {error ? (
-          <div className="flex flex-col items-center justify-center py-16 px-4 bg-[#0F131C] rounded-2xl border border-rose-500/30 text-center" role="alert">
-            <div className="w-14 h-14 rounded-2xl bg-rose-500/10 text-rose-400 flex items-center justify-center mb-4">
-              <AlertCircle className="w-7 h-7" />
-            </div>
-            <h2 className="text-lg font-bold text-white mb-1">Unable to Load Venues</h2>
-            <p className="text-sm text-slate-400 max-w-sm mb-6 leading-relaxed">{error}</p>
-            <Button
-              variant="primary"
-              size="md"
-              onClick={load}
-            >
-              Retry Search
-            </Button>
-          </div>
-        ) : loading ? (
-          <>
-            <div className="flex items-center justify-between text-xs font-semibold text-slate-400 mb-5">
-              <span className="flex items-center gap-2">
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-lime-400" />
-                Scanning sports venues…
-              </span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[...Array(6)].map((_, i) => (
-                <SkeletonCard key={i} />
-              ))}
-            </div>
-          </>
-        ) : venues.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 px-4 bg-[#0F131C] rounded-2xl border border-[#28303F] text-center">
-            <div className="w-16 h-16 rounded-3xl bg-[#181C24] text-slate-400 flex items-center justify-center mb-4">
-              <Building2 className="w-8 h-8 stroke-[1.5]" />
-            </div>
-            <h2 className="text-xl font-bold text-white mb-1">No Matching Venues Found</h2>
-            <p className="text-sm text-slate-400 max-w-md mb-6 leading-relaxed">
-              {hasFilters
-                ? "We couldn't find any sports facilities matching your active filters. Try clearing some criteria or searching for another sport or location."
-                : 'No sports facilities are currently available in this area.'}
-            </p>
-            {hasFilters && (
-              <Button
-                variant="primary"
-                size="md"
-                onClick={clearFilters}
+            {/* Collapsible Detailed Filter Drawer */}
+            {showFilters && (
+              <div
+                id="filter-panel"
+                className="mb-6 p-5 bg-[#0F131C] rounded-2xl border border-[#28303F] shadow-lg animate-in fade-in slide-in-from-top-2"
               >
-                Clear All Filters
-              </Button>
+                <div className="flex items-center justify-between pb-3 mb-4 border-b border-[#28303F]">
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400">Refine Search Results</h2>
+                  {hasFilters && (
+                    <button
+                      type="button"
+                      onClick={clearFilters}
+                      className="text-xs font-bold text-rose-400 hover:text-rose-300 hover:underline transition-colors"
+                    >
+                      Reset All Filters
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                  {/* City Select */}
+                  <div>
+                    <label htmlFor="filter-city" className="block text-xs font-bold text-slate-300 mb-1.5">
+                      Select City
+                    </label>
+                    <select
+                      id="filter-city"
+                      value={city}
+                      onChange={(e) => setCity(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#0B0F17] border border-[#28303F] text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-lime-400 transition-colors"
+                    >
+                      <option value="">All Cities</option>
+                      {meta.cities?.map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Sport Select */}
+                  <div>
+                    <label htmlFor="filter-sport-select" className="block text-xs font-bold text-slate-300 mb-1.5">
+                      Sport Type
+                    </label>
+                    <select
+                      id="filter-sport-select"
+                      value={sport}
+                      onChange={(e) => setSport(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#0B0F17] border border-[#28303F] text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-lime-400 transition-colors"
+                    >
+                      <option value="">All Sports</option>
+                      {meta.sports?.map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Indoor / Outdoor Select */}
+                  <div>
+                    <label htmlFor="filter-venue-type" className="block text-xs font-bold text-slate-300 mb-1.5">
+                      Facility Type
+                    </label>
+                    <select
+                      id="filter-venue-type"
+                      value={indoor}
+                      onChange={(e) => setIndoor(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#0B0F17] border border-[#28303F] text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-lime-400 transition-colors"
+                    >
+                      <option value="">All Facilities</option>
+                      <option value="true">Indoor Arena Only</option>
+                      <option value="false">Outdoor Turf Only</option>
+                    </select>
+                  </div>
+
+                  {/* Max Budget Filter */}
+                  <div>
+                    <label htmlFor="filter-max-price" className="block text-xs font-bold text-slate-300 mb-1.5">
+                      Max Budget
+                    </label>
+                    <select
+                      id="filter-max-price"
+                      value={maxPrice}
+                      onChange={(e) => setMaxPrice(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#0B0F17] border border-[#28303F] text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-lime-400 transition-colors"
+                    >
+                      <option value="">Any Price</option>
+                      <option value="400">Under ₹400 / hr</option>
+                      <option value="500">Under ₹500 / hr</option>
+                      <option value="600">Under ₹600 / hr</option>
+                      <option value="800">Under ₹800 / hr</option>
+                    </select>
+                  </div>
+
+                  {/* Sort By */}
+                  <div>
+                    <label htmlFor="filter-sort-by" className="block text-xs font-bold text-slate-300 mb-1.5">
+                      Sort Results
+                    </label>
+                    <select
+                      id="filter-sort-by"
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#0B0F17] border border-[#28303F] text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-lime-400 transition-colors"
+                    >
+                      <option value="">Default Featured</option>
+                      <option value="price_asc">Price: Low to High</option>
+                      <option value="price_desc">Price: High to Low</option>
+                      <option value="rating_desc">Highest Rated</option>
+                      <option value="courts_desc">Most Courts</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
             )}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {venues.map((v) => (
-              <VenueCard key={v.id} venue={v} />
-            ))}
-          </div>
-        )}
+
+            {/* Results Summary Bar */}
+            <div className="flex items-center justify-between pb-3 mb-5 border-b border-[#28303F] text-xs font-medium text-slate-400">
+              <div className="flex items-center gap-2">
+                <span>
+                  Showing <strong className="text-white font-black">{venues.length}</strong> verified {venues.length === 1 ? 'facility' : 'facilities'}
+                  {hasFilters && ' matching your criteria'}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-lime-400 animate-pulse" />
+                <span className="text-slate-300 font-semibold">Live Availability</span>
+              </div>
+            </div>
+
+            {/* Venue Results Section */}
+            {error ? (
+              <div className="flex flex-col items-center justify-center py-16 px-4 bg-[#0F131C] rounded-2xl border border-rose-500/30 text-center" role="alert">
+                <div className="w-14 h-14 rounded-2xl bg-rose-500/10 text-rose-400 flex items-center justify-center mb-4">
+                  <AlertCircle className="w-7 h-7" />
+                </div>
+                <h2 className="text-lg font-bold text-white mb-1">Unable to Load Venues</h2>
+                <p className="text-sm text-slate-400 max-w-sm mb-6 leading-relaxed">{error}</p>
+                <Button
+                  variant="primary"
+                  size="md"
+                  onClick={load}
+                >
+                  Retry Search
+                </Button>
+              </div>
+            ) : loading ? (
+              <>
+                <div className="flex items-center justify-between text-xs font-semibold text-slate-400 mb-5">
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-lime-400" />
+                    Scanning sports venues…
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {[...Array(6)].map((_, i) => (
+                    <SkeletonCard key={i} />
+                  ))}
+                </div>
+              </>
+            ) : venues.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 px-4 bg-[#0F131C] rounded-2xl border border-[#28303F] text-center">
+                <div className="w-16 h-16 rounded-3xl bg-[#181C24] text-slate-400 flex items-center justify-center mb-4">
+                  <Building2 className="w-8 h-8 stroke-[1.5]" />
+                </div>
+                <h2 className="text-xl font-bold text-white mb-1">No Matching Venues Found</h2>
+                <p className="text-sm text-slate-400 max-w-md mb-6 leading-relaxed">
+                  {hasFilters
+                    ? "We couldn't find any sports facilities matching your active filters. Try clearing some criteria or searching for another sport or location."
+                    : 'No sports facilities are currently available in this area.'}
+                </p>
+                {hasFilters && (
+                  <Button
+                    variant="primary"
+                    size="md"
+                    onClick={clearFilters}
+                  >
+                    Clear All Filters
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {venues.map((v) => (
+                  <VenueCard key={v.id} venue={v} />
+                ))}
+              </div>
+            )}
           </>
         )}
       </main>

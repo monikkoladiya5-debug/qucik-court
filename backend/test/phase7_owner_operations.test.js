@@ -151,7 +151,11 @@ describe('Phase 7: Owner Operations Dashboard & Lifecycle', () => {
     // Owner 2 tries to reject Owner 1's booking
     const rejectRes = await fetch(`${baseUrl}/api/bookings/${created1HrBookingId}/reject`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${owner2Token}` },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${owner2Token}`,
+      },
+      body: JSON.stringify({ reason: 'COURT_UNAVAILABLE' }),
     });
     assert.equal(rejectRes.status, 403);
     const rejectData = await rejectRes.json();
@@ -180,7 +184,11 @@ describe('Phase 7: Owner Operations Dashboard & Lifecycle', () => {
   it('Owner 1 rejects the 2-hour booking -> transitions to REJECTED', async () => {
     const res = await fetch(`${baseUrl}/api/bookings/${created2HrBookingId}/reject`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${owner1Token}` },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${owner1Token}`,
+      },
+      body: JSON.stringify({ reason: 'COURT_UNAVAILABLE' }),
     });
     assert.equal(res.status, 200);
     const data = await res.json();

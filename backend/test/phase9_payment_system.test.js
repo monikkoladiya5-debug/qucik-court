@@ -78,6 +78,8 @@ before(async () => {
   });
   const cData = await cRes.json();
   courtId = cData.court.id;
+  const courtInStore = store.courts.find((c) => c.id === courtId);
+  if (courtInStore) courtInStore.approvalStatus = 'APPROVED';
 });
 
 after(async () => {

@@ -680,10 +680,10 @@ export default function HomePage() {
                   3
                 </div>
                 <h3 className="font-extrabold text-white text-base sm:text-lg mb-2">
-                  Owner Reviews & Confirm
+                  Instant Confirmation & Play
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
-                  The facility owner reviews and approves your slot. Complete payment, earn loyalty reward points, and show up ready to play.
+                  Your slot reservation is approved and locked. Complete payment securely, earn loyalty reward points, and show up ready to play.
                 </p>
               </div>
             </div>
@@ -795,20 +795,20 @@ export default function HomePage() {
 
               <div className="p-6 rounded-2xl bg-[#0B0F17] border border-[#28303F]">
                 <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center mb-4">
-                  <Sparkles className="w-5 h-5" />
+                  <Star className="w-5 h-5 fill-purple-400/30" />
                 </div>
                 <h3 className="font-bold text-white text-base mb-1.5">
-                  Facility Owner Portal
+                  Verified Player Reviews
                 </h3>
                 <p className="text-xs text-slate-400 leading-relaxed">
-                  Dedicated portal for facility owners to manage court availability, review requests, and monitor booking revenue.
+                  Authentic ratings and verified reviews from players who completed matches at each facility.
                 </p>
               </div>
             </div>
           </div>
         </section>
 
-        {/* 8. Final CTA */}
+        {/* 8. Final Customer CTA */}
         <section className="py-16 lg:py-20 bg-[#0B0F17] text-white text-center border-t border-[#28303F]">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
             <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight mb-4">
@@ -831,9 +831,10 @@ export default function HomePage() {
               <Button
                 variant="secondary"
                 size="lg"
-                onClick={() => navigate('/owner/venues')}
+                onClick={() => navigate('/players')}
+                icon={Users}
               >
-                Facility Owner Portal
+                Find Match Players
               </Button>
             </div>
           </div>
